@@ -145,7 +145,7 @@ module Morpheus::Benchmarking
 
     # finish the current benchmark and optionally print the time taken.
     def stop_benchmark(exit_code=0, err=nil)
-      if @benchmark_record
+      if defined?(@benchmark_record) && @benchmark_record
         @benchmark_record.stop(exit_code, err)
         @last_benchmark_record = @benchmark_record
         @benchmark_record = nil

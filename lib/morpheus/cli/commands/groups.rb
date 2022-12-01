@@ -559,7 +559,7 @@ EOT
       build_option_type_options(opts, options, update_wiki_page_option_types)
       opts.on('--file FILE', "File containing the wiki content. This can be used instead of --content") do |filename|
         full_filename = File.expand_path(filename)
-        if File.exists?(full_filename)
+        if File.exist?(full_filename)
           params['content'] = File.read(full_filename)
         else
           print_red_alert "File not found: #{full_filename}"
@@ -732,7 +732,7 @@ public
 
     def save_groups(groups_map)
       fn = groups_file_path
-      if !Dir.exists?(File.dirname(fn))
+      if !Dir.exist?(File.dirname(fn))
         FileUtils.mkdir_p(File.dirname(fn))
       end
       File.open(fn, 'w') {|f| f.write groups_map.to_yaml } #Store

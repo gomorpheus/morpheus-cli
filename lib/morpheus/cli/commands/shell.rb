@@ -171,18 +171,18 @@ class Morpheus::Cli::Shell
       if !tmpdir
         tmpdir = File.join(@original_home_directory, "tmp")
       end
-      if !File.exists?(tmpdir)
+      if !File.exist?(tmpdir)
         # Morpheus::Logging::DarkPrinter.puts "creating tmpdir #{tmpdir}" if Morpheus::Logging.debug?
         FileUtils.mkdir_p(tmpdir)
       end
       # this won't not happen since we mkdir above
-      if !File.exists?(tmpdir)
+      if !File.exist?(tmpdir)
         raise_command_error "Temporary directory not found. Use environment variable MORPHEUS_CLI_TMPDIR"
       end
       # change to a temporary home directory
       @temporary_home_directory = File.join(tmpdir, "tmpshell-#{rand().to_s[2..7]}")
       
-      #if !File.exists?(@temporary_home_directory)
+      #if !File.exist?(@temporary_home_directory)
         Morpheus::Logging::DarkPrinter.puts "starting temporary shell at #{@temporary_home_directory}" if Morpheus::Logging.debug?
         FileUtils.mkdir_p(@temporary_home_directory)
       # end
@@ -209,21 +209,21 @@ class Morpheus::Cli::Shell
         # not just in shell
         # .morpheus_profile has aliases
         # this has already been loaded, probably should reload it...
-        if File.exists?(File.join(@previous_home_directory, ".morpheus_profile"))
+        if File.exist?(File.join(@previous_home_directory, ".morpheus_profile"))
           FileUtils.cp(File.join(@previous_home_directory, ".morpheus_profile"), File.join(@temporary_home_directory, ".morpheus_profile"))
         end
         if @norc != true
-          if File.exists?(File.join(@previous_home_directory, ".morpheusrc"))
+          if File.exist?(File.join(@previous_home_directory, ".morpheusrc"))
             FileUtils.cp(File.join(@previous_home_directory, ".morpheusrc"), File.join(@temporary_home_directory, ".morpheusrc"))
           end
         end
-        if File.exists?(File.join(@previous_home_directory, "appliances"))
+        if File.exist?(File.join(@previous_home_directory, "appliances"))
           FileUtils.cp(File.join(@previous_home_directory, "appliances"), File.join(@temporary_home_directory, "appliances"))
         end
-        if File.exists?(File.join(@previous_home_directory, "credentials"))
+        if File.exist?(File.join(@previous_home_directory, "credentials"))
           FileUtils.cp(File.join(@previous_home_directory, "credentials"), File.join(@temporary_home_directory, "credentials"))
         end
-        if File.exists?(File.join(@previous_home_directory, "groups"))
+        if File.exist?(File.join(@previous_home_directory, "groups"))
           FileUtils.cp(File.join(@previous_home_directory, "groups"), File.join(@temporary_home_directory, "groups"))
         end
         # stay logged in
@@ -258,7 +258,7 @@ class Morpheus::Cli::Shell
 
     # execute startup script
     if !@norc
-      if File.exists?(Morpheus::Cli::DotFile.morpheusrc_filename)
+      if File.exist?(Morpheus::Cli::DotFile.morpheusrc_filename)
         @history_logger.info("load source #{Morpheus::Cli::DotFile.morpheusrc_filename}") if @history_logger
         Morpheus::Cli::DotFile.new(Morpheus::Cli::DotFile.morpheusrc_filename).execute()
       end
@@ -372,7 +372,7 @@ class Morpheus::Cli::Shell
           out <<  "\t#{cmd.to_s}\n"
         }
         out << "\n"
-        out << "For more information, see https://github.com/gomorpheus/morpheus-cli/wiki"
+        out << "For more information, see https://clidocs.morpheusdata.com"
         out << "\n"
         print out
         return 0
@@ -386,12 +386,12 @@ class Morpheus::Cli::Shell
         # clear registry
         Morpheus::Cli::CliRegistry.instance.flush
         # reload code
-        Morpheus::Cli.load!
+        Morpheus::Cli.reload!
         # execute startup scripts
-        if File.exists?(Morpheus::Cli::DotFile.morpheus_profile_filename)
+        if File.exist?(Morpheus::Cli::DotFile.morpheus_profile_filename)
           Morpheus::Cli::DotFile.new(Morpheus::Cli::DotFile.morpheus_profile_filename).execute()
         end
-        if File.exists?(Morpheus::Cli::DotFile.morpheusrc_filename)
+        if File.exist?(Morpheus::Cli::DotFile.morpheusrc_filename)
           Morpheus::Cli::DotFile.new(Morpheus::Cli::DotFile.morpheusrc_filename).execute()
         end
         # recalculate shell environment
@@ -486,7 +486,11 @@ class Morpheus::Cli::Shell
       rescue SystemExit => cmdexit
         # nothing to do, assume the command that exited printed an error already
         # print "\n"
-        exit_code, err = cmdexit.status, "Command exited early."
+        if cmdexit.success?
+          exit_code, err = cmdexit.status, nil
+        else
+          exit_code, err = cmdexit.status, "Command exited early."
+        end
       rescue => e
         # some other type of failure..
         @history_logger.error "#{e.message}" if @history_logger
@@ -538,10 +542,10 @@ class Morpheus::Cli::Shell
 
   def load_history_logger
     file_path = history_file_path
-    if !Dir.exists?(File.dirname(file_path))
+    if !Dir.exist?(File.dirname(file_path))
       FileUtils.mkdir_p(File.dirname(file_path))
     end
-    if !File.exists?(file_path)
+    if !File.exist?(file_path)
       FileUtils.touch(file_path)
       FileUtils.chmod(0600, file_path)
     end
@@ -745,7 +749,7 @@ class Morpheus::Cli::Shell
   def flush_history(n=nil)
     # todo: support only flushing last n commands
       file_path = history_file_path
-      if File.exists?(file_path)
+      if File.exist?(file_path)
         File.truncate(file_path, 0)
       end
       @history = {}

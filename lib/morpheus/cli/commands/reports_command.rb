@@ -396,12 +396,12 @@ class Morpheus::Cli::ReportsCommand
         report_format = "csv"
       end
       
-      if Dir.exists?(outfile)
+      if Dir.exist?(outfile)
         print_red_alert "[file] is invalid. It is the name of an existing directory: #{outfile}"
         return 1
       end
       destination_dir = File.dirname(outfile)
-      if !Dir.exists?(destination_dir)
+      if !Dir.exist?(destination_dir)
         if do_mkdir
           print cyan,"Creating local directory #{destination_dir}",reset,"\n"
           FileUtils.mkdir_p(destination_dir)
@@ -410,7 +410,7 @@ class Morpheus::Cli::ReportsCommand
           return 1
         end
       end
-      if File.exists?(outfile)
+      if File.exist?(outfile)
         if do_overwrite
           # uhh need to be careful wih the passed filepath here..
           # don't delete, just overwrite.

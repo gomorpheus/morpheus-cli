@@ -172,7 +172,7 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
       end
       opts.on('--file FILE', "File containing the script. This can be used instead of --script" ) do |filename|
         full_filename = File.expand_path(filename)
-        if File.exists?(full_filename)
+        if File.exist?(full_filename)
           params['script'] = File.read(full_filename)
         else
           print_red_alert "File not found: #{full_filename}"
@@ -266,7 +266,7 @@ class Morpheus::Cli::LibraryContainerScriptsCommand
       end
       opts.on('--file FILE', "File containing the script. This can be used instead of --script" ) do |filename|
         full_filename = File.expand_path(filename)
-        if File.exists?(full_filename)
+        if File.exist?(full_filename)
           params['script'] = File.read(full_filename)
         else
           print_red_alert "File not found: #{full_filename}"

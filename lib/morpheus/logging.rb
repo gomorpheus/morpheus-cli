@@ -85,18 +85,18 @@ module Morpheus::Logging
       msg = msg.clone
       # looks for RestClient format (hash.inspect) and request/curl output name: value
       msg.gsub!(/Authorization\"\s?\=\>\s?\"Bearer [^"]+/i, 'Authorization"=>"Bearer ************')
-      msg.gsub!(/Authorization\:\s?Bearer [^"'']+/i, 'Authorization: Bearer ************')
+      msg.gsub!(/Authorization\:\s?Bearer [^"']+/i, 'Authorization: Bearer ************')
       # msg.gsub!(/#{AUTHORIZATION_HEADER}\"\s?\=\>\s?\"Bearer [^"]+/, "#{AUTHORIZATION_HEADER}"=>"Bearer ************")
-      # msg.gsub!(/#{AUTHORIZATION_HEADER}\:\s?Bearer [^"'']+/, "#{AUTHORIZATION_HEADER}: Bearer ************")
+      # msg.gsub!(/#{AUTHORIZATION_HEADER}\:\s?Bearer [^"']+/, "#{AUTHORIZATION_HEADER}: Bearer ************")
       SECRET_TOKEN_HEADERS.each do |header|
         msg.gsub!(/#{header}\"\s?\=\>\s?\"[^"]+/, "#{header}\"=>\"************")
-        msg.gsub!(/#{header}\:\s?[^"'']+/, "#{header}: ************")
+        msg.gsub!(/#{header}\:\s?[^"']+/, "#{header}: ************")
       end
       msg.gsub!(/password\"\: "[^"]+/, 'password": "************') # json properties ending with password
       msg.gsub!(/Password\"\: "[^"]+/, 'Password": "************') # json properties ending with Password
       msg.gsub!(/password\"\s?\=\>\s?\"[^"]+/i, 'password"=>"************')
       msg.gsub!(/password\=\"[^"]+/i, 'password="************')
-      msg.gsub!(/password\=[^"'&\Z]+/i, 'password=************') # buggy, wont work with ampersand or quotes in passwords! heh
+      msg.gsub!(/password\=[^"'&]+/i, 'password=************') # buggy, wont work with ampersand or quotes in passwords! heh
       msg.gsub!(/passwordConfirmation\=[^" ]+/i, 'passwordConfirmation="************')
       msg.gsub!(/passwordConfirmation\=[^" ]+/i, 'passwordConfirmation=************')
     end

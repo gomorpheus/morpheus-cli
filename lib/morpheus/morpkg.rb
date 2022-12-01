@@ -9,7 +9,7 @@ module Morpheus
     def self.parse_package_manifest(source_directory)
       source_directory = File.expand_path(source_directory)
       manifest_filename = File.join(source_directory, "package-manifest.json")
-      if !File.exists?(manifest_filename)
+      if !File.exist?(manifest_filename)
         raise "Package manifest file not found: #{manifest_filename}"
       end
       manifest = JSON.parse(File.read(manifest_filename))
@@ -46,10 +46,10 @@ module Morpheus
       elsif File.directory?(outfile)
         outfile = File.join(outfile, "#{code}-#{version}.morpkg")
       end
-      if Dir.exists?(outfile)
+      if Dir.exist?(outfile)
         raise "Invalid package target. #{outfile} is the name of an existing directory."
       end
-      if File.exists?(outfile)
+      if File.exist?(outfile)
         if do_overwrite
           # don't delete, just overwrite.
           # File.delete(outfile)
@@ -58,7 +58,7 @@ module Morpheus
         end
       end
       # build directories if needed
-      if !Dir.exists?(File.dirname(outfile))
+      if !Dir.exist?(File.dirname(outfile))
         Dir.mkdir(File.dirname(outfile))
       end
 

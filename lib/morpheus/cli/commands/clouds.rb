@@ -891,7 +891,7 @@ class Morpheus::Cli::Clouds
       build_option_type_options(opts, options, update_wiki_page_option_types)
       opts.on('--file FILE', "File containing the wiki content. This can be used instead of --content") do |filename|
         full_filename = File.expand_path(filename)
-        if File.exists?(full_filename)
+        if File.exist?(full_filename)
           params['content'] = File.read(full_filename)
         else
           print_red_alert "File not found: #{full_filename}"
@@ -987,7 +987,7 @@ EOT
         logo_file = 'null' # clear it
       else
         filename = File.expand_path(filename)
-        if !File.exists?(filename)
+        if !File.exist?(filename)
           print_red_alert "File not found: #{filename}"
           exit 1
         end
@@ -1037,7 +1037,7 @@ EOT
         dark_logo_file = 'null' # clear it
       else
         filename = File.expand_path(filename)
-        if !File.exists?(filename)
+        if !File.exist?(filename)
           print_red_alert "File not found: #{filename}"
           exit 1
         end

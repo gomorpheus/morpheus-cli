@@ -169,7 +169,7 @@ EOT
       return 0, nil
     else
       print red + "ERROR" + reset + " HTTP #{http_response.code}" + "\n" if !options[:quiet]
-      if File.exists?(outfile) && File.file?(outfile)
+      if File.exist?(outfile) && File.file?(outfile)
         Morpheus::Logging::DarkPrinter.puts "Deleting bad file download: #{outfile}" if Morpheus::Logging.debug?
         File.delete(outfile)
       end

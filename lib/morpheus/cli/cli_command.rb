@@ -406,7 +406,7 @@ module Morpheus
               options[:payload_file] = val.to_s
               begin
                 payload_file = File.expand_path(options[:payload_file])
-                if !File.exists?(payload_file) || !File.file?(payload_file)
+                if !File.exist?(payload_file) || !File.file?(payload_file)
                   raise ::OptionParser::InvalidOption.new("File not found: #{payload_file}")
                   #return false
                 end
@@ -422,7 +422,7 @@ module Morpheus
             opts.on('--payload-dir DIRECTORY', String, "Payload from a local directory containing 1-N JSON or YAML files, skip all prompting") do |val|
               options[:payload_dir] = val.to_s
               payload_dir = File.expand_path(options[:payload_dir])
-              if !Dir.exists?(payload_dir) || !File.directory?(payload_dir)
+              if !Dir.exist?(payload_dir) || !File.directory?(payload_dir)
                 raise ::OptionParser::InvalidOption.new("Directory not found: #{payload_dir}")
               end
               payload = {}
@@ -592,7 +592,7 @@ module Morpheus
             end unless excludes.include?(:remote_token)
             opts.on( '--token-file FILE', String, "Token File, read a file containing the access token." ) do |val|
               token_file = File.expand_path(val)
-              if !File.exists?(token_file) || !File.file?(token_file)
+              if !File.exist?(token_file) || !File.file?(token_file)
                 raise ::OptionParser::InvalidOption.new("File not found: #{token_file}")
               end
               options[:remote_token] = File.read(token_file).to_s.split("\n").first.strip
@@ -609,7 +609,7 @@ module Morpheus
               end
               opts.on( '--password-file FILE', String, "Password File, read a file containing the password for authentication." ) do |val|
                 password_file = File.expand_path(val)
-                if !File.exists?(password_file) || !File.file?(password_file)
+                if !File.exist?(password_file) || !File.file?(password_file)
                   raise ::OptionParser::InvalidOption.new("File not found: #{password_file}")
                 end
                 file_content = File.read(password_file) #.strip
@@ -914,12 +914,12 @@ module Morpheus
 
         opts.on('--hidden-help', "Print help that includes all the hidden options, like this one." ) do
           puts opts.full_help_message({show_hidden_options:true})
-          exit # return 0 maybe?
+          exit 0 # return 0 maybe?
         end
         opts.add_hidden_option('--hidden-help') if opts.is_a?(Morpheus::Cli::OptionParser)
         opts.on('-h', '--help', "Print this help" ) do
           puts opts
-          exit # return 0 maybe?
+          exit 0 # return 0 maybe?
         end
 
         opts
@@ -1012,9 +1012,9 @@ module Morpheus
             out << "\n"
           }
         end
-        if command_description
+        if command_description && !command_description.to_s.strip.empty?
           out << "\n"
-          out << "#{command_description}\n"
+          out << "#{command_description.strip}\n"
         end
         # out << "\n"
         out
@@ -1449,11 +1449,11 @@ module Morpheus
       def validate_outfile(outfile, options)
         full_filename = File.expand_path(outfile)
         outdir = File.dirname(full_filename)
-        if Dir.exists?(full_filename)
+        if Dir.exist?(full_filename)
           print_red_alert "[local-file] is invalid. It is the name of an existing directory: #{outfile}"
           return false
         end
-        if !Dir.exists?(outdir)
+        if !Dir.exist?(outdir)
           if options[:mkdir]
             print cyan,"Creating local directory #{outdir}",reset,"\n"
             FileUtils.mkdir_p(outdir)
@@ -1462,7 +1462,7 @@ module Morpheus
             return false
           end
         end
-        if File.exists?(full_filename) && !options[:overwrite]
+        if File.exist?(full_filename) && !options[:overwrite]
           print_red_alert "[local-file] is invalid. File already exists: #{outfile}\nUse -f to overwrite the existing file."
           return false
         end
@@ -1753,6 +1753,9 @@ module Morpheus
 
       module ClassMethods
 
+        # attr_writer :command_name, :command_description, :hidden_command, :default_refresh_interval,
+        #             :subcommands, :hidden_subcommands, :default_subcommand, :subcommand_aliases, :subcommand_descriptions
+
         def prog_name
           "morpheus"
         end
@@ -1779,7 +1782,11 @@ module Morpheus
         # alias :command_name= :set_command_name
 
         def hidden_command
-          !!@hidden_command
+          defined?(@hidden_command) && @hidden_command == true
+        end
+
+        def hidden_subcommands
+          @hidden_subcommands ||= []
         end
 
         def set_subcommands_hidden(*cmds)
@@ -1791,7 +1798,7 @@ module Morpheus
         end
 
         def command_description
-          @command_description
+          @command_description ||= ""
         end
 
         def set_command_description(val)
@@ -1880,10 +1887,8 @@ module Morpheus
 
         def visible_subcommands
           cmds = subcommands.clone
-          if @hidden_subcommands && !@hidden_subcommands.empty?
-            @hidden_subcommands.each do |hidden_cmd|
-              cmds.delete(hidden_cmd.to_s.gsub('_', '-'))
-            end
+          hidden_subcommands.each do |hidden_cmd|
+            cmds.delete(hidden_cmd.to_s.gsub('_', '-'))
           end
           cmds
         end

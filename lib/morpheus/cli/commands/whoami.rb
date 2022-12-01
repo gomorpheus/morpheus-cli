@@ -263,7 +263,7 @@ EOT
 
     def save_whoami_file(appliance_name, user_id, json_response)
       fn = File.join(whoami_file_path, appliance_name.to_s, user_id.to_s + ".json")
-      if !Dir.exists?(File.dirname(fn))
+      if !Dir.exist?(File.dirname(fn))
         FileUtils.mkdir_p(File.dirname(fn))
       end
       Morpheus::Logging::DarkPrinter.puts "writing file #{fn}" if Morpheus::Logging.debug?

@@ -383,7 +383,6 @@ class Morpheus::Cli::ArchivesCommand
   end
 
   def remove_bucket(args)
-    full_command_string = "#{command_name} remove #{args.join(' ')}".strip
     options = {}
     query_params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
@@ -414,7 +413,7 @@ class Morpheus::Cli::ArchivesCommand
       end
       @archive_buckets_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @archive_buckets_interface.dry.destroy(archive_bucket['id'], query_params), full_command_string
+        print_dry_run @archive_buckets_interface.dry.destroy(archive_bucket['id'], query_params)
         return 0
       end
       json_response = @archive_buckets_interface.destroy(archive_bucket['id'], query_params)
@@ -470,7 +469,7 @@ class Morpheus::Cli::ArchivesCommand
       puts_error  "#{command_name} missing argument: [local-file]\n#{optparse}"
       return 1
     end
-    if !File.exists?(local_file_path)
+    if !File.exist?(local_file_path)
       print_error Morpheus::Terminal.angry_prompt
       puts_error  "#{command_name} bad argument: [local-file]\nFile '#{local_file_path}' was not found.\n#{optparse}"
       return 1
@@ -595,7 +594,7 @@ class Morpheus::Cli::ArchivesCommand
       else
 
         # upload file
-        if !File.exists?(local_file_path) && !File.file?(local_file_path)
+        if !File.exist?(local_file_path) && !File.file?(local_file_path)
           print_error Morpheus::Terminal.angry_prompt
           puts_error  "#{command_name} bad argument: [local-file]\nFile '#{local_file_path}' was not found.\n#{optparse}"
           return 1
@@ -886,7 +885,6 @@ class Morpheus::Cli::ArchivesCommand
   end
 
   def get_file(args)
-    full_command_string = "#{command_name} get-file #{args.join(' ')}".strip
     options = {}
     max_links = 10
     max_history = 10
@@ -929,9 +927,9 @@ class Morpheus::Cli::ArchivesCommand
       @archive_files_interface.setopts(options)
       if options[:dry_run]
         if file_id
-          print_dry_run @archive_files_interface.dry.get(file_id, params), full_command_string
+          print_dry_run @archive_files_interface.dry.get(file_id, params)
         else
-          print_dry_run @archive_buckets_interface.dry.list_files(bucket_id, file_path, params), full_command_string
+          print_dry_run @archive_buckets_interface.dry.list_files(bucket_id, file_path, params)
         end
         return 0
       end
@@ -1211,7 +1209,6 @@ class Morpheus::Cli::ArchivesCommand
   end
 
   def download_file(args)
-    full_command_string = "#{command_name} download #{args.join(' ')}".strip
     options = {}
     outfile = nil
     do_overwrite = false
@@ -1256,15 +1253,15 @@ class Morpheus::Cli::ArchivesCommand
       #   outfile = File.join(outfile, File.basename(full_file_path))
       # end
       outfile = File.expand_path(outfile)
-      if Dir.exists?(outfile)
+      if Dir.exist?(outfile)
         outfile = File.join(outfile, File.basename(full_file_path))
       end
-      if Dir.exists?(outfile)
+      if Dir.exist?(outfile)
         print_red_alert "[local-file] is invalid. It is the name of an existing directory: #{outfile}"
         return 1
       end
       destination_dir = File.dirname(outfile)
-      if !Dir.exists?(destination_dir)
+      if !Dir.exist?(destination_dir)
         if do_mkdir
           print cyan,"Creating local directory #{destination_dir}",reset,"\n"
           FileUtils.mkdir_p(destination_dir)
@@ -1273,7 +1270,7 @@ class Morpheus::Cli::ArchivesCommand
           return 1
         end
       end
-      if File.exists?(outfile)
+      if File.exist?(outfile)
         if do_overwrite
           # uhh need to be careful wih the passed filepath here..
           # don't delete, just overwrite.
@@ -1288,11 +1285,10 @@ class Morpheus::Cli::ArchivesCommand
       begin
         @archive_files_interface.setopts(options)
         if options[:dry_run]
-          # print_dry_run @archive_files_interface.dry.download_file_by_path(full_file_path), full_command_string
           if use_public_url
-            print_dry_run @archive_files_interface.dry.download_public_file_by_path_chunked(full_file_path, outfile), full_command_string
+            print_dry_run @archive_files_interface.dry.download_public_file_by_path_chunked(full_file_path, outfile)
           else
-            print_dry_run @archive_files_interface.dry.download_file_by_path_chunked(full_file_path, outfile), full_command_string
+            print_dry_run @archive_files_interface.dry.download_file_by_path_chunked(full_file_path, outfile)
           end
           return 0
         end
@@ -1322,7 +1318,7 @@ class Morpheus::Cli::ArchivesCommand
             print red + "ERROR" + reset + " HTTP #{http_response.code}" + "\n"
           end
           # F it, just remove a bad result
-          if File.exists?(outfile) && File.file?(outfile)
+          if File.exist?(outfile) && File.file?(outfile)
             Morpheus::Logging::DarkPrinter.puts "Deleting bad file download: #{outfile}" if Morpheus::Logging.debug?
             File.delete(outfile)
           end
@@ -1348,7 +1344,6 @@ class Morpheus::Cli::ArchivesCommand
   end
 
   def read_file(args)
-    full_command_string = "archives read #{args.join(' ')}".strip
     options = {}
     outfile = nil
     do_overwrite = false
@@ -1374,7 +1369,7 @@ class Morpheus::Cli::ArchivesCommand
       full_file_path = "#{bucket_id}/#{file_path}".squeeze('/')
       @archive_files_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @archive_files_interface.dry.download_file_by_path(full_file_path), full_command_string
+        print_dry_run @archive_files_interface.dry.download_file_by_path(full_file_path)
         return 1
       end
       if archive_file['rawSize'].to_i > 1024
@@ -1497,7 +1492,6 @@ class Morpheus::Cli::ArchivesCommand
   end
 
   def download_file_link(args)
-    full_command_string = "archives download-link #{args.join(' ')}".strip
     options = {}
     outfile = nil
     do_overwrite = false
@@ -1533,15 +1527,15 @@ class Morpheus::Cli::ArchivesCommand
       # full_file_path = args[0]
       outfile = File.expand_path(args[1])
       # [local-file] must include the full file name when downloading a link
-      # if Dir.exists?(outfile)
+      # if Dir.exist?(outfile)
       #   outfile = File.join(outfile, File.basename(archive_file['name']))
       # end
-      if Dir.exists?(outfile)
+      if Dir.exist?(outfile)
         print_red_alert "[local-file] is invalid. It is the name of an existing directory: #{outfile}"
         return 1
       end
       destination_dir = File.dirname(outfile)
-      if !Dir.exists?(destination_dir)
+      if !Dir.exist?(destination_dir)
         if do_mkdir
           print cyan,"Creating local directory #{destination_dir}",reset,"\n"
           FileUtils.mkdir_p(destination_dir)
@@ -1550,7 +1544,7 @@ class Morpheus::Cli::ArchivesCommand
           return 1
         end
       end
-      if File.exists?(outfile)
+      if File.exist?(outfile)
         if do_overwrite
           # uhh need to be careful wih the passed filepath here..
           # don't delete, just overwrite.
@@ -1566,8 +1560,7 @@ class Morpheus::Cli::ArchivesCommand
       end
       @archive_files_interface.setopts(options)
       if options[:dry_run]
-        # print_dry_run @archive_files_interface.dry.download_file_by_path(full_file_path), full_command_string
-        print_dry_run @archive_files_interface.dry.download_file_by_link_chunked(link_key, outfile), full_command_string
+        print_dry_run @archive_files_interface.dry.download_file_by_link_chunked(link_key, outfile)
         return 1
       end
       if !options[:quiet]
@@ -1591,7 +1584,7 @@ class Morpheus::Cli::ArchivesCommand
           print red + "ERROR" + reset + " HTTP #{http_response.code}" + "\n"
         end
         # F it, just remove a bad result
-        if File.exists?(outfile) && File.file?(outfile)
+        if File.exist?(outfile) && File.file?(outfile)
           Morpheus::Logging::DarkPrinter.puts "Deleting bad file download: #{outfile}" if Morpheus::Logging.debug?
           File.delete(outfile)
         end
@@ -1608,7 +1601,6 @@ class Morpheus::Cli::ArchivesCommand
   end
 
   def download_bucket_zip(args)
-    full_command_string = "#{command_name} download-bucket #{args.join(' ')}".strip
     options = {}
     outfile = nil
     do_overwrite = false
@@ -1651,10 +1643,10 @@ class Morpheus::Cli::ArchivesCommand
       #   outfile = File.join(outfile, archive_bucket['name'].to_s) + ".zip"
       # end
       outfile = File.expand_path(outfile)
-      if Dir.exists?(outfile)
+      if Dir.exist?(outfile)
         outfile = File.join(outfile, archive_bucket['name'].to_s) + ".zip"
       end
-      if Dir.exists?(outfile)
+      if Dir.exist?(outfile)
         print_red_alert "[local-file] is invalid. It is the name of an existing directory: #{outfile}"
         return 1
       end
@@ -1663,7 +1655,7 @@ class Morpheus::Cli::ArchivesCommand
         outfile << ".zip"
       end
       destination_dir = File.dirname(outfile)
-      if !Dir.exists?(destination_dir)
+      if !Dir.exist?(destination_dir)
         if do_mkdir
           print cyan,"Creating local directory #{destination_dir}",reset,"\n"
           FileUtils.mkdir_p(destination_dir)
@@ -1672,7 +1664,7 @@ class Morpheus::Cli::ArchivesCommand
           return 1
         end
       end
-      if File.exists?(outfile)
+      if File.exist?(outfile)
         if do_overwrite
           # uhh need to be careful wih the passed filepath here..
           # don't delete, just overwrite.
@@ -1686,7 +1678,7 @@ class Morpheus::Cli::ArchivesCommand
       end
       @archive_buckets_interface.setopts(options)
       if options[:dry_run]
-        print_dry_run @archive_buckets_interface.dry.download_bucket_zip_chunked(bucket_id, outfile), full_command_string
+        print_dry_run @archive_buckets_interface.dry.download_bucket_zip_chunked(bucket_id, outfile)
         return 1
       end
       if !options[:quiet]
@@ -1707,7 +1699,7 @@ class Morpheus::Cli::ArchivesCommand
           print red + "ERROR" + reset + " HTTP #{http_response.code}" + "\n"
         end
         # F it, just remove a bad result
-        if File.exists?(outfile) && File.file?(outfile)
+        if File.exist?(outfile) && File.file?(outfile)
           Morpheus::Logging::DarkPrinter.puts "Deleting bad file download: #{outfile}" if Morpheus::Logging.debug?
           File.delete(outfile)
         end

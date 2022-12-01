@@ -81,14 +81,14 @@ EOT
         print_error "#{red}It is the name of an existing directory.#{reset}\n"
         return 1
       end
-      if File.exists?(fn) && options[:overwrite] != true
+      if File.exist?(fn) && options[:overwrite] != true
         print_error "#{red}Output file '#{fn}' already exists.#{reset}\n"
         print_error "#{red}Use --overwrite to overwrite the existing file.#{reset}\n"
         return 1
       end
     end
     exit_code, err = 0, nil
-    if regenerate || !File.exists?(fn)
+    if regenerate || !File.exist?(fn)
       #Morpheus::Logging::DarkPrinter.puts "generating manual #{fn} ..." if Morpheus::Logging.debug? && !options[:quiet]
       exit_code, err = Morpheus::Cli::ManCommand.generate_manual(options)
     end
@@ -148,7 +148,7 @@ EOT
 
   # def self.save_manual(fn, content)
   #   # fn = man_file_path()
-  #   if !Dir.exists?(File.dirname(fn))
+  #   if !Dir.exist?(File.dirname(fn))
   #     FileUtils.mkdir_p(File.dirname(fn))
   #   end
   #   Morpheus::Logging::DarkPrinter.puts "saving manual to #{fn}" if Morpheus::Logging.debug?
@@ -162,13 +162,13 @@ EOT
     fn = man_file_path()
     if options[:outfile]
       fn = File.expand_path(options[:outfile])
-      if File.exists?(fn) && options[:overwrite] != true
+      if File.exist?(fn) && options[:overwrite] != true
         print_error "#{red}Output file '#{options[:outfile]}' already exists.#{reset}\n"
         print_error "#{red}Use --overwrite to overwrite the existing file.#{reset}\n"
         return 1, "output file already exists"
       end
     end
-    if !Dir.exists?(File.dirname(fn))
+    if !Dir.exist?(File.dirname(fn))
       FileUtils.mkdir_p(File.dirname(fn))
     end
     Morpheus::Logging::DarkPrinter.puts "generating manual #{fn}" if Morpheus::Logging.debug? && !options[:quiet]
@@ -202,7 +202,7 @@ EOT
 
     Use the command `#{prog_name} remote add` to connect to your Morpheus appliance.
 
-    To learn more, visit https://github.com/gomorpheus/morpheus-cli/wiki/Getting-Started
+    To learn more, visit https://clidocs.morpheusdata.com
 
     To learn more about the Morpheus Appliance, visit https://www.morpheusdata.com
 

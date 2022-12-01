@@ -33,7 +33,7 @@ class Morpheus::Cli::Login
       end
       opts.on( '--password-file FILE', String, "Password File, read a file containing the password." ) do |val|
         password_file = File.expand_path(val)
-        if !File.exists?(password_file) || !File.file?(password_file) # check readable too
+        if !File.exist?(password_file) || !File.file?(password_file) # check readable too
           raise ::OptionParser::InvalidOption.new("File not found: #{password_file}")
         end
         password = File.read(password_file) #.to_s.split("\n").first.strip
