@@ -957,7 +957,12 @@ class Morpheus::APIClient
   protected
 
   def validate_id!(id, param_name='id')
-    raise "#{self.class} passed a blank #{param_name}!" if id.to_s.strip.empty?
+    if !(id.is_a?(String) || id.is_a?(Integer))
+      raise "#{self.class} passed an invalid #{param_name}! Expected String or Integer and got (#{id.class}) #{id.inspect}"
+    elsif id.to_s.strip.empty?
+      raise "#{self.class} passed a blank #{param_name}!"
+    end
+    return true
   end
 
 end
