@@ -14,12 +14,25 @@ module Morpheus
         default_value = options[:default]
         value_found = false
         while value_found == false do
+          # if default_value.nil?
+          #   print "#{message} (yes/no): "
+          # else
+          #   print "#{message} (yes/no) [#{!!default_value ? 'yes' : 'no'}]: "
+          # end
+          # input = $stdin.gets.chomp!
+
+          # should use Readline.readline to probably
+          Readline.completion_append_character = ""
+          Readline.basic_word_break_characters = ''
+          Readline.completion_proc = nil
           if default_value.nil?
-            print "#{message} (yes/no): "
+            confirm_prompt = "#{message} (yes/no): "
           else
-            print "#{message} (yes/no) [#{!!default_value ? 'yes' : 'no'}]: "
+            confirm_prompt = "#{message} (yes/no) [#{!!default_value ? 'yes' : 'no'}]: "
           end
-          input = $stdin.gets.chomp!
+          input = Readline.readline(confirm_prompt, false).to_s
+          input = input.chomp.strip
+
           if input.empty? && !default_value.nil?
             return !!default_value
           end
@@ -612,6 +625,7 @@ module Morpheus
         end
 
         while !value_found do
+          #Readline.input = $stdin
           Readline.completion_append_character = ""
           Readline.basic_word_break_characters = ''
           Readline.completion_proc = proc {|s| 
@@ -703,6 +717,7 @@ module Morpheus
           elsif no_prompt
             input = default_value
           else
+            #Readline.input = $stdin
             Readline.completion_append_character = ""
             Readline.basic_word_break_characters = ''
             Readline.completion_proc = proc {|s| 
@@ -970,8 +985,21 @@ module Morpheus
       def self.password_prompt(option_type)
         value_found = false
         while !value_found do
-          print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? (' (' + option_type['fieldAddOn'] + ') ') : '' }#{optional_label(option_type)}#{option_type['defaultValue'] ? ' ['+'************'+']' : ''}: "
-          input = $stdin.noecho(&:gets).chomp!
+          #print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? (' (' + option_type['fieldAddOn'] + ') ') : '' }#{optional_label(option_type)}#{option_type['defaultValue'] ? ' ['+'************'+']' : ''}: "
+          #input = $stdin.noecho(&:gets).chomp!
+          Readline.completion_append_character = ""
+          Readline.basic_word_break_characters = ''
+          Readline.completion_proc = nil
+          # needs to work like $stdin.noecho
+          Readline.pre_input_hook = lambda {
+            Readline.output = File.open(Morpheus::Cli.windows? ? 'NUL:' : '/dev/null', 'w')
+            #$stdout = File.open(Morpheus::Cli.windows? ? 'NUL:' : '/dev/null', 'w')
+          }
+          password_prompt = "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? (' (' + option_type['fieldAddOn'] + ') ') : '' }#{optional_label(option_type)}#{option_type['defaultValue'] ? ' ['+'************'+']' : ''}: "
+          input = Readline.readline(password_prompt, false).to_s.chomp
+          Readline.pre_input_hook = nil
+          Readline.output = Morpheus::Terminal.instance.stdout #my_terminal.stdout
+
           value = input
           print "\n"
           if input == '?'
@@ -991,6 +1019,7 @@ module Morpheus
         value = nil
         while !value_found do
           #print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? (' (' + option_type['fieldAddOn'] + ') ') : '' }#{optional_label(option_type)}#{option_type['defaultValue'] ? ' ['+option_type['defaultValue'].to_s+']' : ''}: "
+          #Readline.input = $stdin
           Readline.completion_append_character = ""
           Readline.basic_word_break_characters = ''
           Readline.completion_proc = proc {|s| Readline::FILENAME_COMPLETION_PROC.call(s) }

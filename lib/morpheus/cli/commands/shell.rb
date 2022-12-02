@@ -110,6 +110,13 @@ class Morpheus::Cli::Shell
   end
 
   def handle(args)
+    @clean_shell_mode = false
+    @execute_mode = false
+    @execute_mode_command = nil
+    @norc = false
+    @temporary_shell_mode = false
+    @temporary_home_directory = nil
+    @original_home_directory = nil
     usage = "Usage: morpheus #{command_name}"
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = usage
@@ -159,9 +166,7 @@ class Morpheus::Cli::Shell
       @parent_shell_directories ||= []
       @parent_shell_directories << my_terminal.home_directory
       @previous_home_directory = @parent_shell_directories.last
-      if @original_home_directory.nil?
-        @original_home_directory = @previous_home_directory
-      end
+      @original_home_directory ||= @previous_home_directory
       
       #@norc = true # perhaps?
       # instead of using TMPDIR, create tmp shell directory inside $MORPHEUS_CLI_HOME/tmp
@@ -277,6 +282,8 @@ class Morpheus::Cli::Shell
       result = 0
       @exit_now_please = false
       while !@exit_now_please do
+        #Readline.input = my_terminal.stdin
+        #Readline.input = $stdin
         Readline.completion_append_character = " "
         Readline.completion_proc = @auto_complete
         Readline.basic_word_break_characters = ""
@@ -335,7 +342,6 @@ class Morpheus::Cli::Shell
     if input[0..(prog_name.size)] == "#{prog_name} "
       input = input[(prog_name.size + 1)..-1] || ""
     end
-
     if !input.empty?
 
       if input == 'exit'
@@ -565,7 +571,13 @@ class Morpheus::Cli::Shell
 
     begin
       file_path = history_file_path
-      FileUtils.mkdir_p(File.dirname(file_path))
+      # if !Dir.exist?(File.dirname(file_path))
+      #   FileUtils.mkdir_p(File.dirname(file_path))
+      # end
+      # if !File.exist?(file_path)
+      #   FileUtils.touch(file_path)
+      #   FileUtils.chmod(0600, file_path)
+      # end
 
       File.open(file_path).each_line do |line|
         # this is pretty goofy, but this looks for the format: (cmd $command_number) $command_string
@@ -582,50 +594,11 @@ class Morpheus::Cli::Shell
           # for Ctrl+R history searching
           Readline::HISTORY << cmd
         end
-      end
+      end unless !File.exist?(file_path)
     rescue => e
       # raise e
       puts_error "failed to load history from log: #{e}"
       @history ||= {}
-    end
-    return @history
-  end
-
-  # remove this..
-  def _old_load_history_from_log_file(n_commands=1000)
-    @history ||= {}
-    @last_command_number ||= 0
-
-    begin
-      if Gem.win_platform?
-        return @history
-      end
-      file_path = history_file_path
-      FileUtils.mkdir_p(File.dirname(file_path))
-      # grab extra lines because not all log entries are commands
-      n_lines = n_commands + 500
-      history_lines = `tail -n #{n_lines} #{file_path}`.split(/\n/)
-      command_lines = history_lines.select do |line|
-        line.match(/\(cmd (\d+)\) (.+)/)
-      end
-      command_lines = command_lines.last(n_commands)
-      command_lines.each do |line|
-        matches = line.match(/\(cmd (\d+)\) (.+)/)
-        if matches && matches.size == 3
-          cmd_number = matches[1].to_i
-          cmd = matches[2]
-
-          @last_command_number = cmd_number
-          @history[@last_command_number] = cmd
-
-          # for Ctrl+R history searching
-          Readline::HISTORY << cmd
-        end
-      end
-    rescue => e
-      # raise e
-      # puts "failed to load history from log"
-      @history = {}
     end
     return @history
   end

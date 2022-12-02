@@ -2,6 +2,7 @@ require 'fileutils'
 require 'yaml'
 require 'json'
 require 'io/console'
+require 'stringio'
 require 'rest_client'
 require 'morpheus/logging'
 require 'morpheus/cli/mixins/print_helper'
@@ -112,15 +113,33 @@ module Morpheus
                 end
               end
               if username.empty?
-                print "Username: #{required_blue_prompt} "
-                username = $stdin.gets.chomp!
+                # print "Username: #{required_blue_prompt} "
+                # username = $stdin.gets.chomp!
+                Readline.completion_append_character = ""
+                Readline.basic_word_break_characters = ''
+                Readline.completion_proc = nil
+                username = Readline.readline("Username: #{required_blue_prompt} ", false).to_s.chomp
               else
                 print "Username: #{required_blue_prompt} #{username}\n"
               end
               if password.empty?
-                print "Password: #{required_blue_prompt} "
-                # this should be my_terminal.stdin instead of STDIN and $stdin
-                password = STDIN.noecho(&:gets).chomp!
+                # print "Password: #{required_blue_prompt} "
+                # # this should be my_terminal.stdin instead of STDIN and $stdin
+                # password = $stdin.noecho(&:gets).chomp!
+                # print "\n"
+
+                Readline.completion_append_character = ""
+                Readline.basic_word_break_characters = ''
+                Readline.completion_proc = nil
+                # needs to work like $stdin.noecho
+                Readline.pre_input_hook = lambda {
+                  Readline.output = File.open(Morpheus::Cli.windows? ? 'NUL:' : '/dev/null', 'w')
+                  #$stdout = File.open(Morpheus::Cli.windows? ? 'NUL:' : '/dev/null', 'w')
+                }
+                password = Readline.readline("Password: #{required_blue_prompt} ", false).to_s.chomp
+                Readline.pre_input_hook = nil
+                Readline.output = Morpheus::Terminal.instance.stdout #my_terminal.stdout
+                
                 print "\n"
               else
                 print "Password: #{required_blue_prompt} \n"

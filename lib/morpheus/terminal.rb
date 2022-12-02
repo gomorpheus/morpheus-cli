@@ -113,13 +113,13 @@ module Morpheus
     # @param stderr [IO] Default is STDERR
     # @param [IO] stderr
     # @stderr = stderr
-    def initialize(stdin=STDIN,stdout=STDOUT, stderr=STDERR, homedir=nil)
+    def initialize(stdin=$stdin,stdout=$stdout, stderr=$stderr, homedir=nil)
       attrs = {}
       if stdin.is_a?(Hash)
         attrs = stdin.clone()
-        stdin = attrs[:stdin] || STDIN
-        stdout = attrs[:stdout] || STDOUT
-        stderr = attrs[:stderr] || STDERR
+        stdin = attrs[:stdin] || $stdin
+        stdout = attrs[:stdout] || $stdout
+        stderr = attrs[:stderr] || $stderr
         homedir = attrs[:homedir] || attrs[:home] || attrs[:home_directory]
       end
       # establish IO
@@ -133,7 +133,7 @@ module Morpheus
       set_home_directory(use_homedir)
       
       # use colors by default
-      set_coloring(STDOUT.isatty)
+      set_coloring($stdout.isatty) #rescue nil
       # Term::ANSIColor::coloring = STDOUT.isatty
       # @coloring = Term::ANSIColor::coloring?
 
@@ -196,6 +196,45 @@ module Morpheus
         @stderr = io
       end
       @stderr
+    end
+
+    def with_pipes(opts, &block)
+      originals = {} #{stdout: stdout, stderr: stderr, stdin: stdin}
+      if opts[:stdout]
+        originals[:stdout] = stdout
+        set_stdout(opts[:stdout])
+      end
+      if opts[:stderr]
+        originals[:stderr] = stderr
+        set_stderr(opts[:stderr])
+      end
+      if opts[:stdin]
+        originals[:stdin] = stdin
+        set_stdin(opts[:stdin])
+      end
+      begin
+        yield
+      ensure
+        set_stdout(originals[:stdout]) if originals[:stdout]
+        set_stderr(originals[:stderr]) if originals[:stderr]
+        set_stdin(originals[:stdin]) if originals[:stdin]
+      end
+    end
+
+    def with_stdout(io, &block)
+      with_pipes(stdout:io, &block)
+    end
+
+    def with_stderr(io, &block)
+      with_pipes(stderr:io, &block)
+    end
+
+    def with_stdout_and_stderr(io, &block)
+      with_pipes(stdout:io, stderr:io, &block)
+    end
+
+    def with_stdin(io, &block)
+      with_pipes(stdin:io, &block)
     end
 
     def home_directory=(homedir)
@@ -474,7 +513,6 @@ module Morpheus
             #benchmark_name << " -B"
             start_benchmark(benchmark_name)
           end
-
           # shell is a Singleton command class
           if args[0] == "shell"
             require 'morpheus/cli/commands/shell'

@@ -1402,13 +1402,17 @@ module Morpheus::Cli::PrintHelper
     end
   end
 
-  def format_percent(val, sig_dig=2)
+  def format_percent(val, sig_dig=2, hide_zero=false)
     if val.nil?
       return ""
     end
     percent_value = val.to_f
     if percent_value == 0
-      return "0%"
+      if hide_zero
+        ""
+      else
+        return "0%"
+      end
     else
       return percent_value.round(sig_dig).to_s + "%"
     end

@@ -267,8 +267,8 @@ def establish_test_terminal()
     # login right away to make sure credentials work before attempting to run test suite
     # abort if bad credentials
     #login_status_code, login_error = login()
-    login_status_code, login_error = terminal.execute(%(login "#{escape_arg config[:username]}" "#{escape_arg config[:password]}"))
-    if login_status_code == 0
+    login_results = terminal.execute(%(login "#{escape_arg config[:username]}" "#{escape_arg config[:password]}"))
+    if login_results[0] == 0
       #print_green_success "Established terminal to #{config[:username]}@#{config[:url]}\nStarting the test run now"
     else
       print_red_alert "Failed to login as #{config[:username]}@#{config[:url]}"
@@ -298,7 +298,7 @@ def get_access_token()
   config = get_config()
   appliance = Morpheus::Cli::Remote.load_remote(config[:remote_name])
   if appliance.nil?
-    abort("test appliance not found #{config[:remote_name]}")
+    #abort("test appliance not found #{config[:remote_name]}")
     return nil
   end
   wallet = ::Morpheus::Cli::Credentials.new(appliance[:name], nil).load_saved_credentials()
@@ -358,30 +358,80 @@ def without_authentication(&block)
   return result
 end
 
+# A mock input for automating input to the test terminal stdin
+=begin
 class MockInput
-  def initialize(strings)
-    @strings = [strings].flatten
+  
+  def initialize(*messages)
+    @messages = [messages].flatten
   end
 
   def gets
-    next_string = @strings.shift
-    # Morpheus::Logging::DarkPrinter.puts "(DEBUG) Mocking #gets with: #{next_string}" if Morpheus::Logging.debug?
-    next_string
+    next_message = @messages.shift
+    Morpheus::Logging::DarkPrinter.puts "(DEBUG) Mocking #gets with: #{next_message}" if Morpheus::Logging.debug?
+    if next_message
+      return next_message.to_s.chomp + "\n"
+    else
+      # could prompt when run out of messages..
+      # right now just hit enter
+      #return $stdin.gets()
+      return "\n"
+    end
   end
+
+  # def readlines
+  #   @messages.collect {|s| s + "\n" }
+  # end
+  
+  # act like a File so this works: Readline.input= MockInput.new("exit")
+  # def is_a?(type)
+  #   type == File || super(type)
+  # end
+
 end
 
-def with_input(strings, &block)
-  #todo: fix terminal to actaully use its own stdin, not the global $stdin
-  original_stdin = $stdin
-  #original_stdin = terminal.stdin
+def with_input(*messages, &block)
+  original_stdin = $stdin #todo: fix terminal to actually use its own stdin, not the global $stdin. for now have to write to a file because need to use Readline.input= File
   begin
-    #terminal.set_stdin(MockInput.new(strings))
-    $stdin = MockInput.new(strings)
-    puts "terminal.stdin: (#{terminal.stdin.class}) #{terminal.stdin}"
+    #terminal.set_stdin(MockInput.new(messages))
+    $stdin = MockInput.new(messages)
     yield
   ensure
     #terminal.set_stdin(original_stdin)
     $stdin = original_stdin
+  end
+end
+=end
+
+# send input to CLI terminal stdin to handle interactive prompting
+def with_input(*messages, &block)
+  with_tmpfile_input(*messages, &block)
+end
+
+# send input to CLI shell stdin to handle interactive prompting
+# def with_shell_input(*messages, &block)
+#   with_tmpfile_input(*messages, &block)
+# end
+
+# Set stdin to a File (Readline requires a File object for input=)
+# this way works for all testing purposes
+def with_tmpfile_input(*messages, &block)
+  messages = messages.flatten #.compact
+  original_stdin = $stdin
+  #todo: use temp directory...
+  tmpfilename = ".cli_unit_test_shell_input_#{SecureRandom.hex(10)}.morpheus"
+  file = nil
+  begin
+    File.open(tmpfilename, 'w+') {|f| f.write(messages.join("\n") + "\n") }
+    file = File.new(tmpfilename, 'r')
+    Readline.input = file
+    $stdin = file
+    yield
+  ensure
+    Readline.input = original_stdin
+    $stdin = original_stdin
+    file.close if file && !file.closed?
+    File.delete(tmpfilename) if File.exist?(tmpfilename)
   end
 end
 

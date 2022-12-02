@@ -10,35 +10,13 @@ class TestCase < Test::Unit::TestCase
 
   #todo: move config parsing and establishing test environment and terminal from helper to here..
 
-  # testcase_id provides a random id for the duration of the test run
-  # @@testcase_id = nil
-
-  # # testsuite_id provides a random id for the duration of all TestCase runs
-  # @@testrun_id = nil
-
-  # class << self
-  #   # hook at beginning of tests tests in this class
-  #   def startup
-  #     #puts "TestCase #{self} startup()"
-  #     @@testcase_id = SecureRandom.hex(10)
-  #     @@testrun_id ||= SecureRandom.hex(10)
-  #   end
-
-  #   # hook that is run at the end of all tests in this class
-  #   def shutdown
-  #     #puts "TestCase #{self} shutdown()"
-  #     @@testcase_id = nil
-  #     @@testrun_id = nil
-  #   end
-  # end
-
   # indicates the test requires the user to have a current remote
   # override this to return false if your tests do not require `remote use` as part of its setup
   def requires_remote
     true
   end
 
-  # indicates the test requires the user to be logged in and and authenticated
+  # indicates the test requires the user to be logged in and authenticated
   # override this to return false if your tests do not require `login` as part of its setup
   def requires_authentication
     true
@@ -58,16 +36,6 @@ class TestCase < Test::Unit::TestCase
     #puts "TestCase #{self} teardown()"
     #logout_if_needed() if requires_authentication
   end
-
-  # provides a random id for the duration of the all the tests methods being run for this TestCase
-  # def testcase_id
-  #   @@testcase_id
-  # end
-
-  # # provides a random id for the duration of the all the entire test run, for all TestCase classes
-  # def testrun_id
-  #   @@testrun_id
-  # end
 
 end
 

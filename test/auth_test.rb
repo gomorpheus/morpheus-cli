@@ -42,6 +42,20 @@ class AuthTest < TestCase
     end
   end
 
+  def test_login_prompt
+    with_input @config[:username].to_s, @config[:password] do
+      assert_execute %(login)
+    end
+    with_input @config[:username].to_s, "invalid_password" do
+      assert_error %(login --test)
+    end
+    without_authentication do
+      with_input @config[:username], @config[:password] do
+        assert_execute %(instances list)
+      end
+    end
+  end
+
   def test_login_adhoc
     assert_execute %(login "#{escape_arg @config[:username]}" "#{escape_arg @config[:password]}")
     assert is_logged_in()
