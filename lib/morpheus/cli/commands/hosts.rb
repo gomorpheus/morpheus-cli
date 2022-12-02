@@ -1288,7 +1288,7 @@ class Morpheus::Cli::Hosts
           plan['name'] = "#{plan['name']} (current)"
         end
       end
-      plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'plan', 'type' => 'select', 'fieldLabel' => 'Plan', 'selectOptions' => service_plans_dropdown, 'required' => true, 'description' => 'Choose the appropriately sized plan for this server'}],options[:options])
+      plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'plan', 'type' => 'select', 'fieldLabel' => 'Plan', 'selectOptions' => service_plans_dropdown, 'required' => true, 'defaultValue' => plan_id, 'description' => 'Choose the appropriately sized plan for this server'}],options[:options])
       service_plan = service_plans.find {|sp| sp["id"] == plan_prompt['plan'].to_i }
       payload[:server][:plan] = {id: service_plan["id"]}
 
