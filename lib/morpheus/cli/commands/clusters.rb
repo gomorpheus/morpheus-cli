@@ -3637,7 +3637,7 @@ class Morpheus::Cli::Clusters
       elsif json_response['success']
         print_green_success 'Template applied to Cluster'
       else
-        print_rest_errors(json_response, options)
+        print_red_alert "There was an error #{json_response['msg']}"
       end
     end
   end
@@ -4319,7 +4319,7 @@ class Morpheus::Cli::Clusters
   def available_kube_templates
     option_results = options_interface.options_for_source('availableKubeTemplates')
     available_templates = option_results['data'].collect {|it|
-      {"id" => it["value"], "name" => it["name"], "value" => it["name"]}
+      {"id" => it["value"], "name" => it["name"], "value" => it["value"]}
     }
    
     return available_templates
