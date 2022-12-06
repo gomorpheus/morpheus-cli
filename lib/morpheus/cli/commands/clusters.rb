@@ -23,6 +23,7 @@ class Morpheus::Cli::Clusters
   register_subcommands :update_permissions
   register_subcommands :api_config, :view_api_token, :view_kube_config
   register_subcommands :wiki, :update_wiki
+  register_subcommands :apply_template
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
@@ -3562,6 +3563,85 @@ class Morpheus::Cli::Clusters
     end
   end
 
+  def apply_template(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage( "[cluster] --specTemplate --serviceUrl")
+      opts.on("--specTemplate [TEXT]", String, "Applies Spec Template to Cluster") do |val|
+        options[:specTemplate] = val.to_s
+      end
+      opts.on("--serviceUrl [TEXT]", String, "Url of template to apply to Cluster") do |val|
+        options[:serviceUrl] = val.to_s
+      end
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+      opts.footer = "Apply a Template to a Cluster.\n" +
+                    "[cluster] is required. This is the name or id of an existing cluster."
+    end
+
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+
+    begin
+      payload = nil
+      cluster = nil
+
+      if options[:payload]
+        payload = options[:payload]
+        # support -O OPTION switch on top of --payload
+        if options[:options]
+          payload['cluster'] ||= {}
+          payload['cluster'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) })
+        end
+
+        if !payload['cluster'].empty?
+          cluster = find_cluster_by_name_or_id(payload['cluster']['id'] || payload['cluster']['name'])
+        end
+      else
+        cluster = find_cluster_by_name_or_id(args[0])
+        cluster_payload = {}
+        cluster_payload['specTemplate'] = options[:specTemplate] if !options[:specTemplate].empty?
+        cluster_payload['serviceUrl'] = options[:serviceUrl] if !options[:serviceUrl].empty?
+        payload = cluster_payload
+      end
+
+      if !cluster
+        print_red_alert "No clusters available for update"
+        exit 1
+      end
+
+      if cluster_payload.empty?
+        cluster_payload['specType'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'type' => 'select', 'fieldLabel' => "Type", 'selectOptions' => apply_temp_options, 'required' => true, 'description' => 'Choose type of template being used.'}])['type']
+        if cluster_payload['specType'] == 'specTemplate'
+          cluster_payload['specTemplate'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'specTemplate', 'type' => 'select', 'fieldLabel' => "Spec Template", 'selectOptions' => available_kube_templates, 'required' => true, 'description' => 'Choose a template.'}], options[:options])['specTemplate'] 
+        else
+          cluster_payload['specUrl'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'specUrl', 'type' => 'text', 'fieldLabel' => 'Spec Url', 'required' => true, 'description' => 'Url of template.'}])['specUrl']
+        end
+      elsif cluster_payload['specTemplate']
+        cluster_payload['specType'] = 'specTemplate'
+      else
+        cluster_payload['specType'] = 'url'
+      end
+
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.apply_template(cluster['id'], cluster_payload)
+        return
+      end
+
+      json_response = @clusters_interface.apply_template(cluster['id'], cluster_payload)
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      elsif json_response['success']
+        print_green_success 'Template applied to Cluster'
+      else
+        print_rest_errors(json_response, options)
+      end
+    end
+  end
+
   def history_event_details(args)
     options = {}
     process_event_id = nil
@@ -4234,5 +4314,21 @@ class Morpheus::Cli::Clusters
       end
       it
     end
+  end
+
+  def available_kube_templates
+    option_results = options_interface.options_for_source('availableKubeTemplates')
+    available_templates = option_results['data'].collect {|it|
+      {"id" => it["value"], "name" => it["name"], "value" => it["name"]}
+    }
+   
+    return available_templates
+  end
+
+  def apply_temp_options
+    [
+      {"id" => 'specTemplate', "name" => "Spec Template", "value" => 'specTemplate'},
+      {"id" => 'url', "name" => 'Url of Template', "value" => 'url'}
+    ]
   end
 end

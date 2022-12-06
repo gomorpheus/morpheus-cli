@@ -306,4 +306,11 @@ class Morpheus::ClustersInterface < Morpheus::APIClient
     execute(opts)
   end
 
+
+  def apply_template(id, payload={})
+    url = "#{@base_url}/api/clusters/#{id}/apply-template"
+    
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    execute(method: :post, url: url, headers: headers, payload: payload.to_json)
+  end
 end
