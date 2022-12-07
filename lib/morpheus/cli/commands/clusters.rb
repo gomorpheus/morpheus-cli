@@ -3573,6 +3573,9 @@ class Morpheus::Cli::Clusters
       opts.on("--serviceUrl [TEXT]", String, "Url of template to apply to Cluster") do |val|
         options[:serviceUrl] = val.to_s
       end
+       opts.on("--specYaml [TEXT]", String, "Url of template to apply to Cluster") do |val|
+        options[:specYaml] = val.to_s
+      end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Apply a Template to a Cluster.\n" +
                     "[cluster] is required. This is the name or id of an existing cluster."
@@ -3604,6 +3607,7 @@ class Morpheus::Cli::Clusters
         cluster_payload = {}
         cluster_payload['specTemplate'] = options[:specTemplate] if !options[:specTemplate].empty?
         cluster_payload['serviceUrl'] = options[:serviceUrl] if !options[:serviceUrl].empty?
+        cluster_payload['specYaml'] = options[:specYaml] if !options[:specYaml].empty?
         payload = cluster_payload
       end
 
@@ -3616,11 +3620,16 @@ class Morpheus::Cli::Clusters
         cluster_payload['specType'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'type' => 'select', 'fieldLabel' => "Type", 'selectOptions' => apply_temp_options, 'required' => true, 'description' => 'Choose type of template being used.'}])['type']
         if cluster_payload['specType'] == 'specTemplate'
           cluster_payload['specTemplate'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'specTemplate', 'type' => 'select', 'fieldLabel' => "Spec Template", 'selectOptions' => available_kube_templates, 'required' => true, 'description' => 'Choose a template.'}], options[:options])['specTemplate'] 
+        elsif cluster_payload['specType'] == 'yaml'
+          file_params = Morpheus::Cli::OptionTypes.file_content_prompt({'fieldName' => 'source', 'fieldLabel' => 'File Content', 'type' => 'file-content', 'required' => true}, {'source' => {'source' => 'local'}}, nil, {})
+          cluster_payload['specYaml'] = file_params['content']
         else
           cluster_payload['specUrl'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'specUrl', 'type' => 'text', 'fieldLabel' => 'Spec Url', 'required' => true, 'description' => 'Url of template.'}])['specUrl']
         end
       elsif cluster_payload['specTemplate']
         cluster_payload['specType'] = 'specTemplate'
+      elsif cluster_payload['specYaml']
+        cluster_payload['specType'] = 'yaml'
       else
         cluster_payload['specType'] = 'url'
       end
@@ -3634,10 +3643,10 @@ class Morpheus::Cli::Clusters
       if options[:json]
         print JSON.pretty_generate(json_response)
         print "\n"
-      elsif json_response['success']
-        print_green_success 'Template applied to Cluster'
-      else
+      elsif json_response['msg'] != nil
         print_red_alert "There was an error #{json_response['msg']}"
+      else
+        print_green_success 'Template applied to Cluster'
       end
     end
   end
@@ -4327,6 +4336,7 @@ class Morpheus::Cli::Clusters
 
   def apply_temp_options
     [
+      {"id" => "specYaml", "name" => "YAML", "value" => "yaml"},
       {"id" => 'specTemplate', "name" => "Spec Template", "value" => 'specTemplate'},
       {"id" => 'url', "name" => 'Url of Template', "value" => 'url'}
     ]
