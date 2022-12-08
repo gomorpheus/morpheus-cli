@@ -3568,7 +3568,7 @@ class Morpheus::Cli::Clusters
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage( "[cluster] --specTemplate --serviceUrl")
-      opts.on("--specTemplate [TEXT]", String, "Applies Spec Template to Cluster") do |val|
+      opts.on("--specTemplate [TEXT]", String, "Name or ID of desired Spec Template to apply to cluster") do |val|
         options[:specTemplate] = val.to_s
       end
       opts.on("--serviceUrl [TEXT]", String, "Url of template to apply to Cluster") do |val|
