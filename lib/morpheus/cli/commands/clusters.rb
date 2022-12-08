@@ -43,6 +43,7 @@ class Morpheus::Cli::Clusters
     @user_groups_interface = @api_client.user_groups
     @accounts_interface = @api_client.accounts
     @logs_interface = @api_client.logs
+    @execution_request_interface = @api_client.execution_request
     #@active_security_group = ::Morpheus::Cli::SecurityGroups.load_security_group_file
   end
 
@@ -3573,7 +3574,7 @@ class Morpheus::Cli::Clusters
       opts.on("--serviceUrl [TEXT]", String, "Url of template to apply to Cluster") do |val|
         options[:serviceUrl] = val.to_s
       end
-       opts.on("--specYaml [TEXT]", String, "Url of template to apply to Cluster") do |val|
+       opts.on("--specYaml [TEXT]", String, "Yaml to apply to Cluster") do |val|
         options[:specYaml] = val.to_s
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
@@ -3617,21 +3618,15 @@ class Morpheus::Cli::Clusters
       end
 
       if cluster_payload.empty?
-        cluster_payload['specType'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'type' => 'select', 'fieldLabel' => "Type", 'selectOptions' => apply_temp_options, 'required' => true, 'description' => 'Choose type of template being used.'}])['type']
-        if cluster_payload['specType'] == 'specTemplate'
+        type = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'type' => 'select', 'fieldLabel' => "Type", 'selectOptions' => apply_temp_options, 'required' => true, 'description' => 'Choose type of template being used.'}])['type']
+        if type == 'specTemplate'
           cluster_payload['specTemplate'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'specTemplate', 'type' => 'select', 'fieldLabel' => "Spec Template", 'selectOptions' => available_kube_templates, 'required' => true, 'description' => 'Choose a template.'}], options[:options])['specTemplate'] 
-        elsif cluster_payload['specType'] == 'yaml'
+        elsif type == 'yaml'
           file_params = Morpheus::Cli::OptionTypes.file_content_prompt({'fieldName' => 'source', 'fieldLabel' => 'File Content', 'type' => 'file-content', 'required' => true}, {'source' => {'source' => 'local'}}, nil, {})
           cluster_payload['specYaml'] = file_params['content']
         else
           cluster_payload['specUrl'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'specUrl', 'type' => 'text', 'fieldLabel' => 'Spec Url', 'required' => true, 'description' => 'Url of template.'}])['specUrl']
         end
-      elsif cluster_payload['specTemplate']
-        cluster_payload['specType'] = 'specTemplate'
-      elsif cluster_payload['specYaml']
-        cluster_payload['specType'] = 'yaml'
-      else
-        cluster_payload['specType'] = 'url'
       end
 
       if options[:dry_run]
@@ -3646,7 +3641,44 @@ class Morpheus::Cli::Clusters
       elsif json_response['msg'] != nil
         print_red_alert "There was an error #{json_response['msg']}"
       else
-        print_green_success 'Template applied to Cluster'
+        print_green_success 'Template applied to Cluster. Check Execution Request for results'
+        json_response = @execution_request_interface.get(json_response['executionId'], {})
+
+        if json_response['executionRequest'] && json_response['executionRequest']['errorMessage']
+          print_red_alert "There was an error: #{json_response['executionRequest']['errorMessage']}"
+          print_red_alert "execution request id: #{json_response['executionRequest']['uniqueId']}"
+        else
+          execution_request = json_response['executionRequest']
+          print_h1 "Execution Request Details"
+          print cyan
+          description_cols = {
+            #"ID" => lambda {|it| it['id'] },
+            "Unique ID" => lambda {|it| it['uniqueId'] },
+            "Server ID" => lambda {|it| it['serverId'] },
+            "Instance ID" => lambda {|it| it['instanceId'] },
+            "Container ID" => lambda {|it| it['containerId'] },
+            "Expires At" => lambda {|it| format_local_dt it['expiresAt'] },
+            "Exit Code" => lambda {|it| it['exitCode'] },
+            "Status" => lambda {|it| format_execution_request_status(it) },
+            #"Created By" => lambda {|it| it['createdById'] },
+            #"Subdomain" => lambda {|it| it['subdomain'] },
+          }
+          description_cols.delete("Server ID") if execution_request['serverId'].nil?
+          description_cols.delete("Instance ID") if execution_request['instanceId'].nil?
+          description_cols.delete("Container ID") if execution_request['containerId'].nil?
+          description_cols.delete("Exit Code") if execution_request['exitCode'].nil?
+          print_description_list(description_cols, execution_request)      
+
+          if execution_request['stdErr'].to_s.strip != '' && execution_request['stdErr'] != "stdin: is not a tty\n"
+            print_h2 "Error"
+            puts execution_request['stdErr'].to_s.strip
+          end
+          if execution_request['stdOut']
+            print_h2 "Output"
+            puts execution_request['stdOut'].to_s.strip
+          end
+          print reset, "\n"
+        end
       end
     end
   end
@@ -4340,5 +4372,18 @@ class Morpheus::Cli::Clusters
       {"id" => 'specTemplate', "name" => "Spec Template", "value" => 'specTemplate'},
       {"id" => 'url', "name" => 'Url of Template', "value" => 'url'}
     ]
+  end
+
+  def format_execution_request_status(execution_request, return_color=cyan)
+    out = ""
+    status_str = execution_request['status']
+    if status_str == 'complete'
+      out << "#{green}#{status_str.upcase}#{return_color}"
+    elsif status_str == 'failed' || status_str == 'expired'
+      out << "#{red}#{status_str.upcase}#{return_color}"
+    else
+      out << "#{cyan}#{status_str.upcase}#{return_color}"
+    end
+    out
   end
 end
