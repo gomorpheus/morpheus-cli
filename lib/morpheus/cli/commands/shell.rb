@@ -524,6 +524,7 @@ class Morpheus::Cli::Shell
 
   end
 
+  # wha this?
   def get_prompt
 
     # print cyan,"morpheus > ",reset

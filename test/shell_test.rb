@@ -54,7 +54,7 @@ class ShellTest < TestCase
   end
 
   def test_shell_confirmation
-    with_input "access-token refresh", "foobar", "no", "exit" do
+    with_input "access-token refresh", "I'm not sure...", "no", "exit" do
       assert_execute "shell -Z -V"
     end
   end

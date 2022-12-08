@@ -136,9 +136,10 @@ def get_config(refresh=false)
     config[:url] = ENV['TEST_REMOTE_URL'] || ENV['TEST_URL'] # || 'http://localhost:8080'
     config[:username] = ENV['TEST_USERNAME']
     config[:password] = ENV['TEST_PASSWORD']
-    config[:stdout] = ENV['TEST_STDOUT']
-    config[:stderr] = ENV['TEST_STDERR']
-    config[:stdin] = ENV['TEST_STDIN']
+     # needs to create file to append to... meh just let shell handle it..
+    # config[:stdout] = ENV['TEST_STDOUT']
+    # config[:stderr] = ENV['TEST_STDERR']
+    # config[:stdin] = ENV['TEST_STDIN']
     config[:debug] = ENV['TEST_DEBUG'].to_s.strip.downcase == "true" || ENV['DEBUG'].to_s.strip.downcase == "true"
     # config[:temporary] = ENV['TEST_TEMPORARY'].to_s.strip.downcase == "true"
     # config[:quiet] = ENV['TEST_QUIET'].to_s.strip.downcase == "true"
@@ -168,9 +169,9 @@ def get_config(refresh=false)
       config[:url] = (config_map['url'] || config_map['remote_url']) if (config_map['url'] || config_map['remote_url'])
       config[:username] = config_map['username'] if config_map['username']
       config[:password] = config_map['password'] if config_map['password']
-      config[:stdout] = config_map['stdout'] if config_map['stdout']
-      config[:stderr] = config_map['stderr'] if config_map['stderr']
-      config[:stdin] = config_map['stdin'] if config_map['stdin']
+      # config[:stdout] = config_map['stdout'] if config_map['stdout']
+      # config[:stderr] = config_map['stderr'] if config_map['stderr']
+      # config[:stdin] = config_map['stdin'] if config_map['stdin']
       config[:debug] = config_map['debug'].to_s.strip.downcase == "true" if config_map.key?('debug')
       # config[:quiet] = config_map['temporary'].to_s.strip.downcase == "true" if config_map.key?'temporary')
       # config[:temporary] = config_map['temporary'].to_s.strip.downcase == "true" if config_map.key?'temporary')

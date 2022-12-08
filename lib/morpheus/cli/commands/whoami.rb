@@ -92,7 +92,7 @@ EOT
         # no permissions, or even name stored atm, we should start storing that.
         # then we can start checking permissions nd restricting command visibility.
         whoami_response = {
-          "user": {
+          "user" => {
             "username" => @remote_appliance ? @remote_appliance[:username] : nil
           },
           # "isMasterAccount" => true,

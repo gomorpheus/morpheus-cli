@@ -1065,26 +1065,28 @@ EOT
     return 1, "integration inventory not found for #{args[1]}" if integration_inventory.nil?
     # construct payload
     object_key = integration_inventory_object_key
-    payload = build_payload(options, object_key)
-    if options[:tenants]
-      #params['tenants'] = options[:tenants]
-      params['tenants'] = options[:tenants].collect do |val|
-        if val.to_s =~ /\A\d{1,}\Z/
-          val.to_i
-        else
-          # todo: use /api/options/allTenants to avoid permission errors here..
-          record = find_by_name_or_id(:account, val)
-          if record.nil?
-            exit 1 #return 1, "Tenant not found by '#{val}'"
-          else 
-            record['id']
+    payload = parse_payload(options, object_key)
+    if payload.nil?
+      if options[:tenants]
+        #params['tenants'] = options[:tenants]
+        params['tenants'] = options[:tenants].collect do |val|
+          if val.to_s =~ /\A\d{1,}\Z/
+            val.to_i
+          else
+            # todo: use /api/options/allTenants to avoid permission errors here..
+            record = find_by_name_or_id(:account, val)
+            if record.nil?
+              exit 1 #return 1, "Tenant not found by '#{val}'"
+            else 
+              record['id']
+            end
           end
         end
       end
-    end
-    payload.deep_merge!({object_key => params})
-    if payload.empty? || payload[object_key].empty?
-      raise_command_error "Specify at least one option to update.\n#{optparse}"
+      payload.deep_merge!({object_key => params})
+      if payload.empty? || payload[object_key].empty?
+        raise_command_error "Specify at least one option to update.\n#{optparse}"
+      end
     end
     # make request
     @integrations_interface.setopts(options)

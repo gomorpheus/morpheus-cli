@@ -21,7 +21,8 @@ class Morpheus::Cli::Instances
                        :security_groups, :apply_security_groups, :run_workflow,
                        :import_snapshot, :snapshot, :snapshots, :revert_to_snapshot, :remove_all_snapshots, :remove_all_container_snapshots, :create_linked_clone,
                        :console, :status_check, {:containers => :list_containers}, 
-                       :scaling, {:'scaling-update' => :scaling_update},
+                       :scaling, :update_scaling, {:'scaling-update' => :scaling_update},
+                       {:'schedules' => :list_schedules}, :get_schedule, :add_schedule, :update_schedule, :remove_schedule, # these are scaling schedules..
                        :wiki, :update_wiki,
                        :update_network_label,
                        {:exec => :execution_request},
@@ -34,6 +35,7 @@ class Morpheus::Cli::Instances
 
   # hide these for now
   set_subcommands_hidden :prepare_apply
+  set_subcommands_hidden :'scaling-update' # renamed to upate-scaling
 
   def initialize()
     #@appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
@@ -3767,7 +3769,7 @@ EOT
     end
 
     instance_threshold = json_response['instanceThreshold']
-
+    instance_schedules = json_response['instanceSchedules']
     title = "Instance Scaling: [#{instance['id']}] #{instance['name']} (#{instance['instanceType']['name']})"
     print_h1 title, [], options
     if instance_threshold.empty?
@@ -3776,6 +3778,11 @@ EOT
       # print_h1 "Threshold Settings", [], options
       print cyan
       print_instance_threshold_description_list(instance_threshold)
+
+      if instance_schedules && instance_schedules.size > 0
+        print_h2 "Instance Schedules"
+        print as_pretty_table(instance_schedules, instance_schedule_list_column_definitions(options).upcase_keys!, options)
+      end
     end
     print reset, "\n"
     return 0
@@ -3783,124 +3790,323 @@ EOT
   end
 
   def scaling_update(args)
-    usage = "Usage: morpheus instances scaling-update [instance] [options]"
+    print_error "#{yellow}DEPRECATION WARNING: `instances scaling-update` has been renamed to `instances update-scaling`. Please use `instances update-scaling` instead.#{reset}\n"
+    update_scaling(args)
+  end
+
+  def update_scaling(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[instance]")
-      build_option_type_options(opts, options, instance_scaling_option_types(nil))
-      build_common_options(opts, options, [:options, :json, :dry_run, :remote])
-      opts.footer = "Update scaling threshold information for an instance."
+      build_option_type_options(opts, options, update_instance_scaling_option_types)
+      build_option_type_options(opts, options, instance_threshold_option_types)
+      build_standard_update_options(opts, options)
+      opts.footer = "Update scaling threshold settings for an instance."
     end
     optparse.parse!(args)
-    # if args.count < 1
-    if args.count != 1
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error  "#{command_name} scaling-update requires only one argument [id or name]\n#{optparse}"
-      return 1
-    end
+    verify_args!(args:args, optparse:optparse, count:1)
     connect(options)
-
-    begin
-
-      instance = find_instance_by_name_or_id(args[0])
-      return 1 if instance.nil?
-      instance_threshold = @instances_interface.threshold(instance['id'])['instanceThreshold'] || {}
-      my_option_types = instance_scaling_option_types(instance)
-
-      # preserve current values by setting the prompt options defaultValue attribute
-      # note: checkbox type converts true,false to 'on','off'
-      my_option_types.each do |opt|
-        field_key = opt['fieldName'] # .sub('instanceThreshold.', '')
-        if instance_threshold[field_key] != nil
-          opt['defaultValue'] = instance_threshold[field_key]
-        end
-      end
-      
-      # params = Morpheus::Cli::OptionTypes.prompt(my_option_types, options[:options], @api_client, {})
-
-      # ok, gotta split these inputs into sections with conditional logic
+    # load objects
+    instance = find_instance_by_name_or_id(args[0])
+    return 1 if instance.nil?
+    instance_threshold = @instances_interface.threshold(instance['id'])['instanceThreshold'] || {}
+    # construct payload
+    object_key = 'instanceThreshold'
+    payload = parse_payload(options, object_key)
+    if !payload
+      # payload = {object_key => {}}
+      payload = {object_key => parse_passed_options(options, exclude: ['sourceThresholdId'])}
       params = {}
-
-      option_types_group = my_option_types.select {|opt| ['autoUp', 'autoDown'].include?(opt['fieldName']) }
-      params.merge! Morpheus::Cli::OptionTypes.prompt(option_types_group, options[:options], @api_client, {})
-
-      option_types_group = my_option_types.select {|opt| ['zoneId'].include?(opt['fieldName']) }
-      params.merge! Morpheus::Cli::OptionTypes.prompt(option_types_group, options[:options], @api_client, {})
-      if params['zoneId']
-        if params['zoneId'] == '' || params['zoneId'] == 'null' || params['zoneId'].to_s == '0'
-          params['zoneId'] = 0
-        else
-          params['zoneId'] = params['zoneId'].to_i
+      params.deep_merge! Morpheus::Cli::OptionTypes.prompt(update_instance_scaling_option_types, options[:options], @api_client, {})
+      source_threshold_id = params.delete('sourceThresholdId')
+      customize_threshold_prompt = true
+      params ||= {}
+      if source_threshold_id.to_s != '' && source_threshold_id.to_s != 'custom'
+        params['sourceThresholdId']= source_threshold_id.to_i
+        customize_threshold_prompt = false
+      end
+      # always parse the threshold options but customize_threshold means prompt also
+      my_option_types = instance_threshold_option_types
+      if customize_threshold_prompt
+        # preserve all current values by setting the prompt options defaultValue attribute
+        my_option_types.each do |opt|
+          field_key = opt['fieldName']
+          if instance_threshold[field_key] != nil
+            opt['defaultValue'] = instance_threshold[field_key]
+          end
         end
-      end
-
-      option_types_group = my_option_types.select {|opt| ['minCount', 'maxCount'].include?(opt['fieldName']) }
-      params.merge! Morpheus::Cli::OptionTypes.prompt(option_types_group, options[:options], @api_client, {})
-
-      option_types_group = my_option_types.select {|opt| ['memoryEnabled'].include?(opt['fieldName']) }
-      params.merge! Morpheus::Cli::OptionTypes.prompt(option_types_group, options[:options], @api_client, {})
-      if params['memoryEnabled'] == 'on' || params['memoryEnabled'] == true
-        option_types_group = my_option_types.select {|opt| ['minMemory', 'maxMemory'].include?(opt['fieldName']) }
-        params.merge! Morpheus::Cli::OptionTypes.prompt(option_types_group, options[:options], @api_client, {})
+        params.deep_merge! Morpheus::Cli::OptionTypes.prompt(my_option_types, options[:options], @api_client, {})
       else
-        params['minMemory'] = nil
-        params['maxMemory'] = nil
-      end
-
-      option_types_group = my_option_types.select {|opt| ['diskEnabled'].include?(opt['fieldName']) }
-      params.merge! Morpheus::Cli::OptionTypes.prompt(option_types_group, options[:options], @api_client, {})
-      if params['diskEnabled'] == 'on' || params['diskEnabled'] == true
-        option_types_group = my_option_types.select {|opt| ['minDisk', 'maxDisk'].include?(opt['fieldName']) }
-        params.merge! Morpheus::Cli::OptionTypes.prompt(option_types_group, options[:options], @api_client, {})
-      else
-        params['minDisk'] = nil
-        params['maxDisk'] = nil
-      end
-
-      option_types_group = my_option_types.select {|opt| ['cpuEnabled'].include?(opt['fieldName']) }
-      params.merge! Morpheus::Cli::OptionTypes.prompt(option_types_group, options[:options], @api_client, {})
-      if params['cpuEnabled'] == 'on' || params['cpuEnabled'] == true
-        option_types_group = my_option_types.select {|opt| ['minCpu', 'maxCpu'].include?(opt['fieldName']) }
-        params.merge! Morpheus::Cli::OptionTypes.prompt(option_types_group, options[:options], @api_client, {})
-      else
-        params['minCpu'] = nil
-        params['maxCpu'] = nil
-      end
-
-      # argh, convert on/off to true/false
-      # this needs a global solution...
-      params.each do |k,v|
-        if v == 'on' || v == 'true' || v == 'yes'
-          params[k] = true
-        elsif v == 'off' || v == 'false' || v == 'no'
-          params[k] = false
+        # preserve current values by setting the prompt options defaultValue attribute
+        # only prompt for autoUp and autoDown
+        my_option_types.each do |opt|
+          field_key = opt['fieldName']
+          if ['autoUp','autoDown'].include?(field_key)
+            if instance_threshold[field_key] != nil
+              opt['defaultValue'] = instance_threshold[field_key]
+            end
+            opt['noPrompt'] = false
+          else
+            opt['noPrompt'] = true
+          end
         end
-      end      
+        params.deep_merge! Morpheus::Cli::OptionTypes.prompt(my_option_types, options[:options], @api_client, {})
+      end
+      params.booleanize! # convert checkbox "on" and "off" to true and false
+      payload[object_key].deep_merge!(params)
+    end
+    # unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to update the scaling settings for instance '#{instance['name']}'?", options)
+    #   return 9, "aborted command"
+    # end
+    @instances_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @instances_interface.dry.update_threshold(instance['id'], payload)
+      return
+    end
+    json_response = @instances_interface.update_threshold(instance['id'], payload)
+    render_response(json_response, options) do
+      print_green_success "Updated scaling settings for instance #{instance['name']}"
+      # return _get_inventory(integration, integration_inventory["id"], {}, options)
+    end
+    return 0, nil
+  end
 
-      payload = {
-        'instanceThreshold' => {}
-      }
-      payload['instanceThreshold'].merge!(params)
+  def list_schedules(args)
+    params = {}
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
+      opts.banner = subcommand_usage("[instance]")
+      build_standard_get_options(opts, options) # build_standard_list_options(opts, options) # phrase,max,etc is not supported
+      opts.footer = <<-EOT
+List instance scaling threshold schedules.
+[instance] is required. This is the name or id of an instance
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    parse_get_options!(args, options, params) # parse_list_options!(args, options, params) # phrase,max,etc is not supported
+    instance = find_instance_by_name_or_id(args[0])
+    return 1 if instance.nil?
+    @instances_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @instances_interface.dry.list_schedules(instance['id'], params)
+      return 0, nil
+    end
+    json_response = @instances_interface.list_schedules(instance['id'], params)
+    list_key = 'instanceSchedules'
+    render_response(json_response, options, list_key) do
+      records = json_response[list_key]
+      title = "Morpheus Instance Schedules"
+      subtitles = []
+      subtitles += parse_list_subtitles(options)
+      print_h1 title, subtitles, options
+      if records.nil? || records.empty?
+        print cyan,"No schedules found.",reset,"\n"
+      else
+        print as_pretty_table(records, instance_schedule_list_column_definitions(options).upcase_keys!, options)
+        print_results_pagination(json_response) if json_response['meta']
+      end
+      print reset,"\n"
+    end
+    return 0, nil
 
-      # unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to update the scaling settings for instance '#{instance['name']}'?", options)
+  end
+
+  def get_schedule(args)
+    params = {}
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
+      opts.banner = subcommand_usage("[instance] [schedule]")
+      # build_standard_list_options(opts, options)
+      build_standard_get_options(opts, options) # phrase,max,etc is not supported
+      opts.footer = <<-EOT
+Get details about an instance scaling threshold schedule.
+[instance] is required. This is the name or id of an instance
+[schedule] is required. This is id of an instance schedule
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:2)
+    connect(options)
+    parse_get_options!(args, options, params)
+    instance = find_instance_by_name_or_id(args[0])
+    return 1 if instance.nil?
+    @instances_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @instances_interface.dry.list(instance['id'], args[1], params)
+      return 0, nil
+    end
+    json_response = @instances_interface.get_schedule(instance['id'], args[1], params)
+    object_key = 'instanceSchedule'
+    render_response(json_response, options, object_key) do
+      record = json_response[object_key]
+      title = "Instance Schedule Details"
+      print_h1 title, options
+      columns = instance_schedule_column_definitions(options)
+      print print_description_list(columns, record, options)
+      print reset,"\n"
+    end
+    return 0, nil
+  end
+
+  def add_schedule(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
+      opts.banner = subcommand_usage("[instance]")
+      # opts.on( '--threshold VALUE', String, "Threshold template to apply scaling settings with. Default is no template (custom)." ) do |val|
+      #   options[:threshold] = val
+      # end
+      build_option_type_options(opts, options, add_instance_schedule_option_types)
+      build_option_type_options(opts, options, instance_threshold_option_types)
+      build_standard_update_options(opts, options)
+      opts.footer = <<-EOT
+Update an existing instance scaling threshold schedule
+[instance] is required. This is the name or id of an instance
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    instance = find_instance_by_name_or_id(args[0])
+    return 1 if instance.nil?
+    # construct payload
+    object_key = 'instanceSchedule'
+    payload = parse_payload(options, object_key)
+    if !payload
+      # payload = {object_key => {}}
+      # support -O option but avoid duplicate threshold settings... so -O maxCpu, goes under threshold only
+      # could just use options -O threshold.maxCpu instead, which is what the api wants...
+      payload = {object_key => parse_passed_options(options, exclude: ['sourceThresholdId'] + instance_threshold_option_types.collect {|i|i['fieldName']})}
+      params = {}
+      params.deep_merge! Morpheus::Cli::OptionTypes.prompt(add_instance_schedule_option_types, options[:options], @api_client, {})
+      source_threshold_id = params.delete('sourceThresholdId')
+      customize_threshold_prompt = true
+      params['threshold'] ||= {}
+      if source_threshold_id.to_s != '' && source_threshold_id.to_s != 'custom'
+        #params['threshold']['id']= source_threshold_id
+        params['threshold']['sourceThresholdId']= source_threshold_id.to_i
+        customize_threshold_prompt = false
+      end
+      # always parse the threshold options but customize_threshold means prompt also
+      if customize_threshold_prompt
+        params['threshold'].deep_merge! Morpheus::Cli::OptionTypes.prompt(instance_threshold_option_types, options[:options], @api_client, {})
+      else
+        params['threshold'].deep_merge! Morpheus::Cli::OptionTypes.no_prompt(instance_threshold_option_types, options[:options], @api_client, {})
+      end
+      params.booleanize! # convert checkbox "on" and "off" to true and false
+      payload[object_key].deep_merge!(params)
+      # unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to update the scaling settings for instance '#{instance['name']}' with the above scaling schedule?", options)
       #   return 9, "aborted command"
       # end
-      @instances_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @instances_interface.dry.update_threshold(instance['id'], payload)
-        return
-      end
-      json_response = @instances_interface.update_threshold(instance['id'], payload)
-      if options[:json]
-        puts as_json(json_response, options)
-      else
-        print_green_success "Updated scaling settings for instance #{instance['name']}"
-      end
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
     end
+    @instances_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @instances_interface.dry.create_schedule(instance['id'], payload)
+      return 0, nil
+    end
+    json_response = @instances_interface.create_schedule(instance['id'], payload)
+    render_response(json_response, options) do
+      print_green_success "Added scaling schedule for instance #{instance['name']}"
+      #_scaling(instance['id'], options)
+    end
+    return 0, nil
+  end
+
+  def update_schedule(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do|opts|
+      opts.banner = subcommand_usage("[instance] [schedule]")
+      build_option_type_options(opts, options, update_instance_schedule_option_types)
+      build_option_type_options(opts, options, instance_threshold_option_types)
+      build_standard_update_options(opts, options)
+      opts.footer = <<-EOT
+Update an existing instance scaling threshold schedule.
+[instance] is required. This is the name or id of an instance
+[schedule] is required. This is id of an instance schedule
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:2)
+    connect(options)
+    instance = find_instance_by_name_or_id(args[0])
+    return 1, "Instance not found for '#{args[0]}'" if instance.nil?
+    instance_schedule = find_instance_schedule_by_id(instance['id'], args[1])
+    return 1, "Instance schedule not found for '#{args[1]}'" if instance_schedule.nil?
+    # construct payload
+    object_key = 'instanceSchedule'
+    payload = parse_payload(options, object_key)
+    if !payload
+      # payload = {object_key => {}}
+      # support -O option but avoid duplicate threshold settings... so -O maxCpu, goes under threshold only
+      # could just use options -O threshold.maxCpu instead, which is what the api wants...
+      payload = {object_key => parse_passed_options(options, exclude: ['sourceThresholdId'] + instance_threshold_option_types.collect {|i|i['fieldName']})}
+      params = {}
+      params.deep_merge! Morpheus::Cli::OptionTypes.no_prompt(update_instance_schedule_option_types, options[:options], @api_client, {})
+      source_threshold_id = params.delete('sourceThresholdId')
+      customize_threshold_prompt = true
+      params['threshold'] ||= {}
+      if source_threshold_id.to_s != '' && source_threshold_id.to_s != 'custom'
+        #params['threshold']['id']= source_threshold_id
+        params['threshold']['sourceThresholdId']= source_threshold_id.to_i
+        customize_threshold_prompt = false
+      end
+      params['threshold'].deep_merge! Morpheus::Cli::OptionTypes.no_prompt(instance_threshold_option_types, options[:options], @api_client, {})
+      params.booleanize! # convert checkbox "on" and "off" to true and false
+      payload[object_key].deep_merge!(params)
+      if (payload[object_key].keys - ['threshold']).empty? && payload[object_key]['threshold'].empty?
+        raise_command_error "Specify at least one option to update.\n#{optparse}"
+      end
+      # unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to update the scaling settings for instance '#{instance['name']}' with the above scaling schedule?", options)
+      #   return 9, "aborted command"
+      # end
+    end
+    @instances_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @instances_interface.dry.update_schedule(instance['id'], instance_schedule['id'], payload)
+      return 0, nil
+    end
+    json_response = @instances_interface.update_schedule(instance['id'], instance_schedule['id'], payload)
+    render_response(json_response, options) do
+      print_green_success "Updated scaling schedule for instance #{instance['name']}"
+      #_scaling(instance['id'], options)
+    end
+    return 0, nil
+  end
+
+  def remove_schedule(args)
+    params = {}
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[instance] [schedule]")
+      build_standard_remove_options(opts, options)
+      opts.footer = <<-EOT
+Delete an existing instance scaling threshold schedule
+[instance] is required. This is the name or id of an instance
+[schedule] is required. This is id of an instance schedule
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:2)
+    connect(options)
+    params.merge!(parse_query_options(options))
+    instance = find_instance_by_name_or_id(args[0])
+    return 1, "Instance not found for '#{args[0]}'" if instance.nil?
+    instance_schedule = find_instance_schedule_by_id(instance['id'], args[1])
+    return 1, "Instance schedule not found for '#{args[1]}'" if instance_schedule.nil?
+    unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the instance schedule #{instance_schedule['id']}?")
+      return 9, "aborted"
+    end
+    @instances_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @instances_interface.dry.destroy_schedule(instance['id'], instance_schedule['id'], params)
+      return 0, nil
+    end
+    json_response = @instances_interface.destroy_schedule(instance['id'], instance_schedule['id'], params)
+    render_response(json_response, options) do
+      print_green_success "Removed instance schedule #{instance_schedule['id']}"
+    end
+    return 0, nil
   end
 
   def load_balancer_update(args)
@@ -3990,7 +4196,6 @@ EOT
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[instance]")
-      build_option_type_options(opts, options, instance_scaling_option_types(nil))
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
       opts.footer = "Remove a load balancer from an instance."
     end
@@ -5104,50 +5309,25 @@ private
     end
   end
 
-  def instance_scaling_option_types(instance=nil)
-    
-    # Group
-    group_id = nil
-    if instance && instance['group']
-      group_id = instance['group']['id']
-    end
-
-    available_clouds = group_id ? get_available_clouds(group_id) : []
-    zone_dropdown = [{'name' => 'Use Scale Priority', 'value' => 0}] 
-    zone_dropdown += available_clouds.collect {|cloud| {'name' => cloud['name'], 'value' => cloud['id']} }
-
-    list = []
-    list << {'fieldName' => 'autoUp', 'fieldLabel' => 'Auto Upscale', 'type' => 'checkbox', 'description' => 'Enable auto upscaling', 'required' => true, 'defaultValue' => false}
-    list << {'fieldName' => 'autoDown', 'fieldLabel' => 'Auto Downscale', 'type' => 'checkbox', 'description' => 'Enable auto downscaling', 'required' => true, 'defaultValue' => false}
-    
-    list << {'fieldName' => 'zoneId', 'fieldLabel' => 'Cloud', 'type' => 'select', 'selectOptions' => zone_dropdown, 'description' => "Choose a cloud to scale into.", 'placeHolder' => 'ID'}
-
-    list << {'fieldName' => 'minCount', 'fieldLabel' => 'Min Count', 'type' => 'number', 'description' => 'Minimum number of nodes', 'placeHolder' => 'NUMBER'}
-    list << {'fieldName' => 'maxCount', 'fieldLabel' => 'Max Count', 'type' => 'number', 'description' => 'Maximum number of nodes', 'placeHolder' => 'NUMBER'}
-    
-
-    list << {'fieldName' => 'memoryEnabled', 'fieldLabel' => 'Enable Memory Threshold', 'type' => 'checkbox', 'description' => 'Scale when memory thresholds are met.', 'required' => true, 'defaultValue' => false}
-    list << {'fieldName' => 'minMemory', 'fieldLabel' => 'Min Memory', 'type' => 'number', 'description' => 'Minimum memory percent (0-100)', 'placeHolder' => 'PERCENT'}
-    list << {'fieldName' => 'maxMemory', 'fieldLabel' => 'Max Memory', 'type' => 'number', 'description' => 'Maximum memory percent (0-100)', 'placeHolder' => 'PERCENT'}
-
-    list << {'fieldName' => 'diskEnabled', 'fieldLabel' => 'Enable Disk Threshold', 'type' => 'checkbox', 'description' => 'Scale when disk thresholds are met.', 'required' => true, 'defaultValue' => false}
-    list << {'fieldName' => 'minDisk', 'fieldLabel' => 'Min Disk', 'type' => 'number', 'description' => 'Minimum storage percent (0-100)', 'placeHolder' => 'PERCENT'}
-    list << {'fieldName' => 'maxDisk', 'fieldLabel' => 'Max Disk', 'type' => 'number', 'description' => 'Maximum storage percent (0-100)', 'placeHolder' => 'PERCENT'}
-
-    list << {'fieldName' => 'cpuEnabled', 'fieldLabel' => 'Enable CPU Threshold', 'type' => 'checkbox', 'description' => 'Scale when cpu thresholds are met.', 'required' => true, 'defaultValue' => false}
-    list << {'fieldName' => 'minCpu', 'fieldLabel' => 'Min CPU', 'type' => 'number', 'description' => 'Minimum CPU percent (0-100)', 'placeHolder' => 'PERCENT'}
-    list << {'fieldName' => 'maxCpu', 'fieldLabel' => 'Max CPU', 'type' => 'number', 'description' => 'Maximum CPU percent (0-100)', 'placeHolder' => 'PERCENT'}
-
-    # list << {'fieldName' => 'iopsEnabled', 'fieldLabel' => 'Enable Iops Threshold', 'type' => 'checkbox', 'description' => 'Scale when iops thresholds are met.'}
-    # list << {'fieldName' => 'minIops', 'fieldLabel' => 'Min Iops', 'type' => 'number', 'description' => 'Minimum iops'}
-    # list << {'fieldName' => 'maxIops', 'fieldLabel' => 'Max Iops', 'type' => 'number', 'description' => 'Maximum iops'}
-
-    # list << {'fieldName' => 'networkEnabled', 'fieldLabel' => 'Enable Iops Threshold', 'type' => 'checkbox', 'description' => 'Scale when network thresholds are met.'}
-    # list << {'fieldName' => 'minNetwork', 'fieldLabel' => 'Min Network', 'type' => 'number', 'description' => 'Minimum networking'}
-
-    # list << {'fieldName' => 'comment', 'fieldLabel' => 'Comment', 'type' => 'text', 'description' => 'Comment on these scaling settings.'}
-
-    list
+  def update_instance_scaling_option_types()
+    [
+      {'code' => 'sourceThresholdId', 'switch' => 'threshold', 'fieldName' => 'sourceThresholdId', 'fieldLabel' => 'Threshold', 'type' => 'select', 'optionSource' => lambda {|api_client, api_params| 
+        [{'name' => 'Custom', 'value' => 'custom'}] + api_client.options.options_for_source('instanceThresholdTemplates')['data'] rescue []
+      }, 'description' => "Threshold template to use as source for scaling threshold settings.", 'defaultValue' => 'custom', 'required' => true}, #, 'required' => true, 'defaultValue' => ''},
+      # {'fieldName' => 'autoUp', 'fieldLabel' => 'Auto Upscale', 'type' => 'checkbox', 'description' => 'Enable auto upscaling'},
+      # {'fieldName' => 'autoDown', 'fieldLabel' => 'Auto Downscale', 'type' => 'checkbox', 'description' => 'Enable auto downscaling'},
+      # {'dependsOnCode' => 'sourceThresholdId:custom', 'fieldName' => 'minCount', 'fieldLabel' => 'Min Count', 'type' => 'number', 'description' => 'Minimum number of nodes'},
+      # {'dependsOnCode' => 'sourceThresholdId:custom', 'fieldName' => 'maxCount', 'fieldLabel' => 'Max Count', 'type' => 'number', 'description' => 'Maximum number of nodes'},
+      # {'dependsOnCode' => 'sourceThresholdId:custom', 'fieldName' => 'cpuEnabled', 'fieldLabel' => 'Enable CPU Threshold', 'type' => 'checkbox', 'description' => 'Scale when CPU thresholds are met.'},
+      # {'dependsOnCode' => 'sourceThresholdId:custom', 'fieldName' => 'minCpu', 'fieldLabel' => 'Min CPU', 'type' => 'number', 'description' => 'Minimum CPU percent (0-100)'},
+      # {'dependsOnCode' => 'sourceThresholdId:custom', 'fieldName' => 'maxCpu', 'fieldLabel' => 'Max CPU', 'type' => 'number', 'description' => 'Maximum CPU percent (0-100)'},
+      # {'dependsOnCode' => 'sourceThresholdId:custom', 'fieldName' => 'memoryEnabled', 'fieldLabel' => 'Enable Memory Threshold', 'type' => 'checkbox', 'description' => 'Scale when memory thresholds are met.'},
+      # {'dependsOnCode' => 'sourceThresholdId:custom', 'fieldName' => 'minMemory', 'fieldLabel' => 'Min Memory', 'type' => 'number', 'description' => 'Minimum memory percent (0-100)'},
+      # {'dependsOnCode' => 'sourceThresholdId:custom', 'fieldName' => 'maxMemory', 'fieldLabel' => 'Max Memory', 'type' => 'number', 'description' => 'Maximum memory percent (0-100)'},
+      # {'dependsOnCode' => 'sourceThresholdId:custom', 'fieldName' => 'diskEnabled', 'fieldLabel' => 'Enable Disk Threshold', 'type' => 'checkbox', 'description' => 'Scale when storage thresholds are met.'},
+      # {'dependsOnCode' => 'sourceThresholdId:custom', 'fieldName' => 'minDisk', 'fieldLabel' => 'Min Disk', 'type' => 'number', 'description' => 'Minimum storage percent (0-100)'},
+      # {'dependsOnCode' => 'sourceThresholdId:custom', 'fieldName' => 'maxDisk', 'fieldLabel' => 'Max Disk', 'type' => 'number', 'description' => 'Maximum storage percent (0-100)'},
+    ]
   end
 
   def instance_load_balancer_option_types(instance=nil)
@@ -5162,7 +5342,7 @@ private
       # "Instance" => lambda {|it| "#{instance['id']} - #{instance['name']}" },
       "Auto Upscale" => lambda {|it| format_boolean(it['autoUp']) },
       "Auto Downscale" => lambda {|it| format_boolean(it['autoDown']) },
-      "Cloud" => lambda {|it| it['zoneId'] ? "#{it['zoneId']}" : 'Use Scale Priority' },
+      #"Cloud" => lambda {|it| it['zoneId'] ? "#{it['zoneId']}" : 'Use Scale Priority' },
       "Min Count" => lambda {|it| it['minCount'] },
       "Max Count" => lambda {|it| it['maxCount'] },
       "Memory Enabled" => lambda {|it| format_boolean(it['memoryEnabled']) },
@@ -5181,6 +5361,96 @@ private
       "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
     }
     print_description_list(description_cols, instance_threshold)
+  end
+
+  def instance_schedule_column_definitions(options)
+    {
+      "ID" => lambda {|it| it['id'] },
+      "Start" => lambda {|it| it['startDisplay'] },
+      "End" => lambda {|it| it['endDisplay'] },
+      "Auto Upscale" => lambda {|it| format_boolean(it['threshold']['autoUp']) rescue nil },
+      "Auto Downscale" => lambda {|it| format_boolean(it['threshold']['autoDown']) rescue nil },
+      "Min Count" => lambda {|it| it['threshold']['minCount'] rescue nil },
+      "Max Count" => lambda {|it| it['threshold']['maxCount'] rescue nil },
+      "Enable CPU Threshold" => lambda {|it| format_boolean(it['threshold']['cpuEnabled']) rescue nil },
+      "Min CPU" => lambda {|it| format_percent(it['threshold']['minCpu'], 9, true) rescue nil },
+      "Max CPU" => lambda {|it| format_percent(it['threshold']['maxCpu'], 9, true) rescue nil },
+      "Enable Memory Threshold" => lambda {|it| format_boolean(it['threshold']['memoryEnabled']) rescue nil },
+      "Min Memory" => lambda {|it| format_percent(it['threshold']['minMemory'], 9, true) rescue nil },
+      "Max Memory" => lambda {|it| format_percent(it['threshold']['maxMemory'], 9, true) rescue nil },
+      "Enable Disk Threshold" => lambda {|it| format_boolean(it['threshold']['diskEnabled']) rescue nil },
+      "Min Disk" => lambda {|it| format_percent(it['threshold']['minDisk'], 9, true) rescue nil },
+      "Max Disk" => lambda {|it| format_percent(it['threshold']['maxDisk'], 9, true) rescue nil },
+    }
+  end
+
+  def instance_schedule_list_column_definitions(options)
+    instance_schedule_column_definitions(options)
+  end
+
+  def find_instance_schedule_by_id(instance_id, id)
+    begin
+      json_response = @instances_interface.get_schedule(instance_id, id)
+      return json_response['instanceSchedule']
+    rescue RestClient::Exception => e
+      if e.response && e.response.code == 404
+        print_red_alert "Instance Schedule not found by id #{id}"
+        exit 1
+      else
+        raise e
+      end
+    end
+  end
+
+  def day_of_week_dropdown()
+    [
+      {'name' => 'Sunday', 'value' => 1},
+      {'name' => 'Monday', 'value' => 2},
+      {'name' => 'Tuesday', 'value' => 3},
+      {'name' => 'Wednesday', 'value' => 4},
+      {'name' => 'Thursday', 'value' => 5},
+      {'name' => 'Friday', 'value' => 6},
+      {'name' => 'Saturday', 'value' => 7}
+    ]
+  end
+
+  def add_instance_schedule_option_types()
+    [
+      {'code' => 'scheduleType', 'fieldName' => 'scheduleType', 'fieldLabel' => 'Schedule Type', 'type' => 'select', 'selectOptions' => [{'name'=>'Day Of Week', 'value'=>'dayOfWeek'},{'name'=>'Exact', 'value'=>'exact'}], 'description' => "Schedule type  can be recurring day of the week str or exact start and end timestamp", 'required' => true, 'defaultValue' => 'dayOfWeek'},
+      {'dependsOnCode' => 'scheduleType:dayOfWeek', 'fieldName' => 'startDayOfWeek', 'fieldLabel' => 'Start Day Of Week', 'type' => 'select', 'selectOptions' => day_of_week_dropdown, 'description' => "Start day of the week Sunday-Saturday (1-7)", 'defaultValue' => "Sunday", 'required' => true},
+      {'dependsOnCode' => 'scheduleType:dayOfWeek', 'fieldName' => 'startTime', 'fieldLabel' => 'Start Time (HH:MM)', 'type' => 'text', 'description' => "Start time in HH:MM 24-hour format", 'placeHolder' => 'HH:MM', 'defaultValue' => "00:00", 'required' => true},
+      {'dependsOnCode' => 'scheduleType:dayOfWeek', 'fieldName' => 'endDayOfWeek', 'fieldLabel' => 'End Day Of Week', 'type' => 'select', 'selectOptions' => day_of_week_dropdown, 'description' => "End day of the week Sunday-Saturday (1-7)", 'defaultValue' => "Sunday", 'required' => true},
+      {'dependsOnCode' => 'scheduleType:dayOfWeek', 'fieldName' => 'endTime', 'fieldLabel' => 'End Time (HH:MM)', 'type' => 'text', 'description' => "End time in HH:MM 24-hour format", 'placeHolder' => 'HH:MM', 'defaultValue' => "00:00", 'required' => true},
+      {'dependsOnCode' => 'scheduleType:exact', 'fieldName' => 'startDate', 'fieldLabel' => 'Start Date', 'type' => 'text', 'description' => "Exact start date timestamp in standard iso8601 format", 'placeHolder' => 'YYYY-MM-DD', 'required' => true},
+      {'dependsOnCode' => 'scheduleType:exact', 'fieldName' => 'endDate', 'fieldLabel' => 'End Date', 'type' => 'text', 'description' => "Exact end date timestamp in standard iso8601 format", 'placeHolder' => 'YYYY-MM-DD', 'required' => true},
+      {'switch' => 'threshold', 'fieldName' => 'sourceThresholdId', 'fieldLabel' => 'Threshold', 'type' => 'select', 'optionSource' => lambda {|api_client, api_params| 
+        [{'name' => 'Custom', 'value' => 'custom'}] + api_client.options.options_for_source('instanceThresholdTemplates')['data'] # rescue []
+      }, 'description' => "Threshold template to use as source for scaling threshold settings.", 'defaultValue' => 'custom', 'required' => true}, #, 'required' => true, 'defaultValue' => ''},
+    ]
+  end
+
+  def update_instance_schedule_option_types()
+    option_types = add_instance_schedule_option_types.collect {|it| it.delete('required'); it.delete('defaultValue'); it.delete('dependsOnCode'); it }
+    #option_types.reject! {|it| it['fieldName'] == 'sourceThresholdId' }
+    option_types
+  end
+
+  def instance_threshold_option_types()
+    [
+      {'fieldName' => 'autoUp', 'fieldLabel' => 'Auto Upscale', 'type' => 'checkbox', 'description' => 'Enable auto upscaling'},
+      {'fieldName' => 'autoDown', 'fieldLabel' => 'Auto Downscale', 'type' => 'checkbox', 'description' => 'Enable auto downscaling'},
+      {'fieldName' => 'minCount', 'fieldLabel' => 'Min Count', 'type' => 'number', 'description' => 'Minimum number of nodes'},
+      {'fieldName' => 'maxCount', 'fieldLabel' => 'Max Count', 'type' => 'number', 'description' => 'Maximum number of nodes'},
+      {'fieldName' => 'cpuEnabled', 'fieldLabel' => 'Enable CPU Threshold', 'type' => 'checkbox', 'description' => 'Scale when CPU thresholds are met.'},
+      {'fieldName' => 'minCpu', 'fieldLabel' => 'Min CPU', 'type' => 'number', 'description' => 'Minimum CPU percent (0-100)'},
+      {'fieldName' => 'maxCpu', 'fieldLabel' => 'Max CPU', 'type' => 'number', 'description' => 'Maximum CPU percent (0-100)'},
+      {'fieldName' => 'memoryEnabled', 'fieldLabel' => 'Enable Memory Threshold', 'type' => 'checkbox', 'description' => 'Scale when memory thresholds are met.'},
+      {'fieldName' => 'minMemory', 'fieldLabel' => 'Min Memory', 'type' => 'number', 'description' => 'Minimum memory percent (0-100)'},
+      {'fieldName' => 'maxMemory', 'fieldLabel' => 'Max Memory', 'type' => 'number', 'description' => 'Maximum memory percent (0-100)'},
+      {'fieldName' => 'diskEnabled', 'fieldLabel' => 'Enable Disk Threshold', 'type' => 'checkbox', 'description' => 'Scale when storage thresholds are met.'},
+      {'fieldName' => 'minDisk', 'fieldLabel' => 'Min Disk', 'type' => 'number', 'description' => 'Minimum storage percent (0-100)'},
+      {'fieldName' => 'maxDisk', 'fieldLabel' => 'Max Disk', 'type' => 'number', 'description' => 'Maximum storage percent (0-100)'},
+    ]
   end
 
   def print_process_details(process)
@@ -5285,4 +5555,5 @@ private
       return false 
     end
   end
+
 end

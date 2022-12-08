@@ -99,6 +99,25 @@ module Morpheus
           context_map = results
           value = nil
           value_found = false
+
+          # allow for mapping of domain to relevant type: domain.zone => router.zone
+          option_type['fieldContext'] = (options[:context_map] || {})[option_type['fieldContext']] || option_type['fieldContext']
+          field_key = [option_type['fieldContext'], option_type['fieldName']].select {|it| it && it != '' }.join('.')
+          help_field_key = option_type[:help_field_prefix] ? "#{option_type[:help_field_prefix]}.#{field_key}" : field_key
+          namespaces = field_key.split(".")
+          field_name = namespaces.pop
+
+
+          # support --no-options --skip-option x,y,z --only-option x,y,z
+          if options[:no_options]
+            next
+          elsif options[:skip_options] && options[:skip_options].find {|it| it.to_s.downcase == option_type['fieldName'].to_s.downcase || it.to_s.downcase == option_type['fieldLabel'].to_s.downcase }
+            next
+          elsif options[:only_options] && !options[:only_options].find {|it| it.to_s.downcase == option_type['fieldName'].to_s.downcase || it.to_s.downcase == option_type['fieldLabel'].to_s.downcase }
+            next
+          end            
+          
+
           field_group = (option_type['fieldGroup'] || 'default').to_s.sub(/options\Z/i, "").strip # avoid "ADVANCED OPTION OPTIONS"
 
           if cur_field_group != field_group
@@ -118,12 +137,6 @@ module Morpheus
           #   end
           # end
 
-          # allow for mapping of domain to relevant type: domain.zone => router.zone
-          option_type['fieldContext'] = (options[:context_map] || {})[option_type['fieldContext']] || option_type['fieldContext']
-          field_key = [option_type['fieldContext'], option_type['fieldName']].select {|it| it && it != '' }.join('.')
-          help_field_key = option_type[:help_field_prefix] ? "#{option_type[:help_field_prefix]}.#{field_key}" : field_key
-          namespaces = field_key.split(".")
-          field_name = namespaces.pop
 
           # respect optionType.dependsOnCode
           # i guess this switched to visibleOnCode, respect one or the other

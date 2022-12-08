@@ -370,6 +370,10 @@ module Morpheus
     #   $stdin.gets(*args)
     # end
 
+    def readline(*args)
+      # todo: one prompt to rule them all
+    end
+
 # protected
 
     def execute(input)

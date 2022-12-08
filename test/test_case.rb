@@ -25,10 +25,20 @@ class TestCase < Test::Unit::TestCase
   # hook at the beginning of each test
   def setup()
     #puts "TestCase #{self} setup()"
+    # @config is provided for accessing test environment settings in our tests
     @config = get_config()
-    # use the remote and login
+    # use the remote and login if needed
     use_remote() if requires_remote
     login_if_needed() if requires_authentication
+  end
+
+  # @return [Morpheus::APIClient] client for executing api requests in our tests and examining the results
+  def api_client
+    # todo: return terminal.get_api_client()
+    #@api_client ||= Morpheus::APIClient.new(url: @config[:url], username: @config[:username], password: @config[:password], verify_ssl: false, client_id: 'morph-api')
+    #@api_client.login() unless @api_client.logged_in?
+    # this only works while logged in, fine for now...
+    @api_client ||= Morpheus::APIClient.new(url: @config[:url], username: @config[:username], access_token: get_access_token(), verify_ssl: false, client_id: 'morph-cli')
   end
 
   # hook at the end of each test
