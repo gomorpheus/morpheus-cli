@@ -46,11 +46,7 @@ class Morpheus::Cli::ContainersCommand
     verify_args!(args:args, optparse:optparse, min:1)
     connect(options)
     id_list = parse_id_list(args)
-    id_list.each do |id|
-      if id.to_s !~ /\A\d{1,}\Z/
-        raise_command_error "invalid [id] argument, expected Integer and got '#{id}'", args, optparse
-      end
-    end
+    validate_container_ids!(id_list)
     return run_command_for_each_arg(id_list) do |arg|
       _get(arg, options)
     end
@@ -162,6 +158,7 @@ class Morpheus::Cli::ContainersCommand
     end
     connect(options)
     id_list = parse_id_list(args)
+    validate_container_ids!(id_list)
     unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to stop #{id_list.size == 1 ? 'container' : 'containers'} #{anded_list(id_list)}?", options)
       return 9, "aborted command"
     end
@@ -202,6 +199,7 @@ class Morpheus::Cli::ContainersCommand
     end
     connect(options)
     id_list = parse_id_list(args)
+    validate_container_ids!(id_list)
     unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to start #{id_list.size == 1 ? 'container' : 'containers'} #{anded_list(id_list)}?", options)
       return 9, "aborted command"
     end
@@ -242,6 +240,7 @@ class Morpheus::Cli::ContainersCommand
     end
     connect(options)
     id_list = parse_id_list(args)
+    validate_container_ids!(id_list)
     unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to restart #{id_list.size == 1 ? 'container' : 'containers'} #{anded_list(id_list)}?", options)
       return 9, "aborted command"
     end
@@ -282,6 +281,7 @@ class Morpheus::Cli::ContainersCommand
     end
     connect(options)
     id_list = parse_id_list(args)
+    validate_container_ids!(id_list)
     unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to suspend #{id_list.size == 1 ? 'container' : 'containers'} #{anded_list(id_list)}?", options)
       return 9, "aborted command"
     end
@@ -322,6 +322,7 @@ class Morpheus::Cli::ContainersCommand
     end
     connect(options)
     id_list = parse_id_list(args)
+    validate_container_ids!(id_list)
     unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to eject #{id_list.size == 1 ? 'container' : 'containers'} #{anded_list(id_list)}?", options)
       return 9, "aborted command"
     end
@@ -362,6 +363,7 @@ class Morpheus::Cli::ContainersCommand
     end
     connect(options)
     id_list = parse_id_list(args)
+    validate_container_ids!(id_list)
     containers = []
     id_list.each do |container_id|
       container = find_container_by_id(container_id)
@@ -428,6 +430,7 @@ class Morpheus::Cli::ContainersCommand
     end
     connect(options)
     id_list = parse_id_list(args)
+    validate_container_ids!(id_list)
     containers = []
     id_list.each do |container_id|
       container = find_container_by_id(container_id)
@@ -529,6 +532,7 @@ class Morpheus::Cli::ContainersCommand
     end
     connect(options)
     id_list = parse_id_list(args)
+    validate_container_ids!(id_list)
     begin
       containers = id_list # heh
       params['level'] = params['level'].collect {|it| it.to_s.upcase }.join('|') if params['level'] # api works with INFO|WARN
@@ -675,4 +679,15 @@ private
     end
   end
 
+  def validate_container_ids!(id_list)
+    id_list.each { |id| validate_container_id!(id) }
+  end
+
+  def validate_container_id!(id)
+    if id.to_s =~ /\A\d{1,}\Z/
+      true
+    else
+      raise_command_error "[id] argument is invalid, expected a number and got '#{id}'" #, args, optparse
+    end
+  end
 end
