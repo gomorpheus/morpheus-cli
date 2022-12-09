@@ -6,7 +6,6 @@ class WhoamiTest < TestCase
     assert_execute("whoami")
     assert_execute("whoami --name")
     assert_execute("whoami --permissions")
-    assert_execute("whoami -t")
   end
 
   def test_whoami_unauthorized
