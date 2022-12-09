@@ -17,9 +17,13 @@ class Morpheus::Cli::View
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[path] [id]")
       # debate: should login using /login/ouath-redirect
-      opts.on('-L', '--login', "Login with the CLI access token before loading the path." ) do
+      opts.on('-l', '--login', "Login with the CLI access token before loading the path." ) do
         options[:login] = true
       end
+      opts.on('-L', '--old-login', "Alias for -l, --login" ) do
+        options[:login] = true
+      end
+      opts.add_hidden_option('-L, --old-login')
       opts.on('--absolute', "Absolute path, do not search for a matching route to use") do
         options[:absolute_path] = true
       end
