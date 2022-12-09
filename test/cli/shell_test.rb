@@ -43,7 +43,7 @@ class MorpheusTest::ShellTest < MorpheusTest::TestCase
   end
 
   def test_shell_sleep
-    with_input "echo \"It is time for a rest.\"", "sleep 3", "echo \"OK, let's keep testing\"", "exit" do
+    with_input "echo \"It is time for a rest.\"", "sleep 0.5", "echo \"OK, let's keep testing\"", "exit" do
       assert_execute "shell -V"
     end
   end

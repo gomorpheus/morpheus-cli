@@ -1,9 +1,8 @@
 require 'morpheus_test'
 
+# Tests for Morpheus::Cli::Instances
 class MorpheusTest::InstancesTest < MorpheusTest::TestCase
-  
-  # Tests for Morpheus::Cli::Instances
-  # only list and get for now...
+
   def test_instances_list
     assert_execute %(instances list)
   end
