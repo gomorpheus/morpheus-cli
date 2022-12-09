@@ -1,6 +1,6 @@
-require 'test_helper'
+require 'morpheus_test'
 
-class ShellTest < TestCase
+class MorpheusTest::ShellTest < MorpheusTest::TestCase
 
   def requires_remote
     false
@@ -10,13 +10,13 @@ class ShellTest < TestCase
     false
   end
 
-  class << self
-    def startup
-      # one time use remote and login at beginning of testsuite, not each method
-      use_remote()
-      login()
-    end
-  end
+  # class << self
+  #   def startup
+  #     # one time use remote and login at beginning of testsuite, not each method
+  #     use_remote()
+  #     login()
+  #   end
+  # end
 
   # def test_remote_use
   #   # use remote needed for all except test_shell_clean() , todo: exclude paradigm that yet..
@@ -30,6 +30,7 @@ class ShellTest < TestCase
   end
 
   def test_shell_verbose
+    login_if_needed()
     with_input "whoami", "exit" do
       assert_execute "shell -V"
     end
@@ -59,7 +60,7 @@ class ShellTest < TestCase
     end
   end
 
-# todo: fix bug where appliances are not restored after clean shell.. so remote use #{@config[:remote_name]}" starts failing here..
+# todo: fix bug where appliances are not restored after clean shell.. so remote use #{@config.remote_name}" starts failing here..
 =begin
   def test_shell_clean
     with_input "echo this is a clean shell with no remotes or history", "remote list", "remote current", "history", "exit" do
@@ -71,7 +72,7 @@ class ShellTest < TestCase
   end
 
   def test_shell_history_again
-    with_input "echo back in test shell again with our remote and history", "remote get #{@config[:remote_name]}", "history", "exit" do
+    with_input "echo back in test shell again with our remote and history", "remote get #{@config.remote_name}", "history", "exit" do
       assert_execute "shell"
     end
   end

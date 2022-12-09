@@ -1,6 +1,6 @@
-require 'test_helper'
+require 'morpheus_test'
 
-class RolesTest < TestCase
+class MorpheusTest::RolesTest < MorpheusTest::TestCase
   
   def test_roles_list
     assert_execute %(roles list)

@@ -1,7 +1,7 @@
-require 'test_helper'
+require 'morpheus_test'
 
 # Tests for top level CLI functionality
-class CliTest < TestCase
+class MorpheusTest::CliTest < MorpheusTest::TestCase
   
   def requires_remote
     false

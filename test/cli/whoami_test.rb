@@ -1,6 +1,6 @@
-require 'test_helper'
+require 'morpheus_test'
 
-class WhoamiTest < TestCase
+class MorpheusTest::WhoamiTest < MorpheusTest::TestCase
   
   def test_whoami
     assert_execute("whoami")

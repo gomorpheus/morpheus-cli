@@ -42,7 +42,13 @@ module Morpheus
     include Morpheus::Benchmarking::HasBenchmarking
     # todo: this can be combined with Cli::Shell
 
-    class Blackhole # < IO
+    class Blackhole # < File
+
+      def initialize(*args)
+        # we shouldn't actually need a File tho.. but Readline wants one
+        # File.open(Morpheus::Cli.windows? ? 'NUL:' : '/dev/null', 'w')
+      end
+
       def accrete_data(*mgs)
         # Singularity.push(*msgs)
         return nil

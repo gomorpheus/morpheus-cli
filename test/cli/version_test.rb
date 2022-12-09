@@ -1,7 +1,7 @@
-require 'test_helper'
+require 'morpheus_test'
 
 # Tests for Morpheus::Cli::VersionCommand
-class VersionTest < TestCase
+class MorpheusTest::VersionTest < MorpheusTest::TestCase
   
   def requires_authentication
     false

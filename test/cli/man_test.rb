@@ -1,6 +1,6 @@
-require 'test_helper'
+require 'morpheus_test'
 
-class ManTest < TestCase
+class MorpheusTest::ManTest < MorpheusTest::TestCase
   
   def test_man
     # need to use -q to avoid interactive right now...

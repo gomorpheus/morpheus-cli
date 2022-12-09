@@ -1,7 +1,7 @@
-require 'test_helper'
+require 'morpheus_test'
 
 # Tests for help command and global --help option
-class HelpTest < TestCase
+class MorpheusTest::HelpTest < MorpheusTest::TestCase
   
   def requires_authentication
     false

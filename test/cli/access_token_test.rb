@@ -1,7 +1,7 @@
-require 'test_helper'
+require 'morpheus_test'
 
 # Tests for Morpheus::Cli::AccessTokenCommand
-class AccessTokenTest < TestCase
+class MorpheusTest::AccessTokenTest < MorpheusTest::TestCase
   
   def test_access_token
     assert_execute("access-token")
