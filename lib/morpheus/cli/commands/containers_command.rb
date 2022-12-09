@@ -43,41 +43,30 @@ class Morpheus::Cli::ContainersCommand
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts_error "[id] argument is required"
-      puts_error optparse
-      return 1
-    end
+    verify_args!(args:args, optparse:optparse, min:1)
     connect(options)
     id_list = parse_id_list(args)
+    id_list.each do |id|
+      if id.to_s !~ /\A\d{1,}\Z/
+        raise_command_error "invalid [id] argument, expected Integer and got '#{id}'", args, optparse
+      end
+    end
     return run_command_for_each_arg(id_list) do |arg|
       _get(arg, options)
     end
   end
 
   def _get(arg, options)
-    begin
-      @containers_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @containers_interface.dry.get(arg.to_i)
-        return
-      end
-      #container = find_container_by_id(arg)
-      #return 1 if container.nil?
-      json_response = @containers_interface.get(arg.to_i)
-      if options[:json]
-        puts as_json(json_response, options, "container")
-        return 0
-      elsif options[:yaml]
-        puts as_yaml(json_response, options, "container")
-        return 0
-      end
-
-      if options[:csv]
-        puts records_as_csv([json_response['container']], options)
-        return 0
-      end
-      container = json_response['container']
+    @containers_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @containers_interface.dry.get(arg.to_i)
+      return
+    end
+    #container = find_container_by_id(arg)
+    #return 1 if container.nil?
+    json_response = @containers_interface.get(arg.to_i)
+    container = json_response['container']
+    render_response(json_response, options, "container") do
       # stats = json_response['stats'] || {}
       stats = container['stats'] || {}
       
@@ -139,29 +128,23 @@ class Morpheus::Cli::ContainersCommand
         }
         print_description_list(cost_columns, container)
       end
-
       print reset, "\n"
-
-      # refresh until a status is reached
-      if options[:refresh_until_status]
-        if options[:refresh_interval].nil? || options[:refresh_interval].to_f < 0
-          options[:refresh_interval] = default_refresh_interval
-        end
-        statuses = options[:refresh_until_status].to_s.downcase.split(",").collect {|s| s.strip }.select {|s| !s.to_s.empty? }
-        if !statuses.include?(container['status'])
-          print cyan
-          print cyan, "Refreshing in #{options[:refresh_interval] > 1 ? options[:refresh_interval].to_i : options[:refresh_interval]} seconds"
-          sleep_with_dots(options[:refresh_interval])
-          print "\n"
-          _get(arg, options)
-        end
-      end
-
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      return 1 # , e
     end
+    # refresh until a status is reached
+    if options[:refresh_until_status]
+      if options[:refresh_interval].nil? || options[:refresh_interval].to_f < 0
+        options[:refresh_interval] = default_refresh_interval
+      end
+      statuses = options[:refresh_until_status].to_s.downcase.split(",").collect {|s| s.strip }.select {|s| !s.to_s.empty? }
+      if !statuses.include?(container['status'])
+        print cyan
+        print cyan, "Refreshing in #{options[:refresh_interval] > 1 ? options[:refresh_interval].to_i : options[:refresh_interval]} seconds"
+        sleep_with_dots(options[:refresh_interval])
+        print "\n"
+        _get(arg, options)
+      end
+    end
+    return 0, nil
   end
 
 
