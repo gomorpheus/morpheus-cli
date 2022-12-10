@@ -1273,7 +1273,7 @@ module Morpheus
       end
 
       def confirm!(msg, options)
-        confirm(msg, options) or raise CommandAborted("confirmation declined: #{msg}")
+        confirm(msg, options) or raise CommandAborted.new("confirmation declined: #{msg}")
       end
 
       # The default way to build options for the list command
