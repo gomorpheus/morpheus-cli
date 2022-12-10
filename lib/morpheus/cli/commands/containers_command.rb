@@ -398,10 +398,10 @@ EOT
     # container = find_container_by_name_or_id(args[0])
     @containers_interface.setopts(options)
     if options[:dry_run]
-      print_dry_run @containers_interface.dry.available_actions(container_ids)
+      print_dry_run @containers_interface.dry.available_actions(container_ids.size == 1 ? container_ids[0] : container_ids)
       return 0
     end
-    json_response = @containers_interface.available_actions(container_ids)
+    json_response = @containers_interface.available_actions(container_ids.size == 1 ? container_ids[0] : container_ids)
     render_response(json_response, options) do
       title = "Container Actions: #{anded_list(id_list)}"
       print_h1 title
@@ -493,10 +493,10 @@ EOT
     # end
     @containers_interface.setopts(options)
     if options[:dry_run]
-      print_dry_run @containers_interface.dry.action(container_ids, action_id)
+      print_dry_run @containers_interface.dry.action(container_ids.size == 1 ? container_ids[0] : container_ids, action_id)
       return 0
     end
-    json_response = @containers_interface.action(container_ids, action_id)
+    json_response = @containers_interface.action(container_ids.size == 1 ? container_ids[0] : container_ids, action_id)
     render_response(json_response, options) do
       print green, "Action #{action_display_name} performed on #{id_list.size == 1 ? 'container' : 'containers'} #{anded_list(id_list)}", reset, "\n"
     end
