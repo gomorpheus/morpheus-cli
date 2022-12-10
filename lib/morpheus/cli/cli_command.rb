@@ -1268,6 +1268,14 @@ module Morpheus
         true
       end
 
+      def confirm(msg, options)
+        options[:yes] or ::Morpheus::Cli::OptionTypes::confirm(msg, options)
+      end
+
+      def confirm!(msg, options)
+        confirm(msg, options) or raise CommandAborted("confirmation declined: #{msg}")
+      end
+
       # The default way to build options for the list command
       # @param [OptionParser] opts
       # @param [Hash] options

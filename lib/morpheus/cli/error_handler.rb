@@ -42,6 +42,12 @@ class Morpheus::Cli::ErrorHandler
     #   if err.exit_code
     #     exit_code = err.exit_code
     #   end
+      when Morpheus::Cli::CommandAborted
+        # user declined a confirmation prompt, do not print anything and exit 9
+        do_print_stacktrace = false
+        exit_code = err.exit_code if err.exit_code
+        # err = err.message
+    return 
     when ::OptionParser::InvalidOption, ::OptionParser::AmbiguousOption, 
         ::OptionParser::MissingArgument, ::OptionParser::InvalidArgument, 
         ::OptionParser::NeedlessArgument

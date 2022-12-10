@@ -6,9 +6,11 @@ class Morpheus::Cli::ContainersCommand
   include Morpheus::Cli::LogsHelper
 
   set_command_name :containers
-
+  set_command_description "View and manage containers (nodes)."
   register_subcommands :get, :stop, :start, :restart, :suspend, :eject, :action, :actions, :logs
   register_subcommands :exec => :execution_request
+
+  set_subcommands_hidden :action # replaced by run-action
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
@@ -40,7 +42,18 @@ class Morpheus::Cli::ContainersCommand
       opts.on('--refresh-until STATUS', String, "Refresh until a specified status is reached.") do |val|
         options[:refresh_until_status] = val.to_s.downcase
       end
-      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
+      build_standard_get_options(opts, options)
+      opts.footer = <<-EOT
+Get details about a container.
+[id] is required. This is the id of a container. Supports multiple [id] arguments.
+If more than one [id] is given, the command will execute for each one sequentially.
+
+Examples:
+    containers get 42
+    containers get 1 2 3
+    containers get 42 --refresh
+    containers get 42 --refresh 10 --refresh-until stopped
+EOT
     end
     optparse.parse!(args)
     verify_args!(args:args, optparse:optparse, min:1)
@@ -147,21 +160,24 @@ class Morpheus::Cli::ContainersCommand
   def stop(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[id list]")
-      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
+      opts.banner = subcommand_usage("[id]")
+      build_standard_update_options(opts, options, [:auto_confirm])
+      opts.footer = <<-EOT
+Stop a container.
+[id] is required. This is the id of a container. Supports multiple [id] arguments.
+If more than one [id] is given, the command will execute for each one sequentially.
+
+Examples:
+    containers stop 42
+    containers stop 1 2 3 -y
+EOT
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts_error "[id] argument is required"
-      puts_error optparse
-      return 1
-    end
+    verify_args!(args:args, optparse:optparse, min:1)
     connect(options)
     id_list = parse_id_list(args)
     validate_container_ids!(id_list)
-    unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to stop #{id_list.size == 1 ? 'container' : 'containers'} #{anded_list(id_list)}?", options)
-      return 9, "aborted command"
-    end
+    confirm!("Are you sure you would like to stop #{id_list.size == 1 ? 'container' : 'containers'} #{anded_list(id_list)}?", options)
     return run_command_for_each_arg(id_list) do |arg|
       _stop(arg, options)
     end
@@ -176,33 +192,33 @@ class Morpheus::Cli::ContainersCommand
       return 0
     end
     json_response = @containers_interface.stop(container['id'])
-    # just assume json_response["success"] == true,  it always is with 200 OK
-    if options[:json]
-      puts as_json(json_response, options)
-    elsif !options[:quiet]
+    render_response(json_response, options) do
       print green, "Stopping container #{container['id']}", reset, "\n"
     end
-    return 0
+    return 0, nil
   end
 
   def start(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[id list]")
-      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
+      opts.banner = subcommand_usage("[id]")
+      build_standard_update_options(opts, options, [:auto_confirm])
+      opts.footer = <<-EOT
+Stop a container.
+[id] is required. This is the id of a container. Supports multiple [id] arguments.
+If more than one [id] is given, the command will execute for each one sequentially.
+
+Examples:
+    containers start 42
+    containers start 1 2 3 -y
+EOT
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts_error "[id] argument is required"
-      puts_error optparse
-      return 1
-    end
+    verify_args!(args:args, optparse:optparse, min:1)
     connect(options)
     id_list = parse_id_list(args)
     validate_container_ids!(id_list)
-    unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to start #{id_list.size == 1 ? 'container' : 'containers'} #{anded_list(id_list)}?", options)
-      return 9, "aborted command"
-    end
+    confirm!("Are you sure you would like to start #{id_list.size == 1 ? 'container' : 'containers'} #{anded_list(id_list)}?", options)
     return run_command_for_each_arg(id_list) do |arg|
       _start(arg, options)
     end
@@ -217,33 +233,33 @@ class Morpheus::Cli::ContainersCommand
       return 0
     end
     json_response = @containers_interface.start(container['id'])
-    # just assume json_response["success"] == true,  it always is with 200 OK
-    if options[:json]
-      puts as_json(json_response, options)
-    elsif !options[:quiet]
+    render_response(json_response, options) do
       print green, "Starting container #{container['id']}", reset, "\n"
     end
-    return 0
+    return 0, nil
   end
 
   def restart(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[id list]")
-      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
+      opts.banner = subcommand_usage("[id]")
+      build_standard_update_options(opts, options, [:auto_confirm])
+      opts.footer = <<-EOT
+Restart a container.
+[id] is required. This is the id of a container. Supports multiple [id] arguments.
+If more than one [id] is given, the command will execute for each one sequentially.
+
+Examples:
+    containers restart 42
+    containers restart 1 2 3 -y
+EOT
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts_error "[id] argument is required"
-      puts_error optparse
-      return 1
-    end
+    verify_args!(args:args, optparse:optparse, min:1)
     connect(options)
     id_list = parse_id_list(args)
     validate_container_ids!(id_list)
-    unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to restart #{id_list.size == 1 ? 'container' : 'containers'} #{anded_list(id_list)}?", options)
-      return 9, "aborted command"
-    end
+    confirm!("Are you sure you would like to restart #{id_list.size == 1 ? 'container' : 'containers'} #{anded_list(id_list)}?", options)
     return run_command_for_each_arg(id_list) do |arg|
       _restart(arg, options)
     end
@@ -258,33 +274,33 @@ class Morpheus::Cli::ContainersCommand
       return 0
     end
     json_response = @containers_interface.restart(container['id'])
-    # just assume json_response["success"] == true,  it always is with 200 OK
-    if options[:json]
-      puts as_json(json_response, options)
-    elsif !options[:quiet]
+    render_response(json_response, options) do
       print green, "Restarting container #{container['id']}", reset, "\n"
     end
-    return 0
+    return 0, nil
   end
 
   def suspend(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[id list]")
-      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
+      opts.banner = subcommand_usage("[id]")
+      build_standard_update_options(opts, options, [:auto_confirm])
+      opts.footer = <<-EOT
+Suspend a container.
+[id] is required. This is the id of a container. Supports multiple [id] arguments.
+If more than one [id] is given, the command will execute for each one sequentially.
+
+Examples:
+    containers suspend 42
+    containers suspend 1 2 3 -y
+EOT
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts_error "[id] argument is required"
-      puts_error optparse
-      return 1
-    end
+    verify_args!(args:args, optparse:optparse, min:1)
     connect(options)
     id_list = parse_id_list(args)
     validate_container_ids!(id_list)
-    unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to suspend #{id_list.size == 1 ? 'container' : 'containers'} #{anded_list(id_list)}?", options)
-      return 9, "aborted command"
-    end
+    confirm!("Are you sure you would like to suspend #{id_list.size == 1 ? 'container' : 'containers'} #{anded_list(id_list)}?", options)
     return run_command_for_each_arg(id_list) do |arg|
       _suspend(arg, options)
     end
@@ -299,33 +315,33 @@ class Morpheus::Cli::ContainersCommand
       return 0
     end
     json_response = @containers_interface.suspend(container['id'])
-    # just assume json_response["success"] == true,  it always is with 200 OK
-    if options[:json]
-      puts as_json(json_response, options)
-    elsif !options[:quiet]
+    render_response(json_response, options) do
       print green, "Suspending container #{container['id']}", reset, "\n"
     end
-    return 0
+    return 0, nil
   end
 
   def eject(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[id list]")
-      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
+      opts.banner = subcommand_usage("[id]")
+      build_standard_update_options(opts, options, [:auto_confirm])
+      opts.footer = <<-EOT
+Eject a container.
+[id] is required. This is the id of a container. Supports multiple [id] arguments.
+If more than one [id] is given, the command will execute for each one sequentially.
+
+Examples:
+    containers eject 42
+    containers eject 1 2 3 -y
+EOT
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts_error "[id] argument is required"
-      puts_error optparse
-      return 1
-    end
+    verify_args!(args:args, optparse:optparse, min:1)
     connect(options)
     id_list = parse_id_list(args)
     validate_container_ids!(id_list)
-    unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to eject #{id_list.size == 1 ? 'container' : 'containers'} #{anded_list(id_list)}?", options)
-      return 9, "aborted command"
-    end
+    confirm!("Are you sure you would like to eject #{id_list.size == 1 ? 'container' : 'containers'} #{anded_list(id_list)}?", options)
     return run_command_for_each_arg(id_list) do |arg|
       _eject(arg, options)
     end
@@ -340,27 +356,28 @@ class Morpheus::Cli::ContainersCommand
       return 0
     end
     json_response = @containers_interface.eject(container['id'])
-    # just assume json_response["success"] == true,  it always is with 200 OK
-    if options[:json]
-      puts as_json(json_response, options)
-    elsif !options[:quiet]
+    render_response(json_response, options) do
       print green, "Ejecting container #{container['id']}", reset, "\n"
     end
-    return 0
+    return 0, nil
   end
 
   def actions(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[id list]")
-      opts.footer = "List the actions available to specified container(s)."
-      build_common_options(opts, options, [:json, :dry_run, :remote])
+      opts.banner = subcommand_usage("[id]")
+      build_standard_get_options(opts, options)
+      opts.footer = <<-EOT
+List the actions available to specified container(s).
+[id] is required. This is the id of a container. Supports multiple [id] arguments.
+
+Examples:
+    containers actions 42
+    containers actions 1 2 3
+EOT
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
-    end
+    verify_args!(args:args, optparse:optparse, min:1)
     connect(options)
     id_list = parse_id_list(args)
     validate_container_ids!(id_list)
@@ -378,56 +395,50 @@ class Morpheus::Cli::ContainersCommand
       return 1
     end
     container_ids = containers.collect {|container| container["id"] }
-    begin
-      # container = find_container_by_name_or_id(args[0])
-      @containers_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @containers_interface.dry.available_actions(container_ids)
-        return 0
-      end
-      json_response = @containers_interface.available_actions(container_ids)
-      if options[:json]
-        puts as_json(json_response, options)
+    # container = find_container_by_name_or_id(args[0])
+    @containers_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @containers_interface.dry.available_actions(container_ids)
+      return 0
+    end
+    json_response = @containers_interface.available_actions(container_ids)
+    render_response(json_response, options) do
+      title = "Container Actions: #{anded_list(id_list)}"
+      print_h1 title
+      available_actions = json_response["actions"]
+      if (available_actions && available_actions.size > 0)
+        print as_pretty_table(available_actions, [:name, :code])
+        print reset, "\n"
       else
-        title = "Container Actions: #{anded_list(id_list)}"
-        print_h1 title
-        available_actions = json_response["actions"]
-        if (available_actions && available_actions.size > 0)
-          print as_pretty_table(available_actions, [:name, :code])
-          print reset, "\n"
+        if container_ids.size > 1
+          print "#{yellow}The specified containers have no available actions in common.#{reset}\n\n"
         else
-          if container_ids.size > 1
-            print "#{yellow}The specified containers have no available actions in common.#{reset}\n\n"
-          else
-            print "#{yellow}No available actions#{reset}\n\n"
-          end
+          print "#{yellow}No available actions#{reset}\n\n"
         end
       end
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
     end
+    return 0, nil
   end
 
   def action(args)
     options = {}
     action_id = nil
     optparse = Morpheus::Cli::OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[id list] -a CODE")
+      opts.banner = subcommand_usage("[id] -a CODE")
       opts.on('-a', '--action CODE', "Container Action CODE to execute") do |val|
         action_id = val.to_s
       end
-      build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :quiet, :remote])
-      opts.footer = "Execute an action for a container or containers"
+      build_standard_update_options(opts, options, [:auto_confirm])
+      opts.footer = <<-EOT
+Execute an action for a container or containers
+[id] is required. This is the id of a container. Supports multiple [id] arguments.
+
+Examples:
+    containers action 42 -a docker-remove-node
+EOT
     end
     optparse.parse!(args)
-    if args.count < 1
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error "[id list] argument is required"
-      puts_error optparse
-      return 1
-    end
+    verify_args!(args:args, optparse:optparse, min:1)
     connect(options)
     id_list = parse_id_list(args)
     validate_container_ids!(id_list)
@@ -475,9 +486,7 @@ class Morpheus::Cli::ContainersCommand
     end
 
     action_display_name = "#{container_action['name']} [#{container_action['code']}]"
-    unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to perform action #{action_display_name} on #{id_list.size == 1 ? 'container' : 'containers'} #{anded_list(id_list)}?", options)
-      return 9, "aborted command"
-    end
+    confirm!("Are you sure you would like to perform action #{action_display_name} on #{id_list.size == 1 ? 'container' : 'containers'} #{anded_list(id_list)}?", options)
 
     # return run_command_for_each_arg(containers) do |arg|
     #   _action(arg, action_id, options)
@@ -488,16 +497,10 @@ class Morpheus::Cli::ContainersCommand
       return 0
     end
     json_response = @containers_interface.action(container_ids, action_id)
-    # just assume json_response["success"] == true,  it always is with 200 OK
-    if options[:json]
-      puts as_json(json_response, options)
-    elsif !options[:quiet]
-      # containers.each do |container|
-      #   print green, "Action #{action_display_name} performed on container #{container['id']}", reset, "\n"
-      # end
+    render_response(json_response, options) do
       print green, "Action #{action_display_name} performed on #{id_list.size == 1 ? 'container' : 'containers'} #{anded_list(id_list)}", reset, "\n"
     end
-    return 0
+    return 0, nil
   end
 
   def logs(args)
@@ -520,36 +523,35 @@ class Morpheus::Cli::ContainersCommand
       opts.on('-a', '--all', "Display all details: entire message." ) do
         options[:details] = true
       end
-      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
-      opts.footer = "List logs for a container.\n" +
-                    "[id] is required. This is the id of a container."
+      build_standard_list_options(opts, options)
+      opts.footer = <<-EOT
+List logs for a container.
+[id] is required. This is the id of a container. Supports multiple [id] arguments.
+
+Examples:
+    containers logs 42 --level ERROR
+EOT
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts_error "[id] argument is required"
-      puts_error optparse
-      return 1
-    end
+    verify_args!(args:args, optparse:optparse, min:1)
     connect(options)
     id_list = parse_id_list(args)
     validate_container_ids!(id_list)
-    begin
-      containers = id_list # heh
-      params['level'] = params['level'].collect {|it| it.to_s.upcase }.join('|') if params['level'] # api works with INFO|WARN
-      params.merge!(parse_list_options(options))
-      params['query'] = params.delete('phrase') if params['phrase']
-      params[:order] = params[:direction] unless params[:direction].nil? # old api version expects order instead of direction
-      params['startMs'] = (options[:start].to_i * 1000) if options[:start]
-      params['endMs'] = (options[:end].to_i * 1000) if options[:end]
-      @logs_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @logs_interface.dry.container_logs(containers, params)
-        return
-      end
-      json_response = @logs_interface.container_logs(containers, params)
-      render_result = json_response['logs'] ? render_with_format(json_response, options, 'logs') : render_with_format(json_response, options, 'data')
-      return 0 if render_result
 
+    containers = id_list # heh
+    params['level'] = params['level'].collect {|it| it.to_s.upcase }.join('|') if params['level'] # api works with INFO|WARN
+    params.merge!(parse_list_options(options))
+    params['query'] = params.delete('phrase') if params['phrase']
+    params[:order] = params[:direction] unless params[:direction].nil? # old api version expects order instead of direction
+    params['startMs'] = (options[:start].to_i * 1000) if options[:start]
+    params['endMs'] = (options[:end].to_i * 1000) if options[:end]
+    @logs_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @logs_interface.dry.container_logs(containers, params)
+      return
+    end
+    json_response = @logs_interface.container_logs(containers, params)
+    render_response(json_response, options, "logs") do
       logs = json_response
       title = "Container Logs: #{containers.join(', ')}"
       subtitles = parse_list_subtitles(options)
@@ -574,11 +576,8 @@ class Morpheus::Cli::ContainersCommand
         print_results_pagination({'meta'=>{'total'=>(json_response['total']['value'] rescue json_response['total']),'size'=>logs.size,'max'=>(json_response['max'] || options[:max]),'offset'=>(json_response['offset'] || options[:offset] || 0)}})
       end
       print reset,"\n"
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
     end
+    return 0, nil
   end
 
   def execution_request(args)
@@ -604,51 +603,47 @@ class Morpheus::Cli::ContainersCommand
         do_refresh = false
       end
       #build_option_type_options(opts, options, add_user_source_option_types())
-      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
-      opts.footer = "Execute an arbitrary command or script on a container." + "\n" +
-                    "[id] is required. This is the id a container." + "\n" +
-                    "[script] is required. This is the script that is to be executed."
+      build_standard_update_options(opts, options)
+      opts.footer = <<-EOT
+Execute an arbitrary command or script on a container.
+[id] is required. This is the id of a container. Supports multiple [id] arguments.
+  If more than one [id] is given, the command will execute for each one sequentially.
+[script] is required. This is the script that is to be executed.
+
+Examples:
+    containers exec 42 "uname -a"
+EOT
     end
     optparse.parse!(args)
     connect(options)
-    if args.count != 1
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error  "wrong number of arguments, expected 1 and got (#{args.count}) #{args.inspect}\n#{optparse}"
-      return 1
+    verify_args!(args:args, optparse:optparse, count:1)
+    
+    
+    container = find_container_by_id(args[0])
+    return 1 if container.nil?
+    params['containerId'] = container['id']
+    # construct payload
+    payload = {}
+    if options[:payload]
+      payload = options[:payload]
+    else
+      payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+      # prompt for Script
+      if script_content.nil?
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'script', 'type' => 'code-editor', 'fieldLabel' => 'Script', 'required' => true, 'description' => 'The script content'}], options[:options])
+        script_content = v_prompt['script']
+      end
+      payload['script'] = script_content
     end
-    
-    
-    begin
-      container = find_container_by_id(args[0])
-      return 1 if container.nil?
-      params['containerId'] = container['id']
-      # construct payload
-      payload = {}
-      if options[:payload]
-        payload = options[:payload]
-      else
-        payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
-        # prompt for Script
-        if script_content.nil?
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'script', 'type' => 'code-editor', 'fieldLabel' => 'Script', 'required' => true, 'description' => 'The script content'}], options[:options])
-          script_content = v_prompt['script']
-        end
-        payload['script'] = script_content
-      end
-      @execution_request_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @execution_request_interface.dry.create(params, payload)
-        return 0
-      end
-      # do it
-      json_response = @execution_request_interface.create(params, payload)
-      # print and return result
-      if options[:quiet]
-        return 0
-      elsif options[:json]
-        puts as_json(json_response, options)
-        return 0
-      end
+    @execution_request_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @execution_request_interface.dry.create(params, payload)
+      return 0
+    end
+    # do it
+    json_response = @execution_request_interface.create(params, payload)
+    # print and return result
+    render_response(json_response, options) do
       execution_request = json_response['executionRequest']
       print_green_success "Executing request #{execution_request['uniqueId']}"
       if do_refresh
@@ -656,11 +651,8 @@ class Morpheus::Cli::ContainersCommand
       else
         Morpheus::Cli::ExecutionRequestCommand.new.handle(["get", execution_request['uniqueId']]+ (options[:remote] ? ["-r",options[:remote]] : []))
       end
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
     end
+    return 0, nil
   end
 
 private

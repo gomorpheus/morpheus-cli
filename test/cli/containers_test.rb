@@ -13,10 +13,29 @@ class MorpheusTest::ContainersTest < MorpheusTest::TestCase
   end
 
 
-  def test_containers_get_many_ids
+  def test_containers_get_many
     container_ids = get_many_container_ids()
     if container_ids.size > 1
       assert_execute %(containers get #{container_ids.join(' ')})
+    else
+      puts "More than one container not found, unable to execute test `#{__method__}`"
+    end
+  end
+
+  def test_containers_actions
+    container_id = get_a_container_id()
+    if container_id
+      assert_execute %(containers actions #{container_id})
+    else
+      puts "No container found, unable to execute test `#{__method__}`"
+    end
+  end
+
+
+  def test_containers_actions_many
+    container_ids = get_many_container_ids()
+    if container_ids.size > 1
+      assert_execute %(containers actions #{container_ids.first(2).join(' ')})
     else
       puts "More than one container not found, unable to execute test `#{__method__}`"
     end
@@ -27,8 +46,7 @@ class MorpheusTest::ContainersTest < MorpheusTest::TestCase
   protected
 
   def get_a_container_id()
-    instance = client.instances.list({})['instances'][0]
-    instance ? instance['containers'][0] : nil
+    get_many_container_ids().first
   end
 
   def get_many_container_ids()
