@@ -608,9 +608,8 @@ EOT
       build_standard_update_options(opts, options)
       opts.footer = <<-EOT
 Execute an arbitrary command or script on a container.
-[id] is required. This is the id of a container. Supports multiple [id] arguments.
-  If more than one [id] is given, the command will execute for each one sequentially.
-[script] is required. This is the script that is to be executed.
+[id] is required. This is the id of a container.
+[script] is required and can be passed as --script of --file instead. This is the script that is to be executed.
 
 Examples:
     containers exec 42 "uname -a"
