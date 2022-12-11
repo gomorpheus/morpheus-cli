@@ -7,14 +7,16 @@ class Morpheus::Cli::ContainersCommand
 
   set_command_name :containers
   set_command_description "View and manage containers (nodes)."
-  register_subcommands :get, :stop, :start, :restart, :suspend, :eject, :action, :actions, :logs
-  register_subcommands :exec => :execution_request
+  register_subcommands :get, :stop, :start, :restart, :suspend, :eject, :action, :actions, :logs,
+    {:exec => :execution_request}, :clone_image, :import
 
   set_subcommands_hidden :action # replaced by run-action
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @containers_interface = @api_client.containers
+    @instances_interface = @api_client.instances
+    @provision_types_interface = @api_client.provision_types
     @logs_interface = @api_client.logs
     @execution_request_interface = @api_client.execution_request
   end
@@ -655,6 +657,123 @@ EOT
     return 0, nil
   end
 
+  def import(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[id] [image]")
+      opts.on( '--storage-provider VALUE', String, "Optional storage provider to use" ) do |val|
+        options[:options]['storageProviderId'] = val
+      end
+      build_standard_update_options(opts, options)
+      opts.footer = <<-EOT
+Import image template for a container.
+[id] is required. This is the id of a container.
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    container = find_container_by_id(args[0])
+    return 1 if container.nil?
+    instance = find_instance_by_name_or_id(container['instance']['id'])
+    return 1 if instance.nil?
+    # need to GET provision type for exportServer == true
+    provision_type = load_container_provision_type(container, instance)
+    # todo: add this exportServer to the api too obviously (oh it is there.. but clone-image is not)
+    # if provision_type['exportServer'] != true
+    #   raise_command_error "import is not supported by provision type #{provision_type['name']}"
+    # end
+    payload = parse_payload(options)
+    if payload.nil?
+      payload = parse_passed_options(options)
+      container_import_option_types = [
+        {'fieldName' => 'storageProviderId', 'type' => 'select', 'fieldLabel' => 'Storage Provider', 'optionSource' => 'storageProviders', 'required' => false, 'description' => 'Select Storage Provider.'}
+      ]
+      payload.deep_merge! Morpheus::Cli::OptionTypes.prompt(container_import_option_types, options[:options], @api_client, {})
+    end
+    @containers_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @containers_interface.dry.import(container['id'], payload)
+      return
+    end
+    json_response = @containers_interface.import(container['id'], payload)
+    render_response(json_response, options) do
+      print_green_success "Import initiated for container [#{container['id']}] #{container['name']}"
+    end
+    return 0, nil
+  end
+
+  def clone_image(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[id]")
+      opts.on( '--name VALUE', String, "Image Name (Template Name). Default is server name + timestamp" ) do |val|
+        options[:options]['templateName'] = val
+      end
+      opts.on( '--folder VALUE', String, "Folder externalId or '/' to use the root folder" ) do |val|
+        options[:options]['zoneFolder'] = val
+      end
+      build_standard_update_options(opts, options)
+      opts.footer = <<-EOT
+Clone to image (template) for a container.
+[id] is required. This is the id of a container.
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    container = find_container_by_id(args[0])
+    return 1 if container.nil?
+    # need to GET provision type for hasFolders == true and cloneTemplte == true
+    instance = find_instance_by_name_or_id(container['instance']['id'])
+    return 1 if instance.nil?
+    provision_type = load_container_provision_type(container, instance)
+    # todo: add this cloneTemplate check to the api too obviously
+    # if provision_type['cloneTemplate'] != true
+    #   raise_command_error "clone-image is not supported by provision type #{provision_type['name']}"
+    # end
+    payload = parse_payload(options)
+    if payload.nil?
+      payload = parse_passed_options(options)
+      if payload['templateName'].nil?
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'templateName', 'type' => 'text', 'fieldLabel' => 'Image Name', 'description' => 'Choose a name for the new image template. Default is the server name + timestamp'}], options[:options])
+        if v_prompt['templateName'].to_s != ''
+          payload['templateName'] = v_prompt['templateName']
+        end
+      end
+      #if provision_type['code'] == 'vmware'
+      if provision_type && provision_type["hasFolders"]
+        if payload['zoneFolder'].nil?
+          # vmwareFolders moved from /api/options/vmwareFolders to /api/options/vmware/vmwareFolders
+          folder_prompt = nil
+          begin
+            folder_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'zoneFolder', 'type' => 'select', 'optionSource' => 'vmwareFolders', 'optionSourceType' => 'vmware', 'fieldLabel' => 'Folder', 'description' => "Folder externalId or '/' to use the root folder", 'required' => true}], options[:options], @api_client, {siteId: instance['group']['id'], zoneId: instance['cloud']['id']})
+          rescue RestClient::Exception => e
+            Morpheus::Logging::DarkPrinter.puts "Failed to load folder options" if Morpheus::Logging.debug?
+            begin
+              folder_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'zoneFolder', 'type' => 'select', 'optionSource' => 'vmwareFolders', 'fieldLabel' => 'Folder', 'description' => "Folder externalId or '/' to use the root folder", 'required' => true}], options[:options], @api_client, {siteId: instance['group']['id'], zoneId: instance['cloud']['id']})
+            rescue RestClient::Exception => e2
+              Morpheus::Logging::DarkPrinter.puts "Failed to load folder options from alternative endpoint too" if Morpheus::Logging.debug?
+            end
+          end
+          if folder_prompt && folder_prompt['zoneFolder'].to_s != ''
+            payload['zoneFolder'] = folder_prompt['zoneFolder']
+          end
+        end
+      end
+    end
+    @containers_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @containers_interface.dry.clone_image(container['id'], payload)
+      return
+    end
+    json_response = @containers_interface.clone_image(container['id'], payload)
+    render_response(json_response, options) do
+      print_green_success "Clone Image initiated for container [#{container['id']}] #{container['name']}"
+    end
+    return 0, nil
+  end
+
 private
 
   def find_container_by_id(id)
@@ -681,5 +800,42 @@ private
     else
       raise_command_error "[id] argument is invalid, expected a number and got '#{id}'" #, args, optparse
     end
+  end
+
+  def load_container_provision_type(container, instance=nil)
+    if instance.nil?
+      instance = find_instance_by_name_or_id(container['instance']['id'])
+      return 1 if instance.nil?
+    end
+    # todo: should be returned by containers api too, get from instance for old api versions
+    provision_type_code = container['containerType']['provisionTypeCode'] rescue nil
+    provision_type_code = provision_type_code || container['provisionType']['code'] rescue nil
+    if provision_type_code.nil?
+      return load_instance_provision_type(instance)
+    end
+    provision_type = nil
+    if provision_type_code
+      provision_type = provision_types_interface.list({code:provision_type_code})['provisionTypes'][0]
+      if provision_type.nil?
+        raise_command_error "Provision Type not found by code #{provision_type_code}"
+      end
+    else
+      raise_command_error "Unable to determine provision type for container #{container['id']}"
+    end
+    return provision_type
+  end
+
+  def load_instance_provision_type(instance)
+    provision_type_code = instance['layout']['provisionTypeCode'] rescue nil
+    provision_type = nil
+    if provision_type_code
+      provision_type = provision_types_interface.list({code:provision_type_code})['provisionTypes'][0]
+      if provision_type.nil?
+        raise_command_error "Provision Type not found by code #{provision_type_code}"
+      end
+    else
+      raise_command_error "Unable to determine provision type for instance #{instance['id']}"
+    end
+    return provision_type
   end
 end
