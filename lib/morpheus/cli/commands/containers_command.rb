@@ -206,7 +206,7 @@ EOT
       opts.banner = subcommand_usage("[id]")
       build_standard_update_options(opts, options, [:auto_confirm])
       opts.footer = <<-EOT
-Stop a container.
+Start a container.
 [id] is required. This is the id of a container. Supports multiple [id] arguments.
 If more than one [id] is given, the command will execute for each one sequentially.
 
