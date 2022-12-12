@@ -10,8 +10,6 @@ class Morpheus::Cli::ContainersCommand
   register_subcommands :get, :stop, :start, :restart, :suspend, :eject, :action, :actions, :logs,
     {:exec => :execution_request}, :clone_image, :import
 
-  set_subcommands_hidden :action # replaced by run-action
-
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @containers_interface = @api_client.containers
