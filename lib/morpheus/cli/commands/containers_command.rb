@@ -663,7 +663,7 @@ EOT
       opts.on( '--storage-provider VALUE', String, "Optional storage provider to use" ) do |val|
         options[:options]['storageProviderId'] = val
       end
-      build_standard_update_options(opts, options)
+      build_standard_update_options(opts, options, [:auto_confirm])
       opts.footer = <<-EOT
 Import image template for a container.
 [id] is required. This is the id of a container.
@@ -690,6 +690,7 @@ EOT
       ]
       payload.deep_merge! Morpheus::Cli::OptionTypes.prompt(container_import_option_types, options[:options], @api_client, {})
     end
+    confirm!("Are you sure you would like to import container #{container['id']}?", options)
     @containers_interface.setopts(options)
     if options[:dry_run]
       print_dry_run @containers_interface.dry.import(container['id'], payload)
@@ -712,7 +713,7 @@ EOT
       opts.on( '--folder VALUE', String, "Folder externalId or '/' to use the root folder" ) do |val|
         options[:options]['zoneFolder'] = val
       end
-      build_standard_update_options(opts, options)
+      build_standard_update_options(opts, options, [:auto_confirm])
       opts.footer = <<-EOT
 Clone to image (template) for a container.
 [id] is required. This is the id of a container.
@@ -761,6 +762,7 @@ EOT
         end
       end
     end
+    confirm!("Are you sure you would like to clone as image container #{container['id']}?", options)
     @containers_interface.setopts(options)
     if options[:dry_run]
       print_dry_run @containers_interface.dry.clone_image(container['id'], payload)
