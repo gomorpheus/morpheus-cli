@@ -13,9 +13,8 @@ class Morpheus::DocInterface < Morpheus::APIClient
     execute(method: :get, url: url, headers: headers)
   end
 
-  def swagger(params={})
-    url = "/api/doc/swagger"
-    # prefer /swagger.yml instead of /swagger?format=yml
+  def openapi(params={})
+    url = "/api/doc/openapi"
     fmt = params.delete('format')
     if fmt
       url = url + "." + fmt
@@ -25,10 +24,11 @@ class Morpheus::DocInterface < Morpheus::APIClient
     execute(method: :get, url: url, headers: headers, timeout: 172800, parse_json: !is_yaml)
   end
 
-  def download_swagger(outfile, params={})
+  alias :swagger :openapi
+
+  def download_openapi(outfile, params={})
     # note that RestClient.execute still requires the full path with base_url
-    url = "#{@base_url}/api/doc/swagger"
-    # prefer /swagger.yml instead of /swagger?format=yml
+    url = "#{@base_url}/api/doc/openapi"
     fmt = params.delete('format')
     if fmt
       url = url + "." + fmt
@@ -53,5 +53,7 @@ class Morpheus::DocInterface < Morpheus::APIClient
     }
     http_response
   end
+
+  alias :swagger :download_openapi
 
 end
