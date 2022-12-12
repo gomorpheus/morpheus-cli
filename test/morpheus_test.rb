@@ -1,5 +1,6 @@
 require 'test/unit'
 require 'test_case'
+require 'test_data_helper'
 
 # setup at_start hook that runs once at the beginning of all tests
 Test::Unit.at_start {

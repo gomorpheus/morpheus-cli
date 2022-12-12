@@ -7,8 +7,17 @@ require 'test_config'
 
 module MorpheusTest
     
-  # Base TestCase for CLI unit tests to provide standard behavior
-  # Most of the test environment configuration is done in test_helper.rb
+  # Base TestCase for CLI unit tests to provide standard behavior such as login and assertion
+  # Setup of of the test environment
+  # Executing commands ans asserting the result
+  # +assert_execute+ is provided to execute a command or expression and assert the result (by default).
+  # todo: builtin capture of stdout and stderr for assertion
+  # +terminal+ is provided to execute any commands without assertion, use +terminal.execute("source foo"+)
+  #
+  # ## Executing API requests
+  # +client+ is provided to execute api client commands without assertion
+  #
+  # and +client+ methods to execute commands
   class TestCase < Test::Unit::TestCase
     include Morpheus::Cli::PrintHelper # printhelper for print_red_alert and what not.. should probably not be included in MorpheusTest
 
@@ -97,6 +106,7 @@ module MorpheusTest
       opts = opts.is_a?(String) ? {failure_message:opts} : (opts || {})
       assert_execute(cmd, opts.merge(success:false), failure_message)
     end
+
 
     # Assert that a command is has the expected exit status and message
     # The default behavior is to assert the result is successful, exit: 0, error: nil

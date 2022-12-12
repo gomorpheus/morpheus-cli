@@ -28,6 +28,16 @@ class MorpheusTest::CliTest < MorpheusTest::TestCase
     assert_execute("--version")
   end
 
+  def test_cli_nocolor
+    assert_execute("version -C")
+    assert_execute("echo -C \"disable coloring with the -C option\"")
+    # todo: fix bug here that makes this persist for all subsequent terminal commands
+    # this re-enavbles it for remainder of tests
+    # assert_execute("coloring on?")
+    assert_execute("coloring off?")
+    assert_execute("coloring")
+  end
+
   # HelpTest handles this now..
   # def test_help
   #   assert_execute("help")

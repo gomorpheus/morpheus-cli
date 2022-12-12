@@ -98,7 +98,7 @@ module Morpheus
     # the global Morpheus::Terminal instance
     # This should go away, but it needed for now...
     def self.instance
-      @morphterm # ||= self.new({})
+      @morphterm ||= self.new({})
     end
 
     # hack alert! This should go away, but is needed for now...
