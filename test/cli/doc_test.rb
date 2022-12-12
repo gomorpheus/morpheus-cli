@@ -1,6 +1,6 @@
 require 'morpheus_test'
 
-# Tests for Morpheus::DocInterface
+# Tests for Morpheus::Cli::Doc
 class MorpheusTest::DocTest < MorpheusTest::TestCase
   
   def test_doc_list
