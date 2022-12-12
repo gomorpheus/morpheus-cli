@@ -41,6 +41,11 @@ class MorpheusTest::RemoteTest < MorpheusTest::TestCase
     assert_execute %(remote current)
   end
 
+  def test_remote_version
+    assert_execute %(remote version)
+    #assert_execute %(remote version "#{@@test_remote_name}")
+  end
+
   def test_remote_check
     assert_execute %(remote check)
     assert_execute %(remote check "#{@@test_remote_name}")

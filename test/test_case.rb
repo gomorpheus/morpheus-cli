@@ -6,18 +6,16 @@ require 'test_config'
 #require 'securerandom'
 
 module MorpheusTest
-    
-  # Base TestCase for CLI unit tests to provide standard behavior such as login and assertion
-  # Setup of of the test environment
-  # Executing commands ans asserting the result
-  # +assert_execute+ is provided to execute a command or expression and assert the result (by default).
-  # todo: builtin capture of stdout and stderr for assertion
-  # +terminal+ is provided to execute any commands without assertion, use +terminal.execute("source foo"+)
+
+  # TestCase is the base class for all unit tests to provide standard behavior
+  # for testing CLI commands and API interfaces.
   #
-  # ## Executing API requests
-  # +client+ is provided to execute api client commands without assertion
+  # +assert_execute+ is available to execute a CLI command or expression and assert the result is a success (exit:0) by default.
   #
-  # and +client+ methods to execute commands
+  # +terminal+ is available to execute any commands eg. +terminal.execute("source foo")+
+  #
+  # +client+ is available for executing API requests
+  #
   class TestCase < Test::Unit::TestCase
     include Morpheus::Cli::PrintHelper # printhelper for print_red_alert and what not.. should probably not be included in MorpheusTest
 
@@ -57,7 +55,9 @@ module MorpheusTest
     #   @client = establish_test_terminal()
     # end
 
-    # @return [Morpheus::APIClient] client for executing api requests in our tests and examining the results
+    protected
+
+     # @return [Morpheus::APIClient] client for executing api requests in our tests and examining the results
     def client
       # todo: return terminal.get_api_client()
       #@api_client ||= Morpheus::APIClient.new(url: @config.url, username: @config.username, password: @config.password_decrypted, verify_ssl: false, client_id: 'morph-api')
@@ -67,8 +67,6 @@ module MorpheusTest
     end
 
    
-
-    protected
 
     # Execute the command in the CLI terminal and assert the result
     # By default, the result should be a success with exit code: 0 and error: nil
