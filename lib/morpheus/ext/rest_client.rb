@@ -5,6 +5,7 @@ require 'rest-client'
 module RestClient  
   class Request
 
+    alias_method :original_log_request, :log_request
     def log_request
       begin
         return unless RestClient.log
@@ -14,10 +15,10 @@ module RestClient
         out << payload.short_inspect if payload
         out << processed_headers.to_a.sort.map { |(k, v)| [k.inspect, v.inspect].join("=>") }.join(", ")
         RestClient.log << out.join(', ') + "\n"
-      rescue => ex
+      rescue
         # something went wrong, wrong gem version maybe...above is from rest-client 2.0.2
         # do it the old way
-        super
+        original_log_request()
       end
     end
 =begin

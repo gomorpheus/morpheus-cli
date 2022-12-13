@@ -1,20 +1,20 @@
 #!/usr/bin/env ruby
-require 'morpheus/terminal'
+require 'morpheus'
 
 # arguments
 args = ARGV
 
 # input pipe
 # append piped data as arguments
-if !STDIN.tty?
-  pipe_data = STDIN.read
+if !$stdin.tty?
+  pipe_data = $stdin.read
   if pipe_data
     args += pipe_data.split
   end
 end
 
 # output pipe
-# if !STDOUT.tty?
+# if !$stdout.tty?
 
 # end
 

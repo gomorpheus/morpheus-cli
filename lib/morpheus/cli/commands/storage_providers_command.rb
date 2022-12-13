@@ -794,7 +794,7 @@ class Morpheus::Cli::StorageProvidersCommand
       puts_error  "#{command_name} missing argument: [local-file]\n#{optparse}"
       return 1
     end
-    if !File.exists?(local_file_path)
+    if !File.exist?(local_file_path)
       print_error Morpheus::Terminal.angry_prompt
       puts_error  "#{command_name} bad argument: [local-file]\nFile '#{local_file_path}' was not found.\n#{optparse}"
       return 1
@@ -918,7 +918,7 @@ class Morpheus::Cli::StorageProvidersCommand
       else
 
         # upload file
-        if !File.exists?(local_file_path) && !File.file?(local_file_path)
+        if !File.exist?(local_file_path) && !File.file?(local_file_path)
           print_error Morpheus::Terminal.angry_prompt
           puts_error  "#{command_name} bad argument: [local-file]\nFile '#{local_file_path}' was not found.\n#{optparse}"
           return 1
@@ -1016,15 +1016,15 @@ class Morpheus::Cli::StorageProvidersCommand
 
       file_path = file_path.squeeze('/')
       outfile = File.expand_path(outfile)
-      if Dir.exists?(outfile)
+      if Dir.exist?(outfile)
         outfile = File.join(outfile, File.basename(file_path))
       end
-      if Dir.exists?(outfile)
+      if Dir.exist?(outfile)
         print_red_alert "[local-file] is invalid. It is the name of an existing directory: #{outfile}"
         return 1
       end
       destination_dir = File.dirname(outfile)
-      if !Dir.exists?(destination_dir)
+      if !Dir.exist?(destination_dir)
         if do_mkdir
           print cyan,"Creating local directory #{destination_dir}",reset,"\n"
           FileUtils.mkdir_p(destination_dir)
@@ -1033,7 +1033,7 @@ class Morpheus::Cli::StorageProvidersCommand
           return 1
         end
       end
-      if File.exists?(outfile)
+      if File.exist?(outfile)
         if do_overwrite
           # uhh need to be careful wih the passed filepath here..
           # don't delete, just overwrite.
@@ -1069,7 +1069,7 @@ class Morpheus::Cli::StorageProvidersCommand
             print red + "ERROR" + reset + " HTTP #{http_response.code}" + "\n"
           end
           # F it, just remove a bad result
-          if File.exists?(outfile) && File.file?(outfile)
+          if File.exist?(outfile) && File.file?(outfile)
             Morpheus::Logging::DarkPrinter.puts "Deleting bad file download: #{outfile}" if Morpheus::Logging.debug?
             File.delete(outfile)
           end

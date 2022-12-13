@@ -318,6 +318,31 @@ class Morpheus::InstancesInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def list_schedules(id, params={}, headers={})
+    validate_id!(id)
+    execute(method: :get, url: "#{base_path}/#{id}/schedules", params: params, headers: headers)
+  end
+
+  def get_schedule(id, schedule_id, params={}, headers={})
+    validate_id!(id) && validate_id!(schedule_id, 'schedule_id')
+    execute(method: :get, url: "#{base_path}/#{id}/schedules/#{schedule_id}", params: params, headers: headers)
+  end
+
+  def create_schedule(id, payload, params={}, headers={})
+    validate_id!(id)
+    execute(method: :post, url: "#{base_path}/#{id}/schedules", params: params, payload: payload, headers: headers)
+  end
+
+  def update_schedule(id, schedule_id, payload, params={}, headers={})
+    validate_id!(id) && validate_id!(schedule_id, 'schedule_id')
+    execute(method: :put, url: "#{base_path}/#{id}/schedules/#{schedule_id}", params: params, payload: payload, headers: headers)
+  end
+
+  def destroy_schedule(id, schedule_id, params = {}, headers={})
+    validate_id!(id) && validate_id!(schedule_id, 'schedule_id')
+    execute(method: :delete, url: "#{base_path}/#{id}/schedules/#{schedule_id}", params: params, headers: headers)
+  end
+
   def update_load_balancer(id, payload)
     url = "#{@base_url}/api/instances/#{id}/load-balancer"
     headers = {authorization: "Bearer #{@access_token}", 'Content-Type' => 'application/json' }

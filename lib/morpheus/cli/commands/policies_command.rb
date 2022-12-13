@@ -334,7 +334,7 @@ class Morpheus::Cli::PoliciesCommand
         options['eachUser'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s.empty?
       end
       
-      opts.on('-t', '--type ID', "Policy Type Name or ID") do |val|
+      opts.on('-t', '--type ID', "Policy Type Name, Code or ID") do |val|
         options['type'] = val
       end
       opts.on('--name VALUE', String, "Name for this policy") do |val|
@@ -417,7 +417,7 @@ class Morpheus::Cli::PoliciesCommand
           print_red_alert "No available policy types found!"
           return 1
         end
-        policy_types_dropdown = available_policy_types.collect {|it| {'name' => it['name'], 'value' => it['id']} }
+        policy_types_dropdown = available_policy_types.collect {|it| {'name' => it['name'], 'value' => it['code'], 'id' => it['id']} }
         policy_type_id = nil
         policy_type = nil
         if options['type']
@@ -497,7 +497,7 @@ class Morpheus::Cli::PoliciesCommand
           payload['policy']['config'] = options['config']
         elsif options['configFile']
           config_file = File.expand_path(options['configFile'])
-          if !File.exists?(config_file) || !File.file?(config_file)
+          if !File.exist?(config_file) || !File.file?(config_file)
             print_red_alert "File not found: #{config_file}"
             return false
           end
@@ -637,7 +637,7 @@ class Morpheus::Cli::PoliciesCommand
         payload['policy']['config'] = options['config']
       elsif options['configFile']
         config_file = File.expand_path(options['configFile'])
-        if !File.exists?(config_file) || !File.file?(config_file)
+        if !File.exist?(config_file) || !File.file?(config_file)
           print_red_alert "File not found: #{config_file}"
           return false
         end

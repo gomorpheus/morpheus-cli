@@ -184,7 +184,7 @@ EOT
         options[:config_file] = val.to_s
         file_content = nil
         full_filename = File.expand_path(options[:config_file])
-        if File.exists?(full_filename)
+        if File.exist?(full_filename)
           file_content = File.read(full_filename)
         else
           print_red_alert "File not found: #{full_filename}"
@@ -194,7 +194,7 @@ EOT
         config_map = parse_result[:data]
         if config_map.nil?
           # todo: bubble up JSON.parse error message
-          raise_command_error "Failed to parse config as YAML or JSON. Error: #{parse_result[:err]}"
+          raise_command_error "Failed to parse config as YAML or JSON. Error: #{parse_result[:error]}"
           #raise_command_error "Failed to parse config as valid YAML or JSON."
         else
           params['config'] = config_map
@@ -244,7 +244,7 @@ EOT
         config_map = parse_result[:data]
         if config_map.nil?
           # todo: bubble up JSON.parse error message
-          raise_command_error "Failed to parse config as YAML or JSON. Error: #{parse_result[:err]}"
+          raise_command_error "Failed to parse config as YAML or JSON. Error: #{parse_result[:error]}"
           #raise_command_error "Failed to parse config as valid YAML or JSON."
         else
           params['config'] = config_map
@@ -290,7 +290,7 @@ EOT
         options[:config_file] = val.to_s
         file_content = nil
         full_filename = File.expand_path(options[:config_file])
-        if File.exists?(full_filename)
+        if File.exist?(full_filename)
           file_content = File.read(full_filename)
         else
           print_red_alert "File not found: #{full_filename}"
@@ -300,7 +300,7 @@ EOT
         config_map = parse_result[:data]
         if config_map.nil?
           # todo: bubble up JSON.parse error message
-          raise_command_error "Failed to parse config as YAML or JSON. Error: #{parse_result[:err]}"
+          raise_command_error "Failed to parse config as YAML or JSON. Error: #{parse_result[:error]}"
           #raise_command_error "Failed to parse config as valid YAML or JSON."
         else
           params['config'] = config_map
@@ -345,7 +345,7 @@ EOT
         config_map = parse_result[:data]
         if config_map.nil?
           # todo: bubble up JSON.parse error message
-          raise_command_error "Failed to parse config as YAML or JSON. Error: #{parse_result[:err]}"
+          raise_command_error "Failed to parse config as YAML or JSON. Error: #{parse_result[:error]}"
           #raise_command_error "Failed to parse config as valid YAML or JSON."
         else
           params['config'] = config_map

@@ -25,7 +25,7 @@ class Morpheus::Cli::CatCommand
     arg_files = args
     arg_files.each do |arg_file|
       arg_file = File.expand_path(arg_file)
-      if !File.exists?(arg_file)
+      if !File.exist?(arg_file)
         print_error Morpheus::Terminal.angry_prompt
         puts_error  "#{command_name}:  file not found: '#{arg_file}'"
         #print_red_alert "morpheus cat: file not found: '#{arg_file}'"

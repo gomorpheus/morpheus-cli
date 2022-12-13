@@ -661,7 +661,7 @@ EOT
         Dir.chdir(base_working_dir)
         fmap = nil
         full_file_pattern = File.expand_path(file_pattern)
-        if File.exists?(full_file_pattern)
+        if File.exist?(full_file_pattern)
           if File.directory?(full_file_pattern)
             fmap = {'path' => full_file_pattern, 'pattern' => '**/*'}
           else

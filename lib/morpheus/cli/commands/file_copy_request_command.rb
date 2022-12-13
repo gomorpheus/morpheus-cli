@@ -190,7 +190,7 @@ class Morpheus::Cli::FileCopyRequestCommand
         filename = v_prompt['file']
       end
       full_filename = File.expand_path(filename)        
-      if !File.exists?(full_filename)
+      if !File.exist?(full_filename)
         print_red_alert "File not found: #{full_filename}"
         return 1
       end
@@ -266,12 +266,12 @@ class Morpheus::Cli::FileCopyRequestCommand
       filename = args[1]
     end
     outfile = File.expand_path(filename)
-    if Dir.exists?(outfile)
+    if Dir.exist?(outfile)
       print_red_alert "[file] is invalid. It is the name of an existing directory: #{outfile}"
       return 1
     end
     destination_dir = File.dirname(outfile)
-    if !Dir.exists?(destination_dir)
+    if !Dir.exist?(destination_dir)
       if do_mkdir
         print cyan,"Creating local directory #{destination_dir}",reset,"\n"
         FileUtils.mkdir_p(destination_dir)
@@ -280,7 +280,7 @@ class Morpheus::Cli::FileCopyRequestCommand
         return 1
       end
     end
-    if File.exists?(outfile)
+    if File.exist?(outfile)
       if do_overwrite
         # uhh need to be careful wih the passed filepath here..
         # don't delete, just overwrite.
@@ -320,7 +320,7 @@ class Morpheus::Cli::FileCopyRequestCommand
           print red + "ERROR" + reset + " HTTP #{http_response.code}" + "\n"
         end
         # F it, just remove a bad result
-        if File.exists?(outfile) && File.file?(outfile)
+        if File.exist?(outfile) && File.file?(outfile)
           Morpheus::Logging::DarkPrinter.puts "Deleting bad file download: #{outfile}" if Morpheus::Logging.debug?
           File.delete(outfile)
         end

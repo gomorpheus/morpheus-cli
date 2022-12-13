@@ -4,7 +4,6 @@ class Morpheus::LogsInterface < Morpheus::APIClient
 
   def list(params={})
     url = "#{@base_url}/api/logs"
-    # old versions expected containers[]
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     execute({method: :get, url: url, headers: headers})
   end
@@ -12,14 +11,13 @@ class Morpheus::LogsInterface < Morpheus::APIClient
   def container_logs(containers=[], params={})
     url = "#{@base_url}/api/logs"
     # old versions expected containers[]
-    headers = { params: {'containers' => containers, 'containers[]' => containers}.merge(params), authorization: "Bearer #{@access_token}" }
+    headers = { params: {'containers' => containers}.merge(params), authorization: "Bearer #{@access_token}" }
     execute({method: :get, url: url, headers: headers})
   end
 
   def server_logs(servers=[], params={})
     url = "#{@base_url}/api/logs"
-    # old versions expected containers[]
-    headers = { params: {'servers' => servers, 'servers[]' => servers}.merge(params), authorization: "Bearer #{@access_token}" }
+    headers = { params: {'servers' => servers}.merge(params), authorization: "Bearer #{@access_token}" }
     execute({method: :get, url: url, headers: headers})
   end
 

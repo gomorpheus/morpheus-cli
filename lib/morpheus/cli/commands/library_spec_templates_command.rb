@@ -207,7 +207,7 @@ class Morpheus::Cli::LibrarySpecTemplatesCommand
       opts.on('--file FILE', "File containing the template. This can be used instead of --content" ) do |filename|
         file_params['sourceType'] = 'local' if file_params['sourceType'].nil?
         full_filename = File.expand_path(filename)
-        if File.exists?(full_filename)
+        if File.exist?(full_filename)
           file_params['content'] = File.read(full_filename)
         else
           print_red_alert "File not found: #{full_filename}"
@@ -363,7 +363,7 @@ class Morpheus::Cli::LibrarySpecTemplatesCommand
       opts.on('--file FILE', "File containing the template. This can be used instead of --content" ) do |filename|
         file_params['sourceType'] = 'local' if file_params['sourceType'].nil?
         full_filename = File.expand_path(filename)
-        if File.exists?(full_filename)
+        if File.exist?(full_filename)
           file_params['content'] = File.read(full_filename)
         else
           print_red_alert "File not found: #{full_filename}"

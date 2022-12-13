@@ -7,7 +7,7 @@ class Morpheus::Cli::Hosts
   include Morpheus::Cli::LogsHelper
   set_command_name :hosts
   set_command_description "View and manage hosts (servers)."
-  register_subcommands :list, :count, :get, :view, :stats, :add, :update, :remove, :logs, :start, :stop, :resize, 
+  register_subcommands :list, :count, :get, :view, :stats, :add, :update, :remove, :logs, :start, :stop, :resize, :restart,
                        :run_workflow, :make_managed, :upgrade_agent, :snapshots, :software, :software_sync, :update_network_label,
                        {:'types' => :list_types},
                        {:exec => :execution_request},
@@ -1243,6 +1243,44 @@ class Morpheus::Cli::Hosts
     end
   end
 
+   def restart(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[name]")
+      build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
+      opts.footer = "Restart a host.\n" +
+                    "[name] is required. This is the name or id of a host."
+    end
+    optparse.parse!(args)
+    if args.count < 1
+      puts optparse
+      exit 1
+    end
+    connect(options)
+    begin
+      server = find_host_by_name_or_id(args[0])
+      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to restart the server '#{server['name']}'?", options)
+        exit 1
+      end
+     @servers_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @servers_interface.dry.restart(server['id'])
+        return
+      end
+      json_response = @servers_interface.restart(server['id'])
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      elsif !options[:quiet]
+        print_green_success "Restarting #{server["name"]}"
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+
   def resize(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
@@ -1280,7 +1318,7 @@ class Morpheus::Cli::Hosts
       end
 
       # prompt for service plan
-      service_plans_json = @servers_interface.service_plans({zoneId: cloud_id, serverTypeId: server_type_id})
+      service_plans_json = @servers_interface.service_plans({zoneId: cloud_id, serverTypeId: server_type_id, serverId: server['id']})
       service_plans = service_plans_json["plans"]
       service_plans_dropdown = service_plans.collect {|sp| {'name' => sp["name"], 'value' => sp["id"]} } # already sorted
       service_plans_dropdown.each do |plan|
@@ -1288,7 +1326,7 @@ class Morpheus::Cli::Hosts
           plan['name'] = "#{plan['name']} (current)"
         end
       end
-      plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'plan', 'type' => 'select', 'fieldLabel' => 'Plan', 'selectOptions' => service_plans_dropdown, 'required' => true, 'description' => 'Choose the appropriately sized plan for this server'}],options[:options])
+      plan_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'plan', 'type' => 'select', 'fieldLabel' => 'Plan', 'selectOptions' => service_plans_dropdown, 'required' => true, 'defaultValue' => plan_id, 'description' => 'Choose the appropriately sized plan for this server'}],options[:options])
       service_plan = service_plans.find {|sp| sp["id"] == plan_prompt['plan'].to_i }
       payload[:server][:plan] = {id: service_plan["id"]}
 
@@ -1550,7 +1588,7 @@ class Morpheus::Cli::Hosts
       end
       opts.on('--file FILE', "File containing the script. This can be used instead of --script" ) do |filename|
         full_filename = File.expand_path(filename)
-        if File.exists?(full_filename)
+        if File.exist?(full_filename)
           script_content = File.read(full_filename)
         else
           print_red_alert "File not found: #{full_filename}"
@@ -1883,7 +1921,7 @@ class Morpheus::Cli::Hosts
       build_option_type_options(opts, options, update_wiki_page_option_types)
       opts.on('--file FILE', "File containing the wiki content. This can be used instead of --content") do |filename|
         full_filename = File.expand_path(filename)
-        if File.exists?(full_filename)
+        if File.exist?(full_filename)
           params['content'] = File.read(full_filename)
         else
           print_red_alert "File not found: #{full_filename}"

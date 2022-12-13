@@ -116,7 +116,7 @@ class Morpheus::Cli::AccessTokenCommand
       end
       opts.on( '--token-file FILE', String, "Refresh Token File, read a file containing the refresh token." ) do |val|
         token_file = File.expand_path(val)
-        if !File.exists?(token_file) || !File.file?(token_file)
+        if !File.exist?(token_file) || !File.file?(token_file)
           raise ::OptionParser::InvalidOption.new("File not found: #{token_file}")
         end
         options[:refresh_token] = File.read(token_file).to_s.split("\n").first.strip

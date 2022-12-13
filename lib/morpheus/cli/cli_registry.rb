@@ -78,10 +78,17 @@ module Morpheus
 
         def exec_command(command_name, args)
           #puts "exec_command(#{command_name}, #{args})"
+          result = nil
           if has_alias?(command_name)
-            exec_alias(command_name, args)
+            result = exec_alias(command_name, args)
           elsif has_command?(command_name)
-            instance.get(command_name).new.handle(args)
+            begin
+              result = instance.get(command_name).new.handle(args)
+            rescue SystemExit => e
+              result = Morpheus::Cli::ErrorHandler.new(Morpheus::Terminal.instance.stderr).handle_error(e) # lol
+            rescue => e
+              result = Morpheus::Cli::ErrorHandler.new(Morpheus::Terminal.instance.stderr).handle_error(e) # lol
+            end
           else
             # todo: need to just return error instead of raise
             msg = "'#{command_name}' is not a morpheus command."
@@ -97,8 +104,10 @@ module Morpheus
                 msg += "\t" + suggestion + "\n"
               end
             end
-            raise CommandNotFoundError.new(msg)
+            #raise CommandNotFoundError.new(msg)
+            result = Morpheus::Cli::ErrorHandler.new(Morpheus::Terminal.instance.stderr).handle_error(CommandNotFoundError.new(msg)) # lol
           end
+          return result
         end
 
         def exec_alias(alias_name, args)
@@ -248,17 +257,17 @@ module Morpheus
 
         # parse any object into a command result [exit_code, error]
         # 0 means success.
-        # This treats nil, true, or an object success.
-        # 0 or
-        # @return [Array] exit_code, error. Success returns [0, nil].
+        # This treats nil, true, or an object as success ie. [0, nil]
+        # and false is treated as an error [1, error]
+        # @return [Array] [exit_code, error]. Success returns [0, nil].
         def parse_command_result(cmd_result)
-          exit_code, err = nil, nil
+          exit_code, error = nil, nil
           if cmd_result.is_a?(Array)
             exit_code = cmd_result[0] || 0
-            err = cmd_result[1]
+            error = cmd_result[1]
           elsif cmd_result.is_a?(Hash)
             exit_code = cmd_result[:exit_code] || 0
-            err = cmd_result[:error] || cmd_result[:err]
+            error = cmd_result[:error] || cmd_result[:err]
           elsif cmd_result == nil || cmd_result == true
             exit_code = 0
           elsif cmd_result == false
@@ -279,7 +288,7 @@ module Morpheus
               exit_code = 0
             end
           end
-          return exit_code, err
+          return exit_code, error
         end
 
         def cached_command_list

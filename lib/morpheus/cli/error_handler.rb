@@ -25,6 +25,16 @@ class Morpheus::Cli::ErrorHandler
     #@stderr.puts "#{dark}Handling error #{err.class} - #{err}#{reset}"
 
     case (err)
+    when SystemExit
+      # nothing to do, assume the command that exited printed an error already
+      # print "\n"
+      cmdexit = err
+      if cmdexit.success?
+        exit_code, err = 0, nil
+      else
+        exit_code, err = cmdexit.status, "Command exited with status: #{cmdexit.status}"
+      end
+      return exit_code, err
     # when Morpheus::Cli::CommandNotFoundError
     #   puts_angry_error err.message
     #   @stderr.puts "Try help to see a list of available commands"
@@ -32,6 +42,12 @@ class Morpheus::Cli::ErrorHandler
     #   if err.exit_code
     #     exit_code = err.exit_code
     #   end
+      when Morpheus::Cli::CommandAborted
+        # user declined a confirmation prompt, do not print anything and exit 9
+        do_print_stacktrace = false
+        exit_code = err.exit_code if err.exit_code
+        # err = err.message
+    return 
     when ::OptionParser::InvalidOption, ::OptionParser::AmbiguousOption, 
         ::OptionParser::MissingArgument, ::OptionParser::InvalidArgument, 
         ::OptionParser::NeedlessArgument

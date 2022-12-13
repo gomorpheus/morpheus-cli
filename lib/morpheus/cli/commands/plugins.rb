@@ -30,7 +30,7 @@ EOT
     connect(options)
     filename = args[0]
     filename = File.expand_path(filename)
-    if !File.exists?(filename)
+    if !File.exist?(filename)
       raise_command_error "File not found: #{filename}"
     elsif !File.file?(filename)
       raise_command_error "File is a directory: #{filename}"

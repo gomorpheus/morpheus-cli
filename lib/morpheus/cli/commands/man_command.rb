@@ -8,12 +8,24 @@ class Morpheus::Cli::ManCommand
   # this should be read only anyway...
   @@default_editor = "less" # ENV['EDITOR']
 
+  def self.man_file_path
+    File.join(Morpheus::Cli.home_directory, "CLI-Manual-#{Morpheus::Cli::VERSION}.md")
+  end
+
   def handle(args)
     options = {}
     regenerate = false
-    editor = @@default_editor
     open_as_link = false # true please
     goto_wiki = false
+    editor = @@default_editor
+    #todo: windows
+    if !$stdin.tty?
+      editor = "cat"
+    end
+    # no editor for windows atm
+    if Morpheus::Cli.windows?
+      open_as_link = true
+    end
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = "Usage: morpheus man"
       opts.on('-w','--wiki', "Open the morpheus-cli wiki instead of the local man page") do
@@ -81,16 +93,16 @@ EOT
         print_error "#{red}It is the name of an existing directory.#{reset}\n"
         return 1
       end
-      if File.exists?(fn) && options[:overwrite] != true
+      if File.exist?(fn) && options[:overwrite] != true
         print_error "#{red}Output file '#{fn}' already exists.#{reset}\n"
         print_error "#{red}Use --overwrite to overwrite the existing file.#{reset}\n"
         return 1
       end
     end
     exit_code, err = 0, nil
-    if regenerate || !File.exists?(fn)
+    if regenerate || !File.exist?(fn)
       #Morpheus::Logging::DarkPrinter.puts "generating manual #{fn} ..." if Morpheus::Logging.debug? && !options[:quiet]
-      exit_code, err = Morpheus::Cli::ManCommand.generate_manual(options)
+      exit_code, err = generate_manual(options)
     end
     
     if options[:quiet]
@@ -99,7 +111,7 @@ EOT
     
     Morpheus::Logging::DarkPrinter.puts "opening manual file #{fn}" if Morpheus::Logging.debug? && !options[:quiet]
     
-    if open_as_link # not used atm
+    if open_as_link # windows only atm
       link = "file://#{fn}"
       if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
         system "start #{link}"
@@ -142,13 +154,9 @@ EOT
     return has_it
   end
 
-  def self.man_file_path
-    File.join(Morpheus::Cli.home_directory, "CLI-Manual-#{Morpheus::Cli::VERSION}.md")
-  end
-
   # def self.save_manual(fn, content)
-  #   # fn = man_file_path()
-  #   if !Dir.exists?(File.dirname(fn))
+  #   # fn = Morpheus::Cli::ManCommand.man_file_path
+  #   if !Dir.exist?(File.dirname(fn))
   #     FileUtils.mkdir_p(File.dirname(fn))
   #   end
   #   Morpheus::Logging::DarkPrinter.puts "saving manual to #{fn}" if Morpheus::Logging.debug?
@@ -156,19 +164,19 @@ EOT
   #   FileUtils.chmod(0600, fn)
   # end
 
-  def self.generate_manual(options={})
+  def generate_manual(options={})
     # todo: use pandoc or something else to convert the CLI-Manual.md to a man page
     # and install it, so the os command `man morpheus` will work too.
-    fn = man_file_path()
+    fn = Morpheus::Cli::ManCommand.man_file_path
     if options[:outfile]
       fn = File.expand_path(options[:outfile])
-      if File.exists?(fn) && options[:overwrite] != true
+      if File.exist?(fn) && options[:overwrite] != true
         print_error "#{red}Output file '#{options[:outfile]}' already exists.#{reset}\n"
         print_error "#{red}Use --overwrite to overwrite the existing file.#{reset}\n"
         return 1, "output file already exists"
       end
     end
-    if !Dir.exists?(File.dirname(fn))
+    if !Dir.exist?(File.dirname(fn))
       FileUtils.mkdir_p(File.dirname(fn))
     end
     Morpheus::Logging::DarkPrinter.puts "generating manual #{fn}" if Morpheus::Logging.debug? && !options[:quiet]
@@ -202,7 +210,7 @@ EOT
 
     Use the command `#{prog_name} remote add` to connect to your Morpheus appliance.
 
-    To learn more, visit https://github.com/gomorpheus/morpheus-cli/wiki/Getting-Started
+    To learn more, visit https://clidocs.morpheusdata.com
 
     To learn more about the Morpheus Appliance, visit https://www.morpheusdata.com
 
@@ -254,7 +262,11 @@ EOT
     The available commands and their options are documented below.
 ENDTEXT
       
-      terminal = Morpheus::Terminal.new($stdin, manpage)
+      
+      #terminal = Morpheus::Terminal.new($stdin, manpage)
+      terminal = my_terminal
+      terminal.with_stdout(manpage) do
+
       Morpheus::Logging::DarkPrinter.puts "appending command help `#{prog_name} --help`" if Morpheus::Logging.debug? && !options[:quiet]
 
       manpage.print "\n"
@@ -406,12 +418,14 @@ echo
 ```
 
 ENDTEXT
+    
+    end # end with_stdout(manpage)
 
     ensure
       manpage.close if manpage
       # $stdout = previous_stdout if previous_stdout
       # this is needed to re-establish instance with STDOUT, STDIN
-      terminal = Morpheus::Terminal.new()
+      #terminal = Morpheus::Terminal.new()
     end
 
     return 0, nil

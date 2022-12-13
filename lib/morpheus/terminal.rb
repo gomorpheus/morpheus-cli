@@ -1,4 +1,4 @@
-require 'morpheus/cli'
+#require 'morpheus/cli' #todo: remove circular require...
 require 'morpheus/benchmarking'
 require 'morpheus/logging'
 require 'morpheus/rest_client'
@@ -7,6 +7,7 @@ require 'morpheus/cli/dot_file'
 require 'morpheus/cli/error_handler'
 require 'morpheus/cli/expression_parser'
 require 'morpheus/cli/option_parser'
+require 'morpheus/cli/version'
 require 'term/ansicolor'
 
 module Morpheus
@@ -41,7 +42,13 @@ module Morpheus
     include Morpheus::Benchmarking::HasBenchmarking
     # todo: this can be combined with Cli::Shell
 
-    class Blackhole # < IO
+    class Blackhole # < File
+
+      def initialize(*args)
+        # we shouldn't actually need a File tho.. but Readline wants one
+        # File.open(Morpheus::Cli.windows? ? 'NUL:' : '/dev/null', 'w')
+      end
+
       def accrete_data(*mgs)
         # Singularity.push(*msgs)
         return nil
@@ -61,7 +68,7 @@ module Morpheus
     end
 
     def self.prompt
-      if @prompt.nil?
+      if !defined?(@prompt) || @prompt.nil?
         if ENV['MORPHEUS_PS1']
           @prompt = ENV['MORPHEUS_PS1'].dup
         else
@@ -91,7 +98,7 @@ module Morpheus
     # the global Morpheus::Terminal instance
     # This should go away, but it needed for now...
     def self.instance
-      @morphterm # ||= self.new({})
+      @morphterm ||= self.new({})
     end
 
     # hack alert! This should go away, but is needed for now...
@@ -112,13 +119,13 @@ module Morpheus
     # @param stderr [IO] Default is STDERR
     # @param [IO] stderr
     # @stderr = stderr
-    def initialize(stdin=STDIN,stdout=STDOUT, stderr=STDERR, homedir=nil)
+    def initialize(stdin=$stdin,stdout=$stdout, stderr=$stderr, homedir=nil)
       attrs = {}
       if stdin.is_a?(Hash)
         attrs = stdin.clone()
-        stdin = attrs[:stdin] || STDIN
-        stdout = attrs[:stdout] || STDOUT
-        stderr = attrs[:stderr] || STDERR
+        stdin = attrs[:stdin] || $stdin
+        stdout = attrs[:stdout] || $stdout
+        stderr = attrs[:stderr] || $stderr
         homedir = attrs[:homedir] || attrs[:home] || attrs[:home_directory]
       end
       # establish IO
@@ -132,12 +139,12 @@ module Morpheus
       set_home_directory(use_homedir)
       
       # use colors by default
-      set_coloring(STDOUT.isatty)
+      set_coloring($stdout.isatty) #rescue nil
       # Term::ANSIColor::coloring = STDOUT.isatty
       # @coloring = Term::ANSIColor::coloring?
 
       # startup script
-      if File.exists? Morpheus::Cli::DotFile.morpheus_profile_filename
+      if File.exist? Morpheus::Cli::DotFile.morpheus_profile_filename
         @profile_dot_file = Morpheus::Cli::DotFile.new(Morpheus::Cli::DotFile.morpheus_profile_filename)
       else
         @profile_dot_file = nil
@@ -197,13 +204,52 @@ module Morpheus
       @stderr
     end
 
+    def with_pipes(opts, &block)
+      originals = {} #{stdout: stdout, stderr: stderr, stdin: stdin}
+      if opts[:stdout]
+        originals[:stdout] = stdout
+        set_stdout(opts[:stdout])
+      end
+      if opts[:stderr]
+        originals[:stderr] = stderr
+        set_stderr(opts[:stderr])
+      end
+      if opts[:stdin]
+        originals[:stdin] = stdin
+        set_stdin(opts[:stdin])
+      end
+      begin
+        yield
+      ensure
+        set_stdout(originals[:stdout]) if originals[:stdout]
+        set_stderr(originals[:stderr]) if originals[:stderr]
+        set_stdin(originals[:stdin]) if originals[:stdin]
+      end
+    end
+
+    def with_stdout(io, &block)
+      with_pipes(stdout:io, &block)
+    end
+
+    def with_stderr(io, &block)
+      with_pipes(stderr:io, &block)
+    end
+
+    def with_stdout_and_stderr(io, &block)
+      with_pipes(stdout:io, stderr:io, &block)
+    end
+
+    def with_stdin(io, &block)
+      with_pipes(stdin:io, &block)
+    end
+
     def home_directory=(homedir)
       set_home_directory(homedir)
     end
 
     def set_home_directory(homedir)
       full_homedir = File.expand_path(homedir)
-      # if !Dir.exists?(full_homedir)
+      # if !Dir.exist?(full_homedir)
       #   print_red_alert "Directory not found: #{full_homedir}"
       #   exit 1
       # end
@@ -293,7 +339,7 @@ module Morpheus
       # out << "Options:\n"
       out << optparse.to_s
       out << "\n"
-      out << "For more information, see https://github.com/gomorpheus/morpheus-cli/wiki"
+      out << "For more information, see https://clidocs.morpheusdata.com"
       out << "\n"
       out
     end
@@ -329,6 +375,10 @@ module Morpheus
     # def gets(*args)
     #   $stdin.gets(*args)
     # end
+
+    def readline(*args)
+      # todo: one prompt to rule them all
+    end
 
 # protected
 
@@ -397,7 +447,7 @@ module Morpheus
           set_home_directory(@use_home_directory)
           # re-initialize some variables
           # startup script
-          if File.exists? Morpheus::Cli::DotFile.morpheus_profile_filename
+          if File.exist? Morpheus::Cli::DotFile.morpheus_profile_filename
             @profile_dot_file = Morpheus::Cli::DotFile.new(Morpheus::Cli::DotFile.morpheus_profile_filename)
           else
             @profile_dot_file = nil
@@ -414,7 +464,7 @@ module Morpheus
 
         
         if @profile_dot_file && !@profile_dot_file_has_run
-          if !noprofile && File.exists?(@profile_dot_file.filename)
+          if !noprofile && File.exist?(@profile_dot_file.filename)
             execute_profile_script()
           end
         end
@@ -466,14 +516,13 @@ module Morpheus
           #   return 127, nil
           # end
 
-          if @benchmarking || args.include?('-B') || args.include?('--benchmark')
+          if (defined?(@benchmarking) && @benchmarking) || args.include?('-B') || args.include?('--benchmark')
             benchmark_name = "morpheus #{formatted_cmd}"
             benchmark_name.sub!(' -B', '')
             benchmark_name.sub!(' --benchmark', '')
             #benchmark_name << " -B"
             start_benchmark(benchmark_name)
           end
-
           # shell is a Singleton command class
           if args[0] == "shell"
             require 'morpheus/cli/commands/shell'

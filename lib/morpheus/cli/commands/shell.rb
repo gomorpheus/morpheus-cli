@@ -110,6 +110,13 @@ class Morpheus::Cli::Shell
   end
 
   def handle(args)
+    @clean_shell_mode = false
+    @execute_mode = false
+    @execute_mode_command = nil
+    @norc = false
+    @temporary_shell_mode = false
+    @temporary_home_directory = nil
+    @original_home_directory = nil
     usage = "Usage: morpheus #{command_name}"
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = usage
@@ -159,9 +166,7 @@ class Morpheus::Cli::Shell
       @parent_shell_directories ||= []
       @parent_shell_directories << my_terminal.home_directory
       @previous_home_directory = @parent_shell_directories.last
-      if @original_home_directory.nil?
-        @original_home_directory = @previous_home_directory
-      end
+      @original_home_directory ||= @previous_home_directory
       
       #@norc = true # perhaps?
       # instead of using TMPDIR, create tmp shell directory inside $MORPHEUS_CLI_HOME/tmp
@@ -171,18 +176,18 @@ class Morpheus::Cli::Shell
       if !tmpdir
         tmpdir = File.join(@original_home_directory, "tmp")
       end
-      if !File.exists?(tmpdir)
+      if !File.exist?(tmpdir)
         # Morpheus::Logging::DarkPrinter.puts "creating tmpdir #{tmpdir}" if Morpheus::Logging.debug?
         FileUtils.mkdir_p(tmpdir)
       end
       # this won't not happen since we mkdir above
-      if !File.exists?(tmpdir)
+      if !File.exist?(tmpdir)
         raise_command_error "Temporary directory not found. Use environment variable MORPHEUS_CLI_TMPDIR"
       end
       # change to a temporary home directory
       @temporary_home_directory = File.join(tmpdir, "tmpshell-#{rand().to_s[2..7]}")
       
-      #if !File.exists?(@temporary_home_directory)
+      #if !File.exist?(@temporary_home_directory)
         Morpheus::Logging::DarkPrinter.puts "starting temporary shell at #{@temporary_home_directory}" if Morpheus::Logging.debug?
         FileUtils.mkdir_p(@temporary_home_directory)
       # end
@@ -209,21 +214,21 @@ class Morpheus::Cli::Shell
         # not just in shell
         # .morpheus_profile has aliases
         # this has already been loaded, probably should reload it...
-        if File.exists?(File.join(@previous_home_directory, ".morpheus_profile"))
+        if File.exist?(File.join(@previous_home_directory, ".morpheus_profile"))
           FileUtils.cp(File.join(@previous_home_directory, ".morpheus_profile"), File.join(@temporary_home_directory, ".morpheus_profile"))
         end
         if @norc != true
-          if File.exists?(File.join(@previous_home_directory, ".morpheusrc"))
+          if File.exist?(File.join(@previous_home_directory, ".morpheusrc"))
             FileUtils.cp(File.join(@previous_home_directory, ".morpheusrc"), File.join(@temporary_home_directory, ".morpheusrc"))
           end
         end
-        if File.exists?(File.join(@previous_home_directory, "appliances"))
+        if File.exist?(File.join(@previous_home_directory, "appliances"))
           FileUtils.cp(File.join(@previous_home_directory, "appliances"), File.join(@temporary_home_directory, "appliances"))
         end
-        if File.exists?(File.join(@previous_home_directory, "credentials"))
+        if File.exist?(File.join(@previous_home_directory, "credentials"))
           FileUtils.cp(File.join(@previous_home_directory, "credentials"), File.join(@temporary_home_directory, "credentials"))
         end
-        if File.exists?(File.join(@previous_home_directory, "groups"))
+        if File.exist?(File.join(@previous_home_directory, "groups"))
           FileUtils.cp(File.join(@previous_home_directory, "groups"), File.join(@temporary_home_directory, "groups"))
         end
         # stay logged in
@@ -258,7 +263,7 @@ class Morpheus::Cli::Shell
 
     # execute startup script
     if !@norc
-      if File.exists?(Morpheus::Cli::DotFile.morpheusrc_filename)
+      if File.exist?(Morpheus::Cli::DotFile.morpheusrc_filename)
         @history_logger.info("load source #{Morpheus::Cli::DotFile.morpheusrc_filename}") if @history_logger
         Morpheus::Cli::DotFile.new(Morpheus::Cli::DotFile.morpheusrc_filename).execute()
       end
@@ -277,6 +282,8 @@ class Morpheus::Cli::Shell
       result = 0
       @exit_now_please = false
       while !@exit_now_please do
+        #Readline.input = my_terminal.stdin
+        #Readline.input = $stdin
         Readline.completion_append_character = " "
         Readline.completion_proc = @auto_complete
         Readline.basic_word_break_characters = ""
@@ -335,7 +342,6 @@ class Morpheus::Cli::Shell
     if input[0..(prog_name.size)] == "#{prog_name} "
       input = input[(prog_name.size + 1)..-1] || ""
     end
-
     if !input.empty?
 
       if input == 'exit'
@@ -372,7 +378,7 @@ class Morpheus::Cli::Shell
           out <<  "\t#{cmd.to_s}\n"
         }
         out << "\n"
-        out << "For more information, see https://github.com/gomorpheus/morpheus-cli/wiki"
+        out << "For more information, see https://clidocs.morpheusdata.com"
         out << "\n"
         print out
         return 0
@@ -386,12 +392,12 @@ class Morpheus::Cli::Shell
         # clear registry
         Morpheus::Cli::CliRegistry.instance.flush
         # reload code
-        Morpheus::Cli.load!
+        Morpheus::Cli.reload!
         # execute startup scripts
-        if File.exists?(Morpheus::Cli::DotFile.morpheus_profile_filename)
+        if File.exist?(Morpheus::Cli::DotFile.morpheus_profile_filename)
           Morpheus::Cli::DotFile.new(Morpheus::Cli::DotFile.morpheus_profile_filename).execute()
         end
-        if File.exists?(Morpheus::Cli::DotFile.morpheusrc_filename)
+        if File.exist?(Morpheus::Cli::DotFile.morpheusrc_filename)
           Morpheus::Cli::DotFile.new(Morpheus::Cli::DotFile.morpheusrc_filename).execute()
         end
         # recalculate shell environment
@@ -486,7 +492,11 @@ class Morpheus::Cli::Shell
       rescue SystemExit => cmdexit
         # nothing to do, assume the command that exited printed an error already
         # print "\n"
-        exit_code, err = cmdexit.status, "Command exited early."
+        if cmdexit.success?
+          exit_code, err = cmdexit.status, nil
+        else
+          exit_code, err = cmdexit.status, "Command exited early."
+        end
       rescue => e
         # some other type of failure..
         @history_logger.error "#{e.message}" if @history_logger
@@ -514,6 +524,7 @@ class Morpheus::Cli::Shell
 
   end
 
+  # wha this?
   def get_prompt
 
     # print cyan,"morpheus > ",reset
@@ -538,10 +549,10 @@ class Morpheus::Cli::Shell
 
   def load_history_logger
     file_path = history_file_path
-    if !Dir.exists?(File.dirname(file_path))
+    if !Dir.exist?(File.dirname(file_path))
       FileUtils.mkdir_p(File.dirname(file_path))
     end
-    if !File.exists?(file_path)
+    if !File.exist?(file_path)
       FileUtils.touch(file_path)
       FileUtils.chmod(0600, file_path)
     end
@@ -561,7 +572,13 @@ class Morpheus::Cli::Shell
 
     begin
       file_path = history_file_path
-      FileUtils.mkdir_p(File.dirname(file_path))
+      # if !Dir.exist?(File.dirname(file_path))
+      #   FileUtils.mkdir_p(File.dirname(file_path))
+      # end
+      # if !File.exist?(file_path)
+      #   FileUtils.touch(file_path)
+      #   FileUtils.chmod(0600, file_path)
+      # end
 
       File.open(file_path).each_line do |line|
         # this is pretty goofy, but this looks for the format: (cmd $command_number) $command_string
@@ -578,50 +595,11 @@ class Morpheus::Cli::Shell
           # for Ctrl+R history searching
           Readline::HISTORY << cmd
         end
-      end
+      end unless !File.exist?(file_path)
     rescue => e
       # raise e
       puts_error "failed to load history from log: #{e}"
       @history ||= {}
-    end
-    return @history
-  end
-
-  # remove this..
-  def _old_load_history_from_log_file(n_commands=1000)
-    @history ||= {}
-    @last_command_number ||= 0
-
-    begin
-      if Gem.win_platform?
-        return @history
-      end
-      file_path = history_file_path
-      FileUtils.mkdir_p(File.dirname(file_path))
-      # grab extra lines because not all log entries are commands
-      n_lines = n_commands + 500
-      history_lines = `tail -n #{n_lines} #{file_path}`.split(/\n/)
-      command_lines = history_lines.select do |line|
-        line.match(/\(cmd (\d+)\) (.+)/)
-      end
-      command_lines = command_lines.last(n_commands)
-      command_lines.each do |line|
-        matches = line.match(/\(cmd (\d+)\) (.+)/)
-        if matches && matches.size == 3
-          cmd_number = matches[1].to_i
-          cmd = matches[2]
-
-          @last_command_number = cmd_number
-          @history[@last_command_number] = cmd
-
-          # for Ctrl+R history searching
-          Readline::HISTORY << cmd
-        end
-      end
-    rescue => e
-      # raise e
-      # puts "failed to load history from log"
-      @history = {}
     end
     return @history
   end
@@ -745,7 +723,7 @@ class Morpheus::Cli::Shell
   def flush_history(n=nil)
     # todo: support only flushing last n commands
       file_path = history_file_path
-      if File.exists?(file_path)
+      if File.exist?(file_path)
         File.truncate(file_path, 0)
       end
       @history = {}

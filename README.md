@@ -13,15 +13,21 @@ This library is a Ruby gem that provides a command line interface for interactin
 
 Install it using rubygems
 
-    $ gem install morpheus-cli
+```shell
+gem install morpheus-cli
+```
 
 Or add this line to your application's Gemfile:
 
-    gem 'morpheus-cli'
+```ruby
+gem 'morpheus-cli'
+```
 
 And then execute:
 
-    $ bundle install
+```shell
+bundle install
+```
 
 ## Usage
 
@@ -29,7 +35,7 @@ And then execute:
 
 This gem installs the [morpheus](https://github.com/gomorpheus/morpheus-cli/wiki/CLI-Manual) binary for running commands in your terminal shell. 
 
-```sh
+```shell
 morpheus remote add
 morpheus instances list
 ```
@@ -39,3 +45,50 @@ morpheus instances list
 If you are interested in interfacing with the Morpheus appliance in ruby directly, you can use [Morpheus::APIClient](https://github.com/gomorpheus/morpheus-cli/wiki/APIClient) or [Morpheus::Terminal](https://github.com/gomorpheus/morpheus-cli/wiki/Terminal).
 
 For more detailed usage information, visit the [Morpheus CLI Wiki](https://github.com/gomorpheus/morpheus-cli/wiki).
+
+
+## Development
+
+New API interfaces get added under the library directory: `lib/morpheus/api/`.
+New CLI commands get added under the library directory: `lib/morpheus/cli/commands/`.
+
+While developing, you can quickly reload your code changes in a morpheus shell while developing:
+
+```shell
+morpheus shell
+```
+
+Then to reload changes without restarting the morpheus shell (and the ruby process), use:
+
+```shell
+reload
+```
+
+Don't forget to add unit tests for your new commands under the directory: `test/`.
+
+## Testing
+
+To run the CLI unit tests, first create a `test_config.yaml` and then run `rake test`.
+
+### Prepare Test Environment
+
+Create a `test_config.yaml` like this:
+
+```shell
+touch test_config.yaml
+```
+
+Enter your test environment url and credentials in `test_config.yaml` like so:
+
+```yaml
+url: 'http://localhost:8080'
+username: testrunner
+password: 'SecretPassword123$' 
+```
+
+### Run Tests
+
+```shell
+rake test
+```
+

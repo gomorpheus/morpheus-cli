@@ -92,7 +92,7 @@ EOT
         # no permissions, or even name stored atm, we should start storing that.
         # then we can start checking permissions nd restricting command visibility.
         whoami_response = {
-          "user": {
+          "user" => {
             "username" => @remote_appliance ? @remote_appliance[:username] : nil
           },
           # "isMasterAccount" => true,
@@ -263,7 +263,7 @@ EOT
 
     def save_whoami_file(appliance_name, user_id, json_response)
       fn = File.join(whoami_file_path, appliance_name.to_s, user_id.to_s + ".json")
-      if !Dir.exists?(File.dirname(fn))
+      if !Dir.exist?(File.dirname(fn))
         FileUtils.mkdir_p(File.dirname(fn))
       end
       Morpheus::Logging::DarkPrinter.puts "writing file #{fn}" if Morpheus::Logging.debug?

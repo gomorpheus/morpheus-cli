@@ -9,7 +9,6 @@ class Morpheus::APIClient
 
   CLIENT_ID = 'morph-cli' unless defined?(CLIENT_ID)
 
-  attr_accessor :client_id
   # Initialize a new APIClient
   #   client = APIClient.new(url:"https://morpheus.yourcompany.com", verify_ssl:false)
   # This old method signature is being deprecated:
@@ -40,9 +39,11 @@ class Morpheus::APIClient
     end
     @base_url = @base_url.chomp("/")
     # todo: validate URI
+    @expires_at = nil
     if expires_in != nil
       @expires_at = Time.now + expires_in
     end
+    @dry_run = false
     set_ssl_verification_enabled(verify_ssl)
     setopts(options)
   end
@@ -956,7 +957,12 @@ class Morpheus::APIClient
   protected
 
   def validate_id!(id, param_name='id')
-    raise "#{self.class} passed a blank #{param_name}!" if id.to_s.strip.empty?
+    if !(id.is_a?(String) || id.is_a?(Integer))
+      raise "#{self.class} passed an invalid #{param_name}! Expected String or Integer and got (#{id.class}) #{id.inspect}"
+    elsif id.to_s.strip.empty?
+      raise "#{self.class} passed a blank #{param_name}!"
+    end
+    return true
   end
 
 end

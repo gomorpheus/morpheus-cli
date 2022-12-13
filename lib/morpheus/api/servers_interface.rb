@@ -55,6 +55,14 @@ class Morpheus::ServersInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def restart(serverId,payload = {}, params = {})
+    url = "#{@base_url}/api/servers/#{serverId}/restart"
+
+    headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
   def make_managed(serverId,payload = {})
     url = "#{@base_url}/api/servers/#{serverId}/install-agent"
     #url = "#{@base_url}/api/servers/#{serverId}/make-managed" # added in 4.1
@@ -176,7 +184,7 @@ class Morpheus::ServersInterface < Morpheus::APIClient
     execute(opts)
   end
 
-    def update_network_label(network_id, server_id, payload)
+  def update_network_label(network_id, server_id, payload)
     url = "#{@base_url}/api/servers/#{server_id}/networkInterfaces/#{network_id}"
     headers = {authorization: "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers, payload: payload.to_json}

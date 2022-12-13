@@ -14,7 +14,7 @@ module Morpheus::Cli
 
   end
 
-  # An error indicating the command was not recoginzed
+  # An error indicating the command was not recognized, assigned exit code 127
   class CommandNotFoundError < CommandError
     
     def initialize(msg, args=[], optparse=nil, exit_code=nil)
@@ -40,7 +40,14 @@ module Morpheus::Cli
     def initialize(msg, args=[], optparse=nil, exit_code=nil)
       super(msg, args, optparse, exit_code || 1)
     end
+  end
 
+  # An error indicating the user declined to accept a confirmation prompt, assigned exit code 9
+  class CommandAborted < CommandError
+
+    def initialize(msg, args=[], optparse=nil, exit_code=nil)
+      super(msg, args, optparse, exit_code || 9)
+    end
   end
 
 end

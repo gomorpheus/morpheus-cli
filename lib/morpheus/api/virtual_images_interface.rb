@@ -81,7 +81,7 @@ class Morpheus::VirtualImagesInterface < Morpheus::APIClient
       # opts[:verify_ssl] = OpenSSL::SSL::VERIFY_NONE
     end
     
-    start_time = Time.now
+    # start_time = Time.now
     query_params = headers.delete(:params) || {}
     file_size = image_file.size
     if File.blockdev?(image_file)

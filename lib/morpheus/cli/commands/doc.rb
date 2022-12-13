@@ -6,10 +6,9 @@ class Morpheus::Cli::Doc
   include Morpheus::Cli::CliCommand
 
   set_command_name :'doc'
-  #set_command_name :'access'
   register_subcommands :list
-  register_subcommands :get => :swagger
-  register_subcommands :download => :download_swagger
+  register_subcommands :get => :openapi
+  register_subcommands :download => :download_openapi
 
   # hidden until doc complete (or close to it)
   set_command_hidden
@@ -68,12 +67,12 @@ EOT
     return exit_code, err
   end
 
-  def swagger(args)
+  def openapi(args)
     exit_code, err = 0, nil
     params, options = {}, {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      opts.on(nil, "--refresh", "Refresh the document. By default the swagger.yml and swagger.json are cached by the server.") do
+      opts.on(nil, "--refresh", "Refresh the document. By default the openapi.yml and openapi.json are cached by the server.") do
         params['refresh'] = true
       end
       opts.on('-g', '--generate', "Alias for --refresh") do
@@ -81,7 +80,7 @@ EOT
       end
       build_standard_get_options(opts, options, [], [:csv])
       opts.footer = <<-EOT
-Print the Morpheus API Swagger Documentation (openapi).
+Print the Morpheus API OpenAPI Documentation (swagger).
 The default format is JSON. Supports json or yaml.
 EOT
     end
@@ -97,13 +96,13 @@ EOT
     @doc_interface.setopts(options)
     if options[:dry_run]
       params['format'] = openapi_format
-      print_dry_run @doc_interface.dry.swagger(params)
+      print_dry_run @doc_interface.dry.openapi(params)
       return 0, nil
     end
-    json_response = @doc_interface.swagger(params)
+    json_response = @doc_interface.openapi(params)
     # default format is to print header and json
     render_response(json_response, options) do
-      title = "Morpheus API swagger.#{openapi_format}"
+      title = "Morpheus API openapi.#{openapi_format}"
       print_h1 title, options
       print cyan
       print as_json(json_response, options)
@@ -112,7 +111,7 @@ EOT
     return exit_code, err
   end
 
-  def download_swagger(args)
+  def download_openapi(args)
     exit_code, err = 0, nil
     params, options = {}, {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
@@ -122,7 +121,7 @@ EOT
         options[:yaml] = true
         options[:format] = :yaml
       end
-      opts.on(nil, "--refresh", "Refresh the document. By default the swagger.yml and swagger.json are cached by the server.") do
+      opts.on(nil, "--refresh", "Refresh the document. By default the openapi.yml and openapi.json are cached by the server.") do
         params['refresh'] = true
       end
       opts.on('-g', '--generate', "Alias for --refresh") do
@@ -136,7 +135,7 @@ EOT
       end
       build_common_options(opts, options, [:dry_run, :quiet, :remote])
       opts.footer = <<-EOT
-Download the Morpheus API Swagger Documentation (openapi).
+Download the Morpheus API OpenAPI Documentation (swagger).
 [local-file] is required. This is the full local filepath for the downloaded file.
 The default format is JSON. Supports json or yaml.
 EOT
@@ -159,17 +158,17 @@ EOT
     # execute the api request
     @doc_interface.setopts(options)
     if options[:dry_run]
-      print_dry_run @doc_interface.dry.download_swagger(outfile, params)
+      print_dry_run @doc_interface.dry.download_openapi(outfile, params)
       return 0, nil
     end
-    print cyan + "Downloading swagger.#{openapi_format} to #{outfile} ... " if !options[:quiet]
-    http_response = @doc_interface.download_swagger(outfile, params)
+    print cyan + "Downloading openapi.#{openapi_format} to #{outfile} ... " if !options[:quiet]
+    http_response = @doc_interface.download_openapi(outfile, params)
     if http_response.code.to_i == 200
       print green + "SUCCESS" + reset + "\n" if !options[:quiet]
       return 0, nil
     else
       print red + "ERROR" + reset + " HTTP #{http_response.code}" + "\n" if !options[:quiet]
-      if File.exists?(outfile) && File.file?(outfile)
+      if File.exist?(outfile) && File.file?(outfile)
         Morpheus::Logging::DarkPrinter.puts "Deleting bad file download: #{outfile}" if Morpheus::Logging.debug?
         File.delete(outfile)
       end

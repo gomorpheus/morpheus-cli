@@ -73,7 +73,6 @@ class Morpheus::CustomInstanceTypesInterface < Morpheus::APIClient
   def destroy_version(instance_type_id, id)
     url = "#{@base_url}/api/custom-instance-types/#{instance_type_id}/versions/#{id}"
     headers = { :params => {}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json'}
-    payload = options
     execute(method: :delete, url: url, headers: headers)
   end
 
@@ -94,7 +93,6 @@ class Morpheus::CustomInstanceTypesInterface < Morpheus::APIClient
   def destroy_upgrade(instance_type_id, id)
     url = "#{@base_url}/api/custom-instance-types/#{instance_type_id}/upgrades/#{id}"
     headers = { :params => {}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json'}
-    payload = options
     execute(method: :delete, url: url, headers: headers)
   end
 

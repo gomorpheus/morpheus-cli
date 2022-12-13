@@ -23,6 +23,7 @@ class Morpheus::Cli::Clusters
   register_subcommands :update_permissions
   register_subcommands :api_config, :view_api_token, :view_kube_config
   register_subcommands :wiki, :update_wiki
+  register_subcommands :apply_template
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
@@ -42,6 +43,7 @@ class Morpheus::Cli::Clusters
     @user_groups_interface = @api_client.user_groups
     @accounts_interface = @api_client.accounts
     @logs_interface = @api_client.logs
+    @execution_request_interface = @api_client.execution_request
     #@active_security_group = ::Morpheus::Cli::SecurityGroups.load_security_group_file
   end
 
@@ -3242,7 +3244,7 @@ class Morpheus::Cli::Clusters
       build_option_type_options(opts, options, update_wiki_page_option_types)
       opts.on('--file FILE', "File containing the wiki content. This can be used instead of --content") do |filename|
         full_filename = File.expand_path(filename)
-        if File.exists?(full_filename)
+        if File.exist?(full_filename)
           params['content'] = File.read(full_filename)
         else
           print_red_alert "File not found: #{full_filename}"
@@ -3559,6 +3561,125 @@ class Morpheus::Cli::Clusters
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
+    end
+  end
+
+  def apply_template(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage( "[cluster] --specTemplate --serviceUrl")
+      opts.on("--specTemplate [TEXT]", String, "Name or ID of desired Spec Template to apply to cluster") do |val|
+        options[:specTemplate] = val.to_s
+      end
+      opts.on("--serviceUrl [TEXT]", String, "Url of template to apply to Cluster") do |val|
+        options[:serviceUrl] = val.to_s
+      end
+       opts.on("--specYaml [TEXT]", String, "Yaml to apply to Cluster") do |val|
+        options[:specYaml] = val.to_s
+      end
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+      opts.footer = "Apply a Template to a Cluster.\n" +
+                    "[cluster] is required. This is the name or id of an existing cluster."
+    end
+
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+
+    begin
+      payload = nil
+      cluster = nil
+
+      if options[:payload]
+        payload = options[:payload]
+        # support -O OPTION switch on top of --payload
+        if options[:options]
+          payload['cluster'] ||= {}
+          payload['cluster'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) })
+        end
+
+        if !payload['cluster'].empty?
+          cluster = find_cluster_by_name_or_id(payload['cluster']['id'] || payload['cluster']['name'])
+        end
+      else
+        cluster = find_cluster_by_name_or_id(args[0])
+        cluster_payload = {}
+        cluster_payload['specTemplate'] = options[:specTemplate] if !options[:specTemplate].empty?
+        cluster_payload['serviceUrl'] = options[:serviceUrl] if !options[:serviceUrl].empty?
+        cluster_payload['specYaml'] = options[:specYaml] if !options[:specYaml].empty?
+        payload = cluster_payload
+      end
+
+      if !cluster
+        print_red_alert "No clusters available for update"
+        exit 1
+      end
+
+      if cluster_payload.empty?
+        type = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'type' => 'select', 'fieldLabel' => "Type", 'selectOptions' => apply_temp_options, 'required' => true, 'description' => 'Choose type of template being used.'}])['type']
+        if type == 'specTemplate'
+          cluster_payload['specTemplate'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'specTemplate', 'type' => 'select', 'fieldLabel' => "Spec Template", 'selectOptions' => available_kube_templates, 'required' => true, 'description' => 'Choose a template.'}], options[:options])['specTemplate'] 
+        elsif type == 'yaml'
+          file_params = Morpheus::Cli::OptionTypes.file_content_prompt({'fieldName' => 'source', 'fieldLabel' => 'File Content', 'type' => 'file-content', 'required' => true}, {'source' => {'source' => 'local'}}, nil, {})
+          cluster_payload['specYaml'] = file_params['content']
+        else
+          cluster_payload['specUrl'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'specUrl', 'type' => 'text', 'fieldLabel' => 'Spec Url', 'required' => true, 'description' => 'Url of template.'}])['specUrl']
+        end
+      end
+
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.apply_template(cluster['id'], cluster_payload)
+        return
+      end
+
+      json_response = @clusters_interface.apply_template(cluster['id'], cluster_payload)
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      elsif json_response['msg'] != nil
+        print_red_alert "There was an error #{json_response['msg']}"
+      else
+        print_green_success 'Template applied to Cluster. Check Execution Request for results'
+        json_response = @execution_request_interface.get(json_response['executionId'], {})
+
+        if json_response['executionRequest'] && json_response['executionRequest']['errorMessage']
+          print_red_alert "There was an error: #{json_response['executionRequest']['errorMessage']}"
+          print_red_alert "execution request id: #{json_response['executionRequest']['uniqueId']}"
+        else
+          execution_request = json_response['executionRequest']
+          print_h1 "Execution Request Details"
+          print cyan
+          description_cols = {
+            #"ID" => lambda {|it| it['id'] },
+            "Unique ID" => lambda {|it| it['uniqueId'] },
+            "Server ID" => lambda {|it| it['serverId'] },
+            "Instance ID" => lambda {|it| it['instanceId'] },
+            "Container ID" => lambda {|it| it['containerId'] },
+            "Expires At" => lambda {|it| format_local_dt it['expiresAt'] },
+            "Exit Code" => lambda {|it| it['exitCode'] },
+            "Status" => lambda {|it| format_execution_request_status(it) },
+            #"Created By" => lambda {|it| it['createdById'] },
+            #"Subdomain" => lambda {|it| it['subdomain'] },
+          }
+          description_cols.delete("Server ID") if execution_request['serverId'].nil?
+          description_cols.delete("Instance ID") if execution_request['instanceId'].nil?
+          description_cols.delete("Container ID") if execution_request['containerId'].nil?
+          description_cols.delete("Exit Code") if execution_request['exitCode'].nil?
+          print_description_list(description_cols, execution_request)      
+
+          if execution_request['stdErr'].to_s.strip != '' && execution_request['stdErr'] != "stdin: is not a tty\n"
+            print_h2 "Error"
+            puts execution_request['stdErr'].to_s.strip
+          end
+          if execution_request['stdOut']
+            print_h2 "Output"
+            puts execution_request['stdOut'].to_s.strip
+          end
+          print reset, "\n"
+        end
+      end
     end
   end
 
@@ -4057,7 +4178,7 @@ class Morpheus::Cli::Clusters
     end
     opts.on('--volumes-file FILE', String, "Volumes Config from a local JSON or YAML file") do |val|
       config_file = File.expand_path(val)
-      if !File.exists?(config_file) || !File.file?(config_file)
+      if !File.exist?(config_file) || !File.file?(config_file)
         print_red_alert "Specified volumes file not found: #{config_file}"
         exit 1
       end
@@ -4093,7 +4214,7 @@ class Morpheus::Cli::Clusters
     end
     opts.on('--network-interfaces-file FILE', String, "Network Interfaces Config from a local JSON or YAML file") do |val|
       config_file = File.expand_path(val)
-      if !File.exists?(config_file) || !File.file?(config_file)
+      if !File.exist?(config_file) || !File.file?(config_file)
         print_red_alert "Specified network interfaces file not found: #{config_file}"
         exit 1
       end
@@ -4234,5 +4355,35 @@ class Morpheus::Cli::Clusters
       end
       it
     end
+  end
+
+  def available_kube_templates
+    option_results = options_interface.options_for_source('availableKubeTemplates')
+    available_templates = option_results['data'].collect {|it|
+      {"id" => it["value"], "name" => it["name"], "value" => it["value"]}
+    }
+   
+    return available_templates
+  end
+
+  def apply_temp_options
+    [
+      {"id" => "specYaml", "name" => "YAML", "value" => "yaml"},
+      {"id" => 'specTemplate', "name" => "Spec Template", "value" => 'specTemplate'},
+      {"id" => 'url', "name" => 'Url of Template', "value" => 'url'}
+    ]
+  end
+
+  def format_execution_request_status(execution_request, return_color=cyan)
+    out = ""
+    status_str = execution_request['status']
+    if status_str == 'complete'
+      out << "#{green}#{status_str.upcase}#{return_color}"
+    elsif status_str == 'failed' || status_str == 'expired'
+      out << "#{red}#{status_str.upcase}#{return_color}"
+    else
+      out << "#{cyan}#{status_str.upcase}#{return_color}"
+    end
+    out
   end
 end

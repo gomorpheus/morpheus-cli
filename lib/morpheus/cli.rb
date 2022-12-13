@@ -36,38 +36,48 @@ module Morpheus
       begin
         require 'rbconfig'
         @@is_windows = (RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/)
-      rescue => ex
+      rescue
         # $stderr.puts "unable to determine if this is a Windows machine."
       end
       return @@is_windows
     end
 
-    # load all the well known commands and utilties they need
+    # load! does the initial loading of all the CLI utilities and commands
     def self.load!()
-      # load interfaces
-      require 'morpheus/api/api_client.rb'
-      require 'morpheus/api/rest_interface.rb'
-      require 'morpheus/api/read_interface.rb'
-      Dir[File.dirname(__FILE__)  + "/api/**/*.rb"].each {|file| load file }
+      
+      # api interfaces
+      require 'morpheus/api'
+      Dir[File.dirname(__FILE__)  + "/api/**/*.rb"].each { |file| require file }
 
-      # load mixins
-      Dir[File.dirname(__FILE__)  + "/cli/mixins/**/*.rb"].each {|file| load file }
-
-      # load utilites
+      # utilites
+      # Dir[File.dirname(__FILE__)  + "/cli/*.rb"].each { |file| require file }
       require 'morpheus/cli/cli_registry.rb'
       require 'morpheus/cli/expression_parser.rb'
       require 'morpheus/cli/dot_file.rb'
       require 'morpheus/cli/errors'
+      require 'morpheus/cli/cli_command.rb'
+      require 'morpheus/cli/option_types.rb'
+      require 'morpheus/cli/credentials.rb'
 
-      load 'morpheus/cli/cli_command.rb'
-      load 'morpheus/cli/option_types.rb'
-      load 'morpheus/cli/credentials.rb'
+      # mixins
+      Dir[File.dirname(__FILE__)  + "/cli/mixins/**/*.rb"].each {|file| require file }
       
-      # load all commands
-      Dir[File.dirname(__FILE__)  + "/cli/commands/**/*.rb"].each {|file| load file }
+      # commands
+      Dir[File.dirname(__FILE__)  + "/cli/commands/**/*.rb"].each {|file| require file }
 
     end
 
+    # reload! can be used for live reloading changes while developing
+    def self.reload!()
+      # api interfaces
+      Dir[File.dirname(__FILE__)  + "/api/**/*.rb"].each { |file| load file }
+      # mixins
+      Dir[File.dirname(__FILE__)  + "/cli/mixins/**/*.rb"].each {|file| load file }
+      # commands
+      Dir[File.dirname(__FILE__)  + "/cli/commands/**/*.rb"].each {|file| load file }
+    end
+
+    # require all CLI modules now (on require)
     load!
     
   end

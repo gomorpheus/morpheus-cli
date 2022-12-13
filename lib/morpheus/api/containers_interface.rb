@@ -4,18 +4,21 @@ require 'morpheus/api/api_client'
 # All of the PUT methods support passing an array of IDs.
 class Morpheus::ContainersInterface < Morpheus::APIClient
 
+  def base_path
+    "/api/containers"
+  end
   # not used atm.. index api needs some work, we should implement it 
   # so it just paginates all containers. 
   # right now you can to pass params as {:ids => [1,2,3]}
   def list(params={})
-    url = "#{@base_url}/api/containers"
+    url = "#{base_path}"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers}
     execute(opts)
   end
 
   def get(container_id)
-    url = "#{@base_url}/api/containers/#{container_id}"
+    url = "#{base_path}/#{container_id}"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :get, url: url, headers: headers}
     execute(opts)
@@ -24,10 +27,10 @@ class Morpheus::ContainersInterface < Morpheus::APIClient
   def stop(container_id, payload={})
     url, params = "", {}
     if container_id.is_a?(Array)
-      url = "#{@base_url}/api/containers/stop"
+      url = "#{base_path}/stop"
       params = {ids: container_id}
     else
-      url = "#{@base_url}/api/containers/#{container_id}/stop"
+      url = "#{base_path}/#{container_id}/stop"
       params = {}
     end
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
@@ -38,10 +41,10 @@ class Morpheus::ContainersInterface < Morpheus::APIClient
   def start(container_id, payload={})
     url, params = "", {}
     if container_id.is_a?(Array)
-      url = "#{@base_url}/api/containers/start"
+      url = "#{base_path}/start"
       params = {ids: container_id}
     else
-      url = "#{@base_url}/api/containers/#{container_id}/start"
+      url = "#{base_path}/#{container_id}/start"
       params = {}
     end
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
@@ -52,10 +55,10 @@ class Morpheus::ContainersInterface < Morpheus::APIClient
   def restart(container_id, payload={})
     url, params = "", {}
     if container_id.is_a?(Array)
-      url = "#{@base_url}/api/containers/restart"
+      url = "#{base_path}/restart"
       params = {ids: container_id}
     else
-      url = "#{@base_url}/api/containers/#{container_id}/restart"
+      url = "#{base_path}/#{container_id}/restart"
       params = {}
     end
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
@@ -66,10 +69,10 @@ class Morpheus::ContainersInterface < Morpheus::APIClient
   def suspend(container_id, payload={})
     url, params = "", {}
     if container_id.is_a?(Array)
-      url = "#{@base_url}/api/containers/suspend"
+      url = "#{base_path}/suspend"
       params = {ids: container_id}
     else
-      url = "#{@base_url}/api/containers/#{container_id}/suspend"
+      url = "#{base_path}/#{container_id}/suspend"
       params = {}
     end
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
@@ -80,10 +83,10 @@ class Morpheus::ContainersInterface < Morpheus::APIClient
   def eject(container_id, payload={})
     url, params = "", {}
     if container_id.is_a?(Array)
-      url = "#{@base_url}/api/containers/eject"
+      url = "#{base_path}/eject"
       params = {ids: container_id}
     else
-      url = "#{@base_url}/api/containers/#{container_id}/eject"
+      url = "#{base_path}/#{container_id}/eject"
       params = {}
     end
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
@@ -94,10 +97,10 @@ class Morpheus::ContainersInterface < Morpheus::APIClient
   def available_actions(container_id)
     url, params = "", {}
     if container_id.is_a?(Array)
-      url = "#{@base_url}/api/containers/actions"
+      url = "#{base_path}/actions"
       params = {ids: container_id}
     else
-      url = "#{@base_url}/api/containers/#{container_id}/actions"
+      url = "#{base_path}/#{container_id}/actions"
       params = {}
     end
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
@@ -108,15 +111,25 @@ class Morpheus::ContainersInterface < Morpheus::APIClient
   def action(container_id, action_code, payload={})
     url, params = "", {}
     if container_id.is_a?(Array)
-      url = "#{@base_url}/api/containers/action"
+      url = "#{base_path}/action"
       params = {ids: container_id, code: action_code}
     else
-      url = "#{@base_url}/api/containers/#{container_id}/action"
+      url = "#{base_path}/#{container_id}/action"
       params = {code: action_code}
     end
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
     execute(opts)
+  end
+
+  def import(container_id, payload={}, headers={})
+    validate_id!(container_id)
+    execute(method: :put, url: "#{base_path}/#{container_id}/import", payload: payload, headers: headers)
+  end
+
+  def clone_image(container_id, payload={}, headers={})
+    validate_id!(container_id)
+    execute(method: :put, url: "#{base_path}/#{container_id}/clone-image", payload: payload, headers: headers)
   end
 
 end
