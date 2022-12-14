@@ -998,20 +998,25 @@ module Morpheus
       def self.password_prompt(option_type)
         value_found = false
         while !value_found do
-          #print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? (' (' + option_type['fieldAddOn'] + ') ') : '' }#{optional_label(option_type)}#{option_type['defaultValue'] ? ' ['+'************'+']' : ''}: "
-          #input = $stdin.noecho(&:gets).chomp!
-          Readline.completion_append_character = ""
-          Readline.basic_word_break_characters = ''
-          Readline.completion_proc = nil
-          # needs to work like $stdin.noecho
-          Readline.pre_input_hook = lambda {
-            Readline.output = File.open(Morpheus::Cli.windows? ? 'NUL:' : '/dev/null', 'w')
-            #$stdout = File.open(Morpheus::Cli.windows? ? 'NUL:' : '/dev/null', 'w')
-          }
-          password_prompt = "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? (' (' + option_type['fieldAddOn'] + ') ') : '' }#{optional_label(option_type)}#{option_type['defaultValue'] ? ' ['+'************'+']' : ''}: "
-          input = Readline.readline(password_prompt, false).to_s.chomp
-          Readline.pre_input_hook = nil
-          Readline.output = Morpheus::Terminal.instance.stdout #my_terminal.stdout
+          # readline is still echoing secret with 'NUL:'' so just use $stdin on windows for now
+          if Morpheus::Cli.windows?
+            print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? (' (' + option_type['fieldAddOn'] + ') ') : '' }#{optional_label(option_type)}#{option_type['defaultValue'] ? ' ['+'************'+']' : ''}: "
+            input = $stdin.noecho(&:gets).chomp!
+          else
+            Readline.completion_append_character = ""
+            Readline.basic_word_break_characters = ''
+            Readline.completion_proc = nil
+            # needs to work like $stdin.noecho
+            Readline.pre_input_hook = lambda {
+              Readline.output = File.open('/dev/null', 'w')
+              #Readline.output = File.open(Morpheus::Cli.windows? ? 'NUL:' : '/dev/null', 'w')
+              #$stdout = File.open(Morpheus::Cli.windows? ? 'NUL:' : '/dev/null', 'w')
+            }
+            password_prompt = "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? (' (' + option_type['fieldAddOn'] + ') ') : '' }#{optional_label(option_type)}#{option_type['defaultValue'] ? ' ['+'************'+']' : ''}: "
+            input = Readline.readline(password_prompt, false).to_s.chomp
+            Readline.pre_input_hook = nil
+            Readline.output = Morpheus::Terminal.instance.stdout #my_terminal.stdout
+          end
 
           value = input
           print "\n"

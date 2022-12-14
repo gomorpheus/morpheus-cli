@@ -122,24 +122,28 @@ module Morpheus
                 print "Username: #{required_blue_prompt} #{username}\n"
               end
               if password.empty?
-                # print "Password: #{required_blue_prompt} "
-                # # this should be my_terminal.stdin instead of STDIN and $stdin
-                # password = $stdin.noecho(&:gets).chomp!
-                # print "\n"
+                # readline is still echoing secret with 'NUL:'' so just use $stdin on windows for now
+                if Morpheus::Cli.windows?
+                  print "Password: #{required_blue_prompt} "
+                  # this should be my_terminal.stdin instead of STDIN and $stdin
+                  password = $stdin.noecho(&:gets).chomp!
+                  print "\n"
+                else                
 
-                Readline.completion_append_character = ""
-                Readline.basic_word_break_characters = ''
-                Readline.completion_proc = nil
-                # needs to work like $stdin.noecho
-                Readline.pre_input_hook = lambda {
-                  Readline.output = File.open(Morpheus::Cli.windows? ? 'NUL:' : '/dev/null', 'w')
-                  #$stdout = File.open(Morpheus::Cli.windows? ? 'NUL:' : '/dev/null', 'w')
-                }
-                password = Readline.readline("Password: #{required_blue_prompt} ", false).to_s.chomp
-                Readline.pre_input_hook = nil
-                Readline.output = Morpheus::Terminal.instance.stdout #my_terminal.stdout
-                
-                print "\n"
+                  Readline.completion_append_character = ""
+                  Readline.basic_word_break_characters = ''
+                  Readline.completion_proc = nil
+                  # needs to work like $stdin.noecho
+                  Readline.pre_input_hook = lambda {
+                    Readline.output = File.open('/dev/null', 'w')
+                    #Readline.output = File.open(Morpheus::Cli.windows? ? 'NUL:' : '/dev/null', 'w')
+                    #$stdout = File.open(Morpheus::Cli.windows? ? 'NUL:' : '/dev/null', 'w')
+                  }
+                  password = Readline.readline("Password: #{required_blue_prompt} ", false).to_s.chomp
+                  Readline.pre_input_hook = nil
+                  Readline.output = Morpheus::Terminal.instance.stdout #my_terminal.stdout
+                  print "\n"
+                end
               else
                 print "Password: #{required_blue_prompt} \n"
               end
