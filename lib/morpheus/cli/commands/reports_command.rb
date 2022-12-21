@@ -303,6 +303,16 @@ class Morpheus::Cli::ReportsCommand
 
       end
 
+      if payload['report']['startMonth'].size > 7 || payload['report']['endMonth'].size > 7
+         print_green_success "The CLI generates a query that will use only month and year. However, the API does support yyyy-mm-dd from a previous version of Morpheus.\nReplace startMonth/endMonth keys with startDate,endDate ie:"
+         payload['report'].delete('startMonth')
+         payload['report'].delete('endMonth')
+         payload['report']['startDate'] = 'yyyy-mm-dd'
+         payload['report']['endDate'] = 'yyyy-mm-dd'
+         print_dry_run @reports_interface.dry.create(payload)
+      return 0
+      end
+
       @reports_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @reports_interface.dry.create(payload)
