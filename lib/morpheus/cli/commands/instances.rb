@@ -2703,7 +2703,7 @@ class Morpheus::Cli::Instances
       provision_type = @provision_types_interface.get(instance['layout']['provisionTypeId'])['provisionType']
 
       # prompt for service plan
-      service_plans_json = @instances_interface.service_plans({zoneId: cloud_id, siteId: group_id, layoutId: layout_id})
+      service_plans_json = @instances_interface.service_plans({zoneId: cloud_id, siteId: group_id, layoutId: layout_id, instanceId: instance["id"]})
       service_plans = service_plans_json["plans"]
       service_plans_dropdown = service_plans.collect {|sp| {'name' => sp["name"], 'value' => sp["id"]} } # already sorted
       service_plans_dropdown.each do |plan|
