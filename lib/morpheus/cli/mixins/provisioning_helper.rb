@@ -1435,7 +1435,7 @@ module Morpheus::Cli::ProvisioningHelper
               'id' => current_volume['id'].to_i,
               'rootVolume' => false,
               'name' => current_volume['name'],
-              'size' => current_volume['size'] > (plan_size || 0) ? current_volume['size'] : plan_size,
+              'size' => current_volume['size'] ? current_volume['size'] : (plan_size || 0),
               'sizeId' => nil,
               'storageType' => (current_volume['type'] || current_volume['storageType']),
               'datastoreId' => current_volume['datastoreId']
