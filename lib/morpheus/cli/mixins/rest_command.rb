@@ -720,8 +720,12 @@ EOT
         else
           perms = prompt_permissions(options.deep_merge(rest_perms_config[:options] || {}), rest_perms_config[:excludes] || [])
         end
-        if !rest_perms_config[:name].nil?
+        unless rest_perms_config[:name].nil?
           perms.transform_keys! {|k| k == 'resourcePermissions' ? rest_perms_config[:name] : k}
+        end
+        unless rest_perms_config[:context].nil?
+          perms_context = {}
+          perms_context[rest_perms_config[:context]] = perms
         end
         record_payload.merge!(perms)
       end
