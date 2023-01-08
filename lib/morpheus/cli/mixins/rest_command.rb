@@ -43,7 +43,7 @@ module Morpheus::Cli::RestCommand
     # It is used to derive all other default rest settings key, label, etc.  
     # The default name the command name with underscores `_` instead of dashes `-`.
     def rest_name
-      @rest_name || default_rest_name
+      defined?(@rest_name) ? @rest_name : default_rest_name
     end
 
     def default_rest_name
@@ -58,7 +58,7 @@ module Morpheus::Cli::RestCommand
 
     # rest_key is the singular name of the resource eg. "neat_thing"
     def rest_key
-      @rest_key || default_rest_key
+      defined?(@rest_key) ? @rest_key : default_rest_key
     end
 
     def default_rest_key
@@ -73,7 +73,7 @@ module Morpheus::Cli::RestCommand
 
     # rest_arg is a label for the arg in the command usage eg. "thing" gets displayed as [thing]
     def rest_arg
-      @rest_arg || default_rest_arg
+      defined?(@rest_arg) ? @rest_arg : default_rest_arg
     end
 
     def default_rest_arg
@@ -89,7 +89,7 @@ module Morpheus::Cli::RestCommand
     # rest_has_name indicates a resource has a name and can be retrieved by name or id
     # true by default, set to false for lookups by only id
     def rest_has_name
-      @rest_has_name != nil ? @rest_has_name :  default_rest_has_name
+      defined?(@rest_has_name) ? @rest_has_name :  default_rest_has_name
     end
 
     def default_rest_has_name
@@ -104,7 +104,7 @@ module Morpheus::Cli::RestCommand
 
     # rest_label is the capitalized resource label eg. "Neat Thing"    
     def rest_label
-      @rest_label || default_rest_label
+      defined?(@rest_label) ? @rest_label : default_rest_label
     end
 
     def default_rest_label
@@ -119,7 +119,7 @@ module Morpheus::Cli::RestCommand
 
     # the plural version of the label eg. "Neat Things"
     def rest_label_plural
-      @rest_label_plural || default_rest_label_plural
+      defined?(@rest_label_plural) ? @rest_label_plural : default_rest_label_plural
     end
     
     def default_rest_label_plural
@@ -135,7 +135,7 @@ module Morpheus::Cli::RestCommand
 
     # rest_interface_name is the interface name for the resource. eg. "neat_things"
     def rest_interface_name
-      @rest_interface_name || default_rest_interface_name
+      defined?(@rest_interface_name) ? @rest_interface_name : default_rest_interface_name
     end
 
     def default_rest_interface_name
@@ -148,9 +148,31 @@ module Morpheus::Cli::RestCommand
 
     alias :set_rest_interface_name :rest_interface_name=
 
+    # rest_perms_config enables and configures permissions prompt
+    def rest_perms_config
+      defined?(@rest_perms_config) ? @rest_perms_config : {}
+    end
+
+    def rest_perms_config=(v)
+      @rest_perms_config = v
+    end
+
+    alias :set_rest_perms_config :rest_perms_config=
+
+    # rest_option_context_map specifies context mapping during option prompt. default is domain => ''
+    def rest_option_context_map
+      defined?(@option_context_map) ? @option_context_map : {'domain' => ''}
+    end
+
+    def rest_option_context_map=(v)
+      @option_context_map = v
+    end
+
+    alias :set_rest_option_context_map :rest_option_context_map=
+
     # rest_has_type indicates a resource has a type. default is false
     def rest_has_type
-      @rest_has_type == true
+      defined?(@rest_has_type) && @rest_has_type
     end
 
     def default_rest_has_type
@@ -167,7 +189,7 @@ module Morpheus::Cli::RestCommand
 
     # rest_type_name is the rest_name for the type, only applicable if rest_has_type
     def rest_type_name
-      @rest_type_name || default_rest_type_name
+      defined?(@rest_type_name) ? @rest_type_name : default_rest_type_name
     end
 
     def default_rest_type_name
@@ -184,7 +206,7 @@ module Morpheus::Cli::RestCommand
 
     # rest_type_key is the singular name of the resource eg. "neat_thing"
     def rest_type_key
-      @rest_type_key || default_rest_type_key
+      defined?(@rest_type_key) ? @rest_type_key : default_rest_type_key
     end
 
     def default_rest_type_key
@@ -198,7 +220,7 @@ module Morpheus::Cli::RestCommand
     alias :set_rest_type_key :rest_type_key=
 
     def rest_type_arg
-      @rest_type_arg || default_rest_type_arg
+      defined?(@rest_type_arg) ? @rest_type_arg : default_rest_type_arg
     end
 
     def default_rest_type_arg
@@ -214,7 +236,7 @@ module Morpheus::Cli::RestCommand
 
     # rest_type_label is the capitalized resource label eg. "Neat Thing"    
     def rest_type_label
-      @rest_type_label || default_rest_type_label
+      defined?(@rest_type_label) ? @rest_type_label : default_rest_type_label
     end
 
     def default_rest_type_label
@@ -229,7 +251,7 @@ module Morpheus::Cli::RestCommand
 
     # the plural version of the label eg. "Neat Things"
     def rest_type_label_plural
-      @rest_type_label_plural || default_rest_type_label_plural
+      defined?(@rest_type_label_plural) ? @rest_type_label_plural : default_rest_type_label_plural
     end
     
     def default_rest_type_label_plural
@@ -245,7 +267,7 @@ module Morpheus::Cli::RestCommand
 
     # the name of the default interface, matches the rest name eg. "neat_things"
     def rest_type_interface_name
-      @rest_type_interface_name || default_rest_type_interface_name
+      defined?(@rest_type_interface_name) ? @rest_type_interface_name : default_rest_type_interface_name
     end
 
     def default_rest_type_interface_name
@@ -327,6 +349,14 @@ module Morpheus::Cli::RestCommand
 
   def rest_interface_name
     self.class.rest_interface_name
+  end
+
+  def rest_perms_config
+    self.class.rest_perms_config
+  end
+
+  def rest_option_context_map
+    self.class.rest_option_context_map
   end
 
   # returns the default rest interface, allows using rest_interface_name = "your"
@@ -494,7 +524,10 @@ EOT
     json_response = rest_interface.list(params)
     render_response(json_response, options, rest_list_key) do
       records = json_response[rest_list_key]
-      print_h1 "Morpheus #{rest_label_plural}"
+      title = "Morpheus #{rest_label_plural}"
+      subtitles = []
+      subtitles += parse_list_subtitles(options)
+      print_h1 title, subtitles, options
       if records.nil? || records.empty?
         print cyan,"No #{rest_label_plural.downcase} found.",reset,"\n"
       else
@@ -556,7 +589,7 @@ EOT
       #   print_description_list(config.keys, config)
       # end
       # Option Types
-      if record['optionTypes'] && record['optionTypes'].size > 0
+      if record['optionTypes'] && record['optionTypes'].sort { |x,y| x['displayOrder'].to_i <=> y['displayOrder'].to_i }.size > 0
         print_h2 "Option Types", options
         print format_option_types_table(record['optionTypes'], options, rest_object_key)
       end
@@ -567,12 +600,17 @@ EOT
   def add(args)
     record_type = nil
     record_type_id = nil
-    options = {}
+    options = {:options => {:context_map => rest_option_context_map}}
+    #respond_to?("#{rest_key}_option_context_map", true) ? send("#{rest_key}_option_context_map") : {'domain' => ''}}}
     option_types = respond_to?("add_#{rest_key}_option_types", true) ? send("add_#{rest_key}_option_types") : []
     advanced_option_types = respond_to?("add_#{rest_key}_advanced_option_types", true) ? send("add_#{rest_key}_advanced_option_types") : []
     type_option_type = option_types.find {|it| it['fieldName'] == 'type'} 
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[#{rest_arg}]")
+      if rest_has_name
+        opts.banner = subcommand_usage("[name]")
+      else
+        opts.banner = subcommand_usage()
+      end
       if rest_has_type && type_option_type.nil?
         opts.on( '-t', "--#{rest_type_arg} TYPE", "#{rest_type_label}" ) do |val|
           record_type_id = val
@@ -600,25 +638,25 @@ EOT
       verify_args!(args:args, optparse:optparse, count: 0)
     end
     connect(options)
-    # load or prompt for type
-    if rest_has_type && type_option_type.nil?
-      if record_type_id.nil?
-        #raise_command_error "#{rest_type_label} is required.\n#{optparse}"
-        type_list = rest_type_interface.list({max:10000, creatable:true})[rest_type_list_key]
-        type_dropdown_options = respond_to?("#{rest_key}_type_list_to_options", true) ? send("#{rest_key}_type_list_to_options", type_list) : type_list.collect {|it| {'name' => it['name'], 'value' => it['code']} }
-        record_type_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'fieldLabel' => rest_type_label, 'type' => 'select', 'selectOptions' => type_dropdown_options, 'required' => true}], options[:options], @api_client)['type']
-      end
-      record_type = rest_type_find_by_name_or_id(record_type_id)
-      if record_type.nil?
-        return 1, "#{rest_type_label} not found for '#{record_type_id}"
-      end
-    end
     passed_options = parse_passed_options(options)
     payload = {}
     if options[:payload]
       payload = options[:payload]
       payload.deep_merge!({rest_object_key => passed_options})
     else
+      # load or prompt for type
+      if rest_has_type && type_option_type.nil?
+        if record_type_id.nil?
+          #raise_command_error "#{rest_type_label} is required.\n#{optparse}"
+          type_list = rest_type_interface.list({max:10000, creatable:true})[rest_type_list_key]
+          type_dropdown_options = respond_to?("#{rest_key}_type_list_to_options", true) ? send("#{rest_key}_type_list_to_options", type_list) : type_list.collect {|it| {'name' => it['name'], 'value' => it['code']} }
+          record_type_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'fieldLabel' => rest_type_label, 'type' => 'select', 'selectOptions' => type_dropdown_options, 'required' => true}], options[:options], @api_client)['type']
+        end
+        record_type = rest_type_find_by_name_or_id(record_type_id)
+        if record_type.nil?
+          return 1, "#{rest_type_label} not found for '#{record_type_id}"
+        end
+      end
       record_payload = {}
       if record_name
         record_payload['name'] = record_name
@@ -667,7 +705,7 @@ EOT
           end
         end
         api_params = (options[:params] || {}).merge(record_payload)
-        v_prompt = Morpheus::Cli::OptionTypes.prompt(my_option_types, options[:options], @api_client, api_params)
+        v_prompt = Morpheus::Cli::OptionTypes.prompt(my_option_types, options[:options], @api_client, api_params, false, true)
         v_prompt.deep_compact!
         v_prompt.booleanize! # 'on' => true
         record_payload.deep_merge!(v_prompt)
@@ -678,6 +716,22 @@ EOT
         v_prompt.deep_compact!
         v_prompt.booleanize! # 'on' => true
         record_payload.deep_merge!(v_prompt)
+      end
+      # permissions
+      if rest_perms_config[:enabled]
+        if rest_perms_config[:version] == 2
+          perms = prompt_permissions_v2(options.deep_merge(rest_perms_config[:options] || {}), rest_perms_config[:excludes] || [])
+        else
+          perms = prompt_permissions(options.deep_merge(rest_perms_config[:options] || {}), rest_perms_config[:excludes] || [])
+        end
+        unless rest_perms_config[:name].nil?
+          perms.transform_keys! {|k| k == 'resourcePermissions' ? rest_perms_config[:name] : k}
+        end
+        unless rest_perms_config[:context].nil?
+          perms_context = {}
+          perms_context[rest_perms_config[:context]] = perms
+        end
+        record_payload.merge!(perms)
       end
       payload[rest_object_key] = record_payload
     end
@@ -696,7 +750,6 @@ EOT
   end
 
   def update(args)
-    id = args[0]
     record_type = nil
     record_type_id = nil
     options = {}
@@ -716,6 +769,7 @@ EOT
     optparse.parse!(args)
     verify_args!(args:args, optparse:optparse, count:1)
     connect(options)
+    id = args[0]
     record = rest_find_by_name_or_id(id)
     if record.nil?
       return 1, "#{rest_name} not found for '#{id}'"
@@ -811,7 +865,6 @@ EOT
   end
 
   def remove(args)
-    id = args[0]
     params = {}
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
@@ -826,6 +879,7 @@ EOT
     verify_args!(args:args, optparse:optparse, count:1)
     connect(options)
     params.merge!(parse_query_options(options))
+    id = args[0]
     record = rest_find_by_name_or_id(id)
     if record.nil?
       return 1, "#{rest_name} not found for '#{id}'"
@@ -843,6 +897,101 @@ EOT
       print_green_success "Removed #{rest_label.downcase} #{record['name'] || record['id']}"
     end
     return 0, nil
+  end
+
+  def list_types(args)
+    params = {}
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[search]")
+      build_list_options(opts, options, params)
+      opts.footer = <<-EOT
+List #{rest_type_label_plural.downcase}.
+[search] is optional. This is a search phrase to filter the results.
+EOT
+    end
+    optparse.parse!(args)
+    connect(options)
+    parse_list_options!(args, options, params)
+    rest_type_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run rest_type_interface.dry.list(params)
+      return
+    end
+    json_response = rest_type_interface.list(params)
+    render_response(json_response, options, rest_type_list_key) do
+      records = json_response[rest_type_list_key]
+      title = "Morpheus #{rest_type_label_plural}"
+      subtitles = []
+      subtitles += parse_list_subtitles(options)
+      print_h1 title, subtitles, options
+      if records.nil? || records.empty?
+        print cyan,"No #{rest_type_label_plural.downcase} found.",reset,"\n"
+      else
+        print as_pretty_table(records, rest_type_list_column_definitions(options).upcase_keys!, options)
+        print_results_pagination(json_response) if json_response['meta']
+      end
+      print reset,"\n"
+    end
+    return 0, nil
+  end
+
+  def get_type(args)
+    params = {}
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[#{rest_type_arg}]")
+      build_get_options(opts, options, params)
+      opts.footer = <<-EOT
+Get details about #{a_or_an(rest_type_label)} #{rest_type_label.downcase}.
+[#{rest_type_arg}] is required. This is the name or id of #{a_or_an(rest_type_label)} #{rest_type_label.downcase}.
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, min:1)
+    connect(options)
+    parse_get_options!(args, options, params)
+    id = args.join(" ")
+    _get_type(id, params, options)
+  end
+
+  def _get_type(id, params, options)
+    if id !~ /\A\d{1,}\Z/ # && rest_type_has_name
+      record = rest_type_find_by_name_or_id(id)
+      if record.nil?
+        return 1, "#{rest_type_label} not found for '#{id}'"
+      end
+      id = record['id']
+    end
+    rest_type_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run rest_type_interface.dry.get(id, params)
+      return
+    end
+    json_response = rest_type_interface.get(id, params)
+    render_response_for_get_type(json_response, options)
+    return 0, nil
+  end
+
+  def render_response_for_get_type(json_response, options)
+    render_response(json_response, options, rest_type_object_key) do
+      record = json_response[rest_type_object_key]
+      print_h1 rest_type_label, [], options
+      print cyan
+      print_description_list(rest_type_column_definitions(options), record, options)
+      # # could always show config eh? or maybe only with --config if that is nicer.
+      # # config = record['config'].is_a?(Hash) && !record['config'].empty?
+      # if config && !config.empty?
+      #   print_h2 "Configuration"
+      #   print_description_list(config.keys, config)
+      # end
+      # Option Types
+      if record['optionTypes'] && record['optionTypes'].sort { |x,y| x['displayOrder'].to_i <=> y['displayOrder'].to_i }.size > 0
+        print_h2 "Option Types", options
+        print format_option_types_table(record['optionTypes'], options, rest_object_key)
+      end
+      print reset,"\n"
+    end
   end
 
 end
