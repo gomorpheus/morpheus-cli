@@ -318,17 +318,15 @@ EOT
     verify_args!(args:args, optparse:optparse, min:2)
     connect(options)
     parse_get_options!(args.count > 1 ? args[1..-1] : [], options, params)
-    parent_id = args[0]
+    _get(args[0], args[1..-1].join(" "), params, options)
+  end
+
+  def _get(parent_id, id, params, options)
     parent_record = rest_parent_find_by_name_or_id(parent_id)
     if parent_record.nil?
       return 1, "#{rest_parent_label} not found for '#{parent_id}"
     end
     parent_id = parent_record['id']
-    id = args[1..-1].join(" ")
-    _get(parent_id, id, params, options.merge(:parent_record => parent_record))
-  end
-
-  def _get(parent_id, id, params, options)
     if id !~ /\A\d{1,}\Z/
       record = rest_find_by_name_or_id(parent_id, id)
       if record.nil?
@@ -342,7 +340,7 @@ EOT
       return
     end
     json_response = rest_interface.get(parent_id, id, params)
-    render_response_for_get(json_response, options)
+    render_response_for_get(json_response, options.merge({:parent_record => parent_record}))
     return 0, nil
   end
 

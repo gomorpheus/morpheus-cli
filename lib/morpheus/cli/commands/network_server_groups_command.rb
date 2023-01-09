@@ -61,7 +61,7 @@ class Morpheus::Cli::NetworkServerGroups
     columns = {
       'ID' => 'id',
       'Name' => 'name',
-      'Description' => 'description',
+      'Description' => {:label => 'Description', :max_width => 50, :display_method => lambda {|group| group['description']}},
       'Members' => members_lambda
     }
 
