@@ -123,8 +123,8 @@ module Morpheus::Routes
     admin: {
       accounts: {}, # Tenants
       :'service-plans' => [
-        "#prices",
-        "#pricesets"
+        "#!prices",
+        "#!pricesets"
       ],
       roles: {},
       users: {},
@@ -132,7 +132,19 @@ module Morpheus::Routes
       integrations: {},
       policies: {},
       health: ["logs"],
-      settings: {},
+      settings: [
+        "#!appliance",
+        "#!whitelabel",
+        "provisioning",
+        "monitoring",
+        "backups",
+        "logs",
+        "#!guidance",
+        "environments",
+        "software-licenses",
+        "#!license",
+        "#!utilities"
+      ],
     },
     :'user-settings' => {}, # User Settings (Profile)
   } unless defined?(SITE_MAP)
@@ -161,14 +173,34 @@ module Morpheus::Routes
       # find the one with smallest match index
 
       # map well known aliases
-      case(path.underscore.singularize)
-      when "server","host","vm","virtual-machine"
+      case(path.dasherize.pluralize)
+      when "servers","hosts","vms","virtual-machines"
         # actually should be "/infrastructure/inventory" unless id is passed, show route uses /servers though
         path = "/infrastructure/servers"
-      when "compute"
+      when "computes", "inventories"
         path = "/infrastructure/inventory"
-      when "tenant"
+      when "tenants"
         path = "/admin/accounts"
+      when "appliance-settings"
+        path = "/admin/settings/#!appliance"
+      when "whitelabel-settings"
+        path = "/admin/settings/#!whitelabel"
+      when "provisioning-settings"
+        path = "/admin/settings/#!provisioning"
+      when "monitoring-settings"
+        path = "/admin/settings/monitoring"
+      when "backup-settings"
+        path = "/admin/settings/backups"
+      when "log-settings"
+        path = "/admin/settings/logs"
+      when "guidance-settings"
+        path = "/admin/settings/#!guidance"
+      when "environments"
+        path = "/admin/settings/environments"
+      when "software-licenses"
+        path = "/admin/settings/software-licenses"
+      when "license"
+        path = "/admin/settings/#!license"
       end
       # dasherize path and attempt to match the plural first
       plural_path = path.pluralize

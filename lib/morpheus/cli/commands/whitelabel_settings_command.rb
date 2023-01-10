@@ -137,7 +137,7 @@ class Morpheus::Cli::WhitelabelSettingsCommand
         print cyan
         print options[:details] ? content : truncate_string(content, trunc_len), "\n"
       end
-      print reset "\n"
+      print reset, "\n"
       return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
