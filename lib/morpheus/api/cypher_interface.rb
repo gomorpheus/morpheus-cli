@@ -4,8 +4,7 @@ require 'uri'
 class Morpheus::CypherInterface < Morpheus::APIClient
 
   def base_path
-    # can use just "/api/cypher" in 4.1.2
-    "/api/cypher/v1"
+    "/api/cypher"
   end
 
   def get(item_key, params={})

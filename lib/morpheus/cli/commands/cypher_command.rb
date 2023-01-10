@@ -274,6 +274,9 @@ EOT
           ttl = val
         end
       end
+      opts.on( '--type string|object', "The type of data being stored: string or object." ) do |val|
+        params['type'] = val
+      end
       # opts.on( '--no-overwrite', '--no-overwrite', "Do not overwrite existing keys. Existing keys are overwritten by default." ) do
       #   params['overwrite'] = false
       # end
