@@ -66,7 +66,7 @@ class Morpheus::Cli::BackupSettingsCommand
         "Backup Retention Count" => lambda {|it| it['retentionCount'] }
       }
       print_description_list(description_cols, backup_settings)
-      print reset "\n"
+      print reset, "\n"
       return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)

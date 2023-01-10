@@ -798,8 +798,16 @@ class Morpheus::APIClient
     Morpheus::BackupSettingsInterface.new(common_interface_options).setopts(@options)
   end
 
+  def guidance_settings
+    Morpheus::GuidanceSettingsInterface.new(common_interface_options).setopts(@options)
+  end
+
   def log_settings
     Morpheus::LogSettingsInterface.new(common_interface_options).setopts(@options)
+  end
+
+  def monitoring_settings
+    Morpheus::MonitoringSettingsInterface.new(common_interface_options).setopts(@options)
   end
 
   def whitelabel_settings

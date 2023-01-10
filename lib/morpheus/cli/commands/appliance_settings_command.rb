@@ -103,7 +103,7 @@ class Morpheus::Cli::ApplianceSettingsCommand
         print cyan
         print enabled_zone_types.collect {|it| it['name']}.join(', ')
       end
-      print reset "\n"
+      print reset, "\n"
       return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
