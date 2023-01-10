@@ -15,10 +15,10 @@ class Morpheus::Cli::NetworkServerGroups
 
   protected
 
-  NSXT_CRITERIA_TYPES = ['Condition', 'NestedExpression']
-  NSXT_MEMBER_TYPES = ['Path', 'ExternalID']
-  NSXT_IP_TYPES = ['IPAddress', 'MACAddress']
-  NSXT_AD_GROUP_TYPES = ['IdentityGroup']
+  NSXT_CRITERIA_TYPES = ['Condition', 'NestedExpression'] unless defined? NSXT_CRITERIA_TYPES
+  NSXT_MEMBER_TYPES = ['Path', 'ExternalID'] unless defined? NSXT_MEMBER_TYPES
+  NSXT_IP_TYPES = ['IPAddress', 'MACAddress'] unless defined? NSXT_IP_TYPES
+  NSXT_AD_GROUP_TYPES = ['IdentityGroup'] unless defined? NSXT_AD_GROUP_TYPES
 
   def network_server_group_list_key
     'groups'
