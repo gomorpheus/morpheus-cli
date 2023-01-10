@@ -24,4 +24,19 @@ class Morpheus::ApplianceSettingsInterface < Morpheus::APIClient
     opts = {method: :get, url: url, headers: headers}
     execute(opts)
   end
+
+  def maintenance(params={}, payload={})
+    url = "#{base_path}/maintenance"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    opts = {method: :post, url: url, headers: headers, payload: payload}
+    execute(opts)
+  end
+
+  def reindex(params={}, payload={})
+    url = "#{base_path}/reindex"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    opts = {method: :post, url: url, headers: headers, payload: payload}
+    execute(opts)
+  end
+
 end
