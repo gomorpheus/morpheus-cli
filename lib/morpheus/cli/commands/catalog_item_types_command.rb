@@ -43,6 +43,9 @@ class Morpheus::Cli::CatalogItemTypesCommand
       opts.on('--all-labels LABEL', String, "Filter by labels, must match all of the values") do |val|
         add_query_parameter(params, 'allLabels', parse_labels(val))
       end
+       opts.on('--code CODE', String, "Filter by code" ) do |val|
+        params[:status] = val
+      end
       build_standard_list_options(opts, options)
       opts.footer = "List catalog item types."
     end
@@ -657,6 +660,7 @@ EOT
     {
       "ID" => 'id',
       "Name" => 'name',
+      "Code" => 'code',
       "Labels" => lambda {|it| format_list(it['labels'], '', 3) },
       "Description" => 'description',
       "Type" => lambda {|it| format_catalog_type(it) },
@@ -680,6 +684,7 @@ EOT
       "Name" => 'name',
       "Labels" => lambda {|it| format_list(it['labels']) },
       "Description" => 'description',
+      "Code" => 'code',
       "Type" => lambda {|it| format_catalog_type(it) },
       "Visibility" => 'visibility',
       "Layout Code" => 'layoutCode',
@@ -725,21 +730,22 @@ EOT
     [
       {'code' => 'catalogItemType.type', 'shorthand' => '-t', 'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => [{'name' => 'Instance', 'value' => 'instance'}, {'name' => 'Blueprint', 'value' => 'blueprint'}, {'name' => 'Workflow', 'value' => 'workflow'}], 'defaultValue' => 'instance', 'required' => true, 'displayOrder' => 1},
       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 2},
-      {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'displayOrder' => 3},
-      {'fieldName' => 'enabled', 'fieldLabel' => 'Enabled', 'type' => 'checkbox', 'defaultValue' => true, 'displayOrder' => 4},
-      {'fieldName' => 'featured', 'fieldLabel' => 'Featured', 'type' => 'checkbox', 'defaultValue' => false, 'displayOrder' => 5},
-      {'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'selectOptions' => [{'name' => 'Private', 'value' => 'private'}, {'name' => 'Public', 'value' => 'public'}], 'defaultValue' => 'private', 'required' => true, 'displayOrder' => 6},
-      {'fieldName' => 'layoutCode', 'fieldLabel' => 'Layout Code', 'type' => 'text', 'required' => false, 'displayOrder' => 7},
-      {'fieldName' => 'iconPath', 'fieldLabel' => 'Logo', 'type' => 'select', 'optionSource' => 'iconList', 'displayOrder' => 8},
+      {'fieldName' => 'code', 'fieldLabel' => 'Code', 'type' => 'text', 'displayOrder' => 3},
+      {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'displayOrder' => 4},
+      {'fieldName' => 'enabled', 'fieldLabel' => 'Enabled', 'type' => 'checkbox', 'defaultValue' => true, 'displayOrder' => 5},
+      {'fieldName' => 'featured', 'fieldLabel' => 'Featured', 'type' => 'checkbox', 'defaultValue' => false, 'displayOrder' => 6},
+      {'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'selectOptions' => [{'name' => 'Private', 'value' => 'private'}, {'name' => 'Public', 'value' => 'public'}], 'defaultValue' => 'private', 'required' => true, 'displayOrder' => 7},
+      {'fieldName' => 'layoutCode', 'fieldLabel' => 'Layout Code', 'type' => 'text', 'required' => false, 'displayOrder' => 8},
+      {'fieldName' => 'iconPath', 'fieldLabel' => 'Logo', 'type' => 'select', 'optionSource' => 'iconList', 'displayOrder' => 9},
       #{'fieldName' => 'optionTypes', 'fieldLabel' => 'Option Types', 'type' => 'text', 'description' => 'Option Types to include, comma separated list of names or IDs.', 'displayOrder' => 8},
-      {'dependsOnCode' => 'catalogItemType.type:instance', 'fieldName' => 'config', 'fieldLabel' => 'Config', 'type' => 'code-editor', 'description' => 'JSON or YAML', 'required' => true, 'displayOrder' => 9},
-      {'dependsOnCode' => 'catalogItemType.type:blueprint', 'fieldName' => 'blueprint', 'fieldLabel' => 'Blueprint', 'type' => 'select', 'optionSource' => 'blueprints', 'description' => 'Choose a blueprint to apply to the catalog item.', 'required' => true, 'noParams' => true, 'displayOrder' => 10},
-      {'dependsOnCode' => 'catalogItemType.type:blueprint', 'fieldName' => 'appSpec', 'fieldLabel' => 'App Spec', 'type' => 'code-editor', 'description' => 'Enter a spec in the for the App, the Scribe YAML format', 'required' => true, 'displayOrder' => 11},
-      {'dependsOnCode' => 'catalogItemType.type:workflow', 'fieldName' => 'workflow', 'fieldLabel' => 'Workflow', 'type' => 'select', 'optionSource' => 'operationWorkflows', 'description' => 'Enter a spec in the for the App, the Scribe YAML format', 'noParams' => true, 'displayOrder' => 12},
+      {'dependsOnCode' => 'catalogItemType.type:instance', 'fieldName' => 'config', 'fieldLabel' => 'Config', 'type' => 'code-editor', 'description' => 'JSON or YAML', 'required' => true, 'displayOrder' => 10},
+      {'dependsOnCode' => 'catalogItemType.type:blueprint', 'fieldName' => 'blueprint', 'fieldLabel' => 'Blueprint', 'type' => 'select', 'optionSource' => 'blueprints', 'description' => 'Choose a blueprint to apply to the catalog item.', 'required' => true, 'noParams' => true, 'displayOrder' => 11},
+      {'dependsOnCode' => 'catalogItemType.type:blueprint', 'fieldName' => 'appSpec', 'fieldLabel' => 'App Spec', 'type' => 'code-editor', 'description' => 'Enter a spec in the for the App, the Scribe YAML format', 'required' => true, 'displayOrder' => 12},
+      {'dependsOnCode' => 'catalogItemType.type:workflow', 'fieldName' => 'workflow', 'fieldLabel' => 'Workflow', 'type' => 'select', 'optionSource' => 'operationWorkflows', 'description' => 'Enter a spec in the for the App, the Scribe YAML format', 'noParams' => true, 'displayOrder' => 13},
       {'dependsOnCode' => 'catalogItemType.type:workflow', 'fieldName' => 'context', 'fieldLabel' => 'Context Type', 'type' => 'select', 'optionSource' => lambda { |api_client, api_params| 
         [{'name' => "Select", 'value' => ""}, {'name' => "None", 'value' => "appliance"}, {'name' => "Instance", 'value' => "instance"}, {'name' => "Server", 'value' => "server"}]
         }, 'description' => 'Context for operational workflow, determines target type', 'defaultValue' => 'Select', 'required' => false},
-      {'fieldName' => 'content', 'fieldLabel' => 'Content', 'type' => 'code-editor', 'description' => 'Wiki Page Content describing the catalog item', 'displayOrder' => 13}
+      {'fieldName' => 'content', 'fieldLabel' => 'Content', 'type' => 'code-editor', 'description' => 'Wiki Page Content describing the catalog item', 'displayOrder' => 14}
     ]
   end
 
