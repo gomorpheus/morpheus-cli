@@ -44,7 +44,7 @@ class Morpheus::Cli::CatalogItemTypesCommand
         add_query_parameter(params, 'allLabels', parse_labels(val))
       end
        opts.on('--code CODE', String, "Filter by code" ) do |val|
-        params[:status] = val
+        params[:code] = val
       end
       build_standard_list_options(opts, options)
       opts.footer = "List catalog item types."
