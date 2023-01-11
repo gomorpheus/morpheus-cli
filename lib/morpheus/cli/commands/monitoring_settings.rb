@@ -4,7 +4,7 @@ class Morpheus::Cli::MonitoringSettings
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::AccountsHelper
 
-  set_command_name :'monitoring-settings'
+  set_command_name :'monitor-settings'
   set_command_description "View and manage monitoring settings"
   register_subcommands :get, :update
 
@@ -49,31 +49,26 @@ class Morpheus::Cli::MonitoringSettings
         "Default Check Interval" => lambda {|it| it['defaultCheckInterval'] ? it['defaultCheckInterval'].to_s + ' minutes' : '' },
       }
       print_description_list(description_cols, monitoring_settings, options)
-      if service_now_settings['enabled']
-        print_h2 "Service Now Settings", options.merge(:border_style => :thin)
-        description_cols = service_now_settings['enabled'] ? {
+      
+        print_h2 "ServiceNow Settings", options.merge(:border_style => :thin)
+        description_cols = {
           "Enabled" => lambda {|it| format_boolean(it['enabled']) },
           "Integration" => lambda {|it| it['integration'] ? it['integration']['name'] : '' },
-          "New Incident Action" => lambda {|it| it['newIncidentAction'] },
-          "Close Incident Action" => lambda {|it| it['closeIncidentAction'] },
-          "Info Mapping" => lambda {|it| it['infoMapping'] },
-          "Warning Mapping" => lambda {|it| it['warningMapping'] },
-          "Critical Mapping" => lambda {|it| it['criticalMapping'] },
-        } : {
-          "Enabled" => lambda {|it| format_boolean(it['enabled']) },
+          "New Incident Action" => lambda {|it| format_service_now_action(it['newIncidentAction']) },
+          "Close Incident Action" => lambda {|it| format_service_now_action(it['closeIncidentAction']) },
+          "Info Mapping" => lambda {|it| format_service_now_mapping(it['infoMapping']) },
+          "Warning Mapping" => lambda {|it| format_service_now_mapping(it['warningMapping']) },
+          "Critical Mapping" => lambda {|it| format_service_now_mapping(it['criticalMapping']) },
         }
         print_description_list(description_cols, service_now_settings)
-      end
-      if new_relic_settings['enabled']
+
         print_h2 "New Relic Settings", options.merge(:border_style => :thin)
-        description_cols = new_relic_settings['enabled'] ? {
+        description_cols = {
           "Enabled" => lambda {|it| format_boolean(it['enabled']) },
           "License Key" => lambda {|it| it['licenseKey'] },
-        } : {
-          "Enabled" => lambda {|it| format_boolean(it['enabled']) },
         }
         print_description_list(description_cols, new_relic_settings, options)
-      end
+      
       print reset, "\n"
     end
     return 0, nil
@@ -96,31 +91,51 @@ class Morpheus::Cli::MonitoringSettings
       opts.on("--default-check-interval MINUTES", Integer, "Default Check Interval. The default interval to use when creating new checks. Value is in minutes.") do |val|
         params['defaultCheckInterval'] = val.to_i
       end
-      opts.on('--service-now-enabled [on|off]', String, "Service Now: Enabled (on) or disabled (off)") do |val|
+      opts.on('--service-now-enabled [on|off]', String, "ServiceNow: Enabled (on) or disabled (off)") do |val|
         params['serviceNow'] ||= {}
         params['serviceNow']['enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
-      opts.on('--service-now-integration ID', String, "Service Now: Integration ID or Name") do |val|
+      opts.on('--service-now-integration ID', String, "ServiceNow: Integration ID or Name") do |val|
         params['serviceNow'] ||= {}
         params['serviceNow']['integration'] = val # {'id' => val.to_i}
       end
-      opts.on("--service-now-new-incident-action create|none", String, "Service Now: New Incident Action") do |val|
+      opts.on("--service-now-new-incident-action create|none", String, "ServiceNow: New Incident Action") do |val|
+        # allowed_values = 'create|none'.split('|') #get_service_now_actions().keys
+        # if !allowed_values.include?(val)
+        #   raise ::OptionParser::InvalidOption.new("New Incident Action value '#{val}' is invalid.\nThe allowed values are: #{allowed_values.join(', ')}")
+        # end
         params['serviceNow'] ||= {}
         params['serviceNow']['newIncidentAction'] = val
       end
-      opts.on("--service-now-close-incident-action close|activity|none", String, "Service Now: Close Incident Action") do |val|
+      opts.on("--service-now-close-incident-action close|activity|none", String, "ServiceNow: Close Incident Action") do |val|
+        # allowed_values = 'close|activity|none'.split('|') #get_service_now_mappings().keys
+        # if !allowed_values.include?(val)
+        #   raise ::OptionParser::InvalidOption.new("Close Incident Action value '#{val}' is invalid.\nThe allowed values are: #{allowed_values.join(', ')}")
+        # end
         params['serviceNow'] ||= {}
         params['serviceNow']['closeIncidentAction'] = val
       end
-      opts.on("--service-now-info-mapping low|medium|high", String, "Service Now: Info Mapping") do |val|
+      opts.on("--service-now-info-mapping low|medium|high", String, "ServiceNow: Info Mapping") do |val|
+        # allowed_values = 'low|medium|high'.split('|') # get_service_now_mappings().keys
+        # if !allowed_values.include?(val)
+        #   raise ::OptionParser::InvalidOption.new("Info Mapping value '#{val}' is invalid.\nThe allowed values are: #{allowed_values.join(', ')}")
+        # end
         params['serviceNow'] ||= {}
         params['serviceNow']['infoMapping'] = val
       end
-      opts.on("--service-now-warning-mapping low|medium|high", String, "Service Now: Warning Mapping") do |val|
+      opts.on("--service-now-warning-mapping low|medium|high", String, "ServiceNow: Warning Mapping") do |val|
+        # allowed_values = 'low|medium|high'.split('|') # get_service_now_mappings().keys
+        # if !allowed_values.include?(val)
+        #   raise ::OptionParser::InvalidOption.new("Warning Info Mapping value '#{val}' is invalid.\nThe allowed values are: #{allowed_values.join(', ')}")
+        # end
         params['serviceNow'] ||= {}
         params['serviceNow']['warningMapping'] = val
       end
-      opts.on("--service-now-critical-mapping low|medium|high", String, "Service Now: Critical Mapping") do |val|
+      opts.on("--service-now-critical-mapping low|medium|high", String, "ServiceNow: Critical Mapping") do |val|
+        # allowed_values = 'low|medium|high'.split('|') # get_service_now_mappings().keys
+        # if !allowed_values.include?(val)
+        #   raise ::OptionParser::InvalidOption.new("Critical Info Mapping value '#{val}' is invalid.\nThe allowed values are: #{allowed_values.join(', ')}")
+        # end
         params['serviceNow'] ||= {}
         params['serviceNow']['criticalMapping'] = val
       end
@@ -128,7 +143,7 @@ class Morpheus::Cli::MonitoringSettings
         params['newRelic'] ||= {}
         params['newRelic']['enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
-      opts.on("--new-relic-license-key VALUE", String, "New Relic: License Key") do |val|
+      opts.on("--new-relic-license-key [VALUE]", String, "New Relic: License Key") do |val|
         params['newRelic'] ||= {}
         params['newRelic']['licenseKey'] = val
       end
@@ -179,6 +194,32 @@ class Morpheus::Cli::MonitoringSettings
   end
 
   private
+
+  def get_service_now_actions()
+    {
+      'create' => 'Create new incident in ServiceNow',
+      'close' => 'Resolve Incident in ServiceNow',
+      'activity' => 'Add Activity to Incident in ServiceNow',
+      'none' => 'No action',
+    }
+  end
+
+  def format_service_now_action(action_value)
+    get_service_now_actions()[action_value].to_s
+  end
+
+  def get_service_now_mappings()
+    {
+      'low' => 'Low',
+      'medium' => 'Medium',
+      'high' => 'High',
+    }
+  end
+
+  def format_service_now_mapping(mapping_value)
+    get_service_now_mappings()[mapping_value].to_s
+  end
+
 
   def object_key
     'monitoringSettings'

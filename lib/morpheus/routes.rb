@@ -187,7 +187,7 @@ module Morpheus::Routes
         path = "/admin/settings/#!whitelabel"
       when "provisioning-settings"
         path = "/admin/settings/#!provisioning"
-      when "monitoring-settings"
+      when "monitoring-settings","monitor-settings"
         path = "/admin/settings/monitoring"
       when "backup-settings"
         path = "/admin/settings/backups"
