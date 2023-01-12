@@ -303,7 +303,8 @@ class Morpheus::Cli::ReportsCommand
 
       end
 
-      if payload['report']['startMonth'].size > 7 || payload['report']['endMonth'].size > 7
+
+      if check_payload_dates(payload)
          print_green_success "The CLI generates a query that will use only month and year. However, the API does support yyyy-mm-dd from a previous version of Morpheus.\nReplace startMonth/endMonth keys with startDate,endDate ie:"
          payload['report'].delete('startMonth')
          payload['report'].delete('endMonth')
@@ -713,5 +714,11 @@ EOT
     return metadata_filter
   end
 
+  def check_payload_dates(payload)
+    if payload['report']['startMonth'] && payload['report']['endMonth']
+     return payload['report']['startMonth'].size > 7 || payload['report']['endMonth'].size > 7
+    end
+    return false
+  end
 end
 
