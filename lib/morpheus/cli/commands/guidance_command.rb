@@ -73,7 +73,7 @@ class Morpheus::Cli::GuidanceCommand
         print "#{cyan}#{level.capitalize}".rjust(14, ' ') + ": " + stats['type'][level].to_s.ljust(10, ' ')
         println generate_usage_bar(stats['type'][level], stats['type'].collect{|k, v| v}.reduce(:+), {:max_bars => 20, :bar_color => color})
       end
-      print reset "\n"
+      print reset, "\n"
       return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -126,7 +126,7 @@ class Morpheus::Cli::GuidanceCommand
           {"CODE" => lambda {|it| it['code']}}
       ];
       print as_pretty_table(types, cols, options)
-      print reset "\n"
+      print reset, "\n"
       return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)

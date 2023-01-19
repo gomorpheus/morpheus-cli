@@ -6,7 +6,7 @@ class Morpheus::Cli::ApplianceSettingsCommand
 
   set_command_name :'appliance-settings'
 
-  register_subcommands :get, :update
+  register_subcommands :get, :update, :toggle_maintenance, :'reindex'
   
   set_default_subcommand :get
 
@@ -103,7 +103,7 @@ class Morpheus::Cli::ApplianceSettingsCommand
         print cyan
         print enabled_zone_types.collect {|it| it['name']}.join(', ')
       end
-      print reset "\n"
+      print reset, "\n"
       return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -305,6 +305,61 @@ class Morpheus::Cli::ApplianceSettingsCommand
       print_rest_exception(e, options)
       exit 1
     end
+  end
+
+  def toggle_maintenance(args)
+    params = {}
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = opts.banner = subcommand_usage()
+      opts.on("--enabled [on|off]", String, "Enabled (on) or Disabled (off)") do |val|
+        params['enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
+      end
+      build_standard_update_options(opts, options, [:auto_confirm], [:payload, :options])
+      opts.footer = "Toggle maintenance mode."
+    end
+    optparse.parse!(args)
+    connect(options)
+    verify_args!(args:args, optparse:optparse, count:0)
+    if params['enabled'].nil?
+      confirm!("Are you sure you would like to toggle maintenance mode?", options)
+    else
+      confirm!("Are you sure you would like to toggle maintenance mode: #{params['enabled'] ? 'on' : 'off'}?", options)
+    end
+    @appliance_settings_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @appliance_settings_interface.dry.maintenance(params)
+      return
+    end
+    json_response = @appliance_settings_interface.maintenance(params)
+    render_response(json_response, options) do
+      print_green_success "Toggled maintenance mode: '#{params['enabled'] ? 'on' : 'off'}'"
+    end
+    return 0, nil
+  end
+
+  def reindex(args)
+    params = {}
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = opts.banner = subcommand_usage()
+      build_standard_update_options(opts, options, [:auto_confirm], [:payload, :options])
+      opts.footer = "Reindex all search data."
+    end
+    optparse.parse!(args)
+    connect(options)
+    verify_args!(args:args, optparse:optparse, count:0)
+    confirm!("Are you sure you would like reindex all search data?", options)
+    @appliance_settings_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @appliance_settings_interface.dry.reindex(params)
+      return
+    end
+    json_response = @appliance_settings_interface.reindex(params)
+    render_response(json_response, options) do
+      print_green_success "Reindexing all search data..."
+    end
+    return 0, nil
   end
 
   private

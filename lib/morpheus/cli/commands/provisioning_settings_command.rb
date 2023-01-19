@@ -83,7 +83,7 @@ class Morpheus::Cli::ProvisioningSettingsCommand
         "Default Blueprint Type" => lambda {|it| it['defaultTemplateType'] ? it['defaultTemplateType']['name'].capitalize : 'Morpheus'}
       }
       print_description_list(description_cols, settings)
-      print reset "\n"
+      print reset, "\n"
       return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)

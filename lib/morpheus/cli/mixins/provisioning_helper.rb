@@ -1435,7 +1435,7 @@ module Morpheus::Cli::ProvisioningHelper
               'id' => current_volume['id'].to_i,
               'rootVolume' => false,
               'name' => current_volume['name'],
-              'size' => current_volume['size'] > (plan_size || 0) ? current_volume['size'] : plan_size,
+              'size' => current_volume['size'] ? current_volume['size'] : (plan_size || 0),
               'sizeId' => nil,
               'storageType' => (current_volume['type'] || current_volume['storageType']),
               'datastoreId' => current_volume['datastoreId']
@@ -2003,9 +2003,10 @@ module Morpheus::Cli::ProvisioningHelper
     group_access = nil
     all_plans = nil
     plan_access = nil
+    permissions = {}
 
     # Group Access
-    if !excludes.include?('groups')
+    unless excludes.include?('groups')
       if !options[:groupAccessAll].nil?
         all_groups = options[:groupAccessAll]
       end
@@ -2055,7 +2056,7 @@ module Morpheus::Cli::ProvisioningHelper
     end
 
     # Plan Access
-    if !excludes.include?('plans')
+    unless excludes.include?('plans')
       if !options[:planAccessAll].nil?
         all_plans = options[:planAccessAll]
       end
@@ -2101,13 +2102,14 @@ module Morpheus::Cli::ProvisioningHelper
       end
     end
 
-    resource_perms = {}
-    resource_perms['all'] = all_groups if !all_groups.nil?
-    resource_perms['sites'] = group_access if !group_access.nil?
-    resource_perms['allPlans'] = all_plans if !all_plans.nil?
-    resource_perms['plans'] = plan_access if !plan_access.nil?
-
-    permissions = {'resourcePermissions' => resource_perms}
+    unless excludes.include?('resource')
+      resource_perms = {}
+      resource_perms['all'] = all_groups if !all_groups.nil?
+      resource_perms['sites'] = group_access if !group_access.nil?
+      resource_perms['allPlans'] = all_plans if !all_plans.nil?
+      resource_perms['plans'] = plan_access if !plan_access.nil?
+      permissions['resourcePermissions'] = resource_perms
+    end
 
     available_accounts = get_available_accounts() #.collect {|it| {'name' => it['name'], 'value' => it['id']}}
     accounts = []
@@ -2115,7 +2117,7 @@ module Morpheus::Cli::ProvisioningHelper
     # Prompts for multi tenant
     if available_accounts.count > 1
       visibility = options[:visibility]
-      if !excludes.include?('visibility')
+      unless excludes.include?('visibility')
         if !visibility && !options[:no_prompt]
           visibility = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'visibility', 'fieldLabel' => 'Tenant Permissions Visibility', 'type' => 'select', 'defaultValue' => 'private', 'required' => true, 'selectOptions' => [{'name' => 'Private', 'value' => 'private'},{'name' => 'Public', 'value' => 'public'}]}], options[:options], @api_client, {})['visibility']
         end
@@ -2123,7 +2125,7 @@ module Morpheus::Cli::ProvisioningHelper
       end
 
       # Tenants
-      if !excludes.include?('tenants')
+      unless excludes.include?('tenants')
         if !options[:tenants].nil?
           accounts = options[:tenants].collect {|id| id.to_i}
         elsif !options[:no_prompt]

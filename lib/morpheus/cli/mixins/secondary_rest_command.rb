@@ -294,7 +294,7 @@ EOT
       if records.nil? || records.empty?
         print cyan,"No #{rest_label_plural.downcase} found.",reset,"\n"
       else
-        print as_pretty_table(records, rest_list_column_definitions(options).upcase_keys!, options)
+        print as_pretty_table(records, rest_list_column_definitions(options.merge({:parent_record => parent_record})).upcase_keys!, options)
         print_results_pagination(json_response) if json_response['meta']
       end
       print reset,"\n"
@@ -318,17 +318,15 @@ EOT
     verify_args!(args:args, optparse:optparse, min:2)
     connect(options)
     parse_get_options!(args.count > 1 ? args[1..-1] : [], options, params)
-    parent_id = args[0]
+    _get(args[0], args[1..-1].join(" "), params, options)
+  end
+
+  def _get(parent_id, id, params, options)
     parent_record = rest_parent_find_by_name_or_id(parent_id)
     if parent_record.nil?
       return 1, "#{rest_parent_label} not found for '#{parent_id}"
     end
     parent_id = parent_record['id']
-    id = args[1..-1].join(" ")
-    _get(parent_id, id, params, options)
-  end
-
-  def _get(parent_id, id, params, options)
     if id !~ /\A\d{1,}\Z/
       record = rest_find_by_name_or_id(parent_id, id)
       if record.nil?
@@ -342,7 +340,7 @@ EOT
       return
     end
     json_response = rest_interface.get(parent_id, id, params)
-    render_response_for_get(json_response, options)
+    render_response_for_get(json_response, options.merge({:parent_record => parent_record}))
     return 0, nil
   end
 
@@ -357,14 +355,19 @@ EOT
         print_h2 "Option Types", options
         print format_option_types_table(record['optionTypes'], options, rest_object_key)
       end
+      render_response_details_for_get(record, options)
       print reset,"\n"
     end
+  end
+
+  def render_response_details_for_get(record, options)
+    # override for custom details
   end
 
   def add(args)
     parent_id, parent_record = nil, nil
     record_type_id = nil
-    options = {}
+    options = {:options => {:context_map => rest_option_context_map}}
     option_types = respond_to?("add_#{rest_key}_option_types", true) ? send("add_#{rest_key}_option_types") : []
     advanced_option_types = respond_to?("add_#{rest_key}_advanced_option_types", true) ? send("add_#{rest_key}_advanced_option_types") : []
     type_option_type = option_types.find {|it| it['fieldName'] == 'type'} 
@@ -473,7 +476,7 @@ EOT
       end
       if my_option_types && !my_option_types.empty?
         # remove redundant fieldContext
-        my_option_types.each do |option_type| 
+        my_option_types.each do |option_type|
           if option_type['fieldContext'] == rest_object_key
             option_type['fieldContext'] = nil
           end
@@ -491,6 +494,26 @@ EOT
         v_prompt.booleanize! # 'on' => true
         record_payload.deep_merge!(v_prompt)
       end
+      if respond_to?("#{rest_key}_add_prompt", true)
+        record_payload = send("#{rest_key}_add_prompt", record_payload, record_type, parent_record, options)
+      end
+      # permissions
+      if rest_perms_config[:enabled]
+        if rest_perms_config[:version] == 2
+          perms = prompt_permissions_v2(options.deep_merge(rest_perms_config[:options] || {}), rest_perms_config[:excludes] || [])
+        else
+          perms = prompt_permissions(options.deep_merge(rest_perms_config[:options] || {}), rest_perms_config[:excludes] || [])
+        end
+        unless rest_perms_config[:name].nil?
+          perms.transform_keys! {|k| k == 'resourcePermissions' ? rest_perms_config[:name] : k}
+        end
+        unless rest_perms_config[:context].nil?
+          perms_context = {}
+          perms_context[rest_perms_config[:context]] = perms
+          perms = perms_context
+        end
+        record_payload.merge!(perms)
+      end
       payload[rest_object_key] = record_payload
     end
     rest_interface.setopts(options)
@@ -502,8 +525,8 @@ EOT
     if json_response['success']
       render_response(json_response, options, rest_object_key) do
         record = json_response[rest_object_key]
-        print_green_success "Added #{rest_label.downcase} #{record['name'] || record['id']}"
-        return _get(parent_id, record["id"], {}, options)
+        print_green_success "Added #{rest_label.downcase} #{record.nil? ? json_response['id'] : record['name'] || record['id']}"
+        return _get(parent_id, record.nil? ? json_response['id'] : record['id'], {}, options)
       end
     else
       print red

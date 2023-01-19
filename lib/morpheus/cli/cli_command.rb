@@ -1614,7 +1614,16 @@ module Morpheus
         interface_name = "@#{type.pluralize}_interface"
         interface = instance_variable_get(interface_name)
         if interface.nil?
-          raise "#{self.class} has not defined interface #{interface_name}"
+          api_client = instance_variable_get("@api_client")
+          if api_client
+            if api_client.respond_to?(type.pluralize)
+              interface = api_client.send(type.pluralize)
+            else
+              raise "@api_client.#{type.pluralize} is not a recognized interface"
+            end
+          else
+            raise "#{self.class} has not defined interface #{interface_name} or @api_client"
+          end
         end
         begin
           json_response = interface.get(*ids)

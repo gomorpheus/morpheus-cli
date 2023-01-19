@@ -1,16 +1,17 @@
 class String
   
   def pluralize
+    # hacky version of this until we want to depend on ActiveSupport
     value = self.dup
     if value == ""
       value
     elsif value[-1].chr == "y"
       value[0..-2] + "ies"
     elsif value[-1].chr == "s"
-      if value[-2..-1] == "es"
-        value
-      else
+      if value[-2..-1] == "ss"
         value + "es"
+      else
+        value
       end
     else
       value + "s"
@@ -18,13 +19,14 @@ class String
   end
 
   def singularize
+    # hacky version of this until we want to depend on ActiveSupport
     value = self.dup
     if value == ""
       value
     elsif value.size > 3 && value[-3..-1] == "ies"
       value[0..-4] + "y"
     elsif value.size > 2 && value[-3..-1] == "ses"
-      value[0..-3]
+      value[0..-2]
     elsif value[-1] == "s"
       value[0..-2]
     else
