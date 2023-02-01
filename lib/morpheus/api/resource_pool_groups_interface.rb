@@ -1,38 +1,38 @@
 require 'morpheus/api/api_client'
 
-class Morpheus::CloudResourcePoolsInterface < Morpheus::APIClient
+class Morpheus::ResourcePoolGroupsInterface < Morpheus::APIClient
 
-  def get(cloud_id, id, params={})
+  def get(id, params={})
     raise "#{self.class}.get() passed a blank id!" if id.to_s == ''
-    url = cloud_id.nil? ? "#{@base_url}/api/zones/resource-pools/#{update_resource_pool_id(id)}" : "#{@base_url}/api/zones/#{cloud_id}/resource-pools/#{update_resource_pool_id(id)}"
+    url = "#{@base_url}/api/resource-pools/groups/#{update_resource_pool_id(id)}"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers}
     execute(opts)
   end
 
-  def list(cloud_id, params={})
-    url = cloud_id.nil? ? "#{@base_url}/api/zones/resource-pools" : "#{@base_url}/api/zones/#{cloud_id}/resource-pools"
+  def list(params={})
+    url = "#{@base_url}/api/resource-pools/groups" 
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers}
     execute(opts)
   end
 
-  def create(cloud_id, payload)
-    url = "#{@base_url}/api/zones/#{cloud_id}/resource-pools"
+  def create(payload)
+    url = "#{@base_url}/api/resource-pools/groups" 
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :post, url: url, headers: headers, payload: payload.to_json}
     execute(opts)
   end
 
-  def update(cloud_id, id, payload)
-    url = "#{@base_url}/api/zones/#{cloud_id}/resource-pools/#{update_resource_pool_id(id)}"
+  def update(id, payload)
+    url = "#{@base_url}/api/resource-pools/groups/#{update_resource_pool_id(id)}"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
     execute(opts)
   end
 
-  def destroy(cloud_id, id, params={})
-    url = "#{@base_url}/api/zones/#{cloud_id}/resource-pools/#{update_resource_pool_id(id)}"
+  def destroy(id, params={})
+    url ="#{@base_url}/api/resource-pools/groups/#{update_resource_pool_id(id)}"
     headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :delete, url: url, headers: headers}
     execute(opts)
@@ -43,8 +43,8 @@ class Morpheus::CloudResourcePoolsInterface < Morpheus::APIClient
   def update_resource_pool_id(id)
     puts id
     id_string = id.to_s
-    if id_string["pool-"]
-      return id_string[5..-1]
+    if id_string["poolGroup-"]
+      return id_string[10..-1]
     end
     return id
   end

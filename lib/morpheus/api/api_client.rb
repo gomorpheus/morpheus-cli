@@ -400,6 +400,10 @@ class Morpheus::APIClient
     Morpheus::CloudResourcePoolsInterface.new(common_interface_options).setopts(@options)
   end
 
+  def resource_pool_groups
+    Morpheus::ResourcePoolGroupsInterface.new(common_interface_options).setopts(@options)
+  end
+
   def cloud_folders
     Morpheus::CloudFoldersInterface.new(common_interface_options).setopts(@options)
   end

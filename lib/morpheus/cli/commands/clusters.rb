@@ -33,6 +33,7 @@ class Morpheus::Cli::Clusters
     @security_groups_interface = @api_client.security_groups
     #@security_group_rules_interface = @api_client.security_group_rules
     @cloud_resource_pools_interface = @api_client.cloud_resource_pools
+    @resource_pool_groups_interface = @api_client.resource_pool_groups
     @clouds_interface = @api_client.clouds
     @servers_interface = @api_client.servers
     @server_types_interface = @api_client.server_types
@@ -4273,7 +4274,11 @@ class Morpheus::Cli::Clusters
           else
             resource_pool_id = resource_pool_options.first['id']
           end
-          resource_pool = @cloud_resource_pools_interface.get(cloud['id'], resource_pool_id)['resourcePool']
+          if resource_pool_id.to_s["poolGroup-"]
+            resource_pool = @resource_pool_groups_interface.get(resource_pool_id)['resourcePoolGroup'] 
+          else 
+            resource_pool = @cloud_resource_pools_interface.get(cloud['id'], resource_pool_id)['resourcePool']
+          end
         end
       end
     end
