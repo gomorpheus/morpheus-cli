@@ -3780,13 +3780,14 @@ class Morpheus::Cli::Clusters
   def print_clusters_table(clusters, opts={})
     table_color = opts[:color] || cyan
     rows = clusters.collect do |cluster|
+      puts cluster['servers'].size
       {
           id: cluster['id'],
           labels: truncate_string(format_list(cluster['labels']), 30),
           name: cluster['name'],
           type: (cluster['type']['name'] rescue ''),
           layout: (cluster['layout']['name'] rescue ''),
-          workers: cluster['workerCount'],
+          workers: cluster['servers'].size,
           cloud: (cluster['zone']['name'] rescue ''),
           status: format_cluster_status(cluster)
       }
