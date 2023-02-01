@@ -3780,7 +3780,6 @@ class Morpheus::Cli::Clusters
   def print_clusters_table(clusters, opts={})
     table_color = opts[:color] || cyan
     rows = clusters.collect do |cluster|
-      puts cluster['servers'].size
       {
           id: cluster['id'],
           labels: truncate_string(format_list(cluster['labels']), 30),
