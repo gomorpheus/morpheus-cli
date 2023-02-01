@@ -41,7 +41,6 @@ class Morpheus::CloudResourcePoolsInterface < Morpheus::APIClient
   private
 
   def update_resource_pool_id(id)
-    puts id
     id_string = id.to_s
     if id_string["pool-"]
       return id_string[5..-1]
