@@ -39,6 +39,18 @@ module Morpheus::Cli::InfrastructureHelper
     @network_groups_interface
   end
 
+  def resource_pool_groups_interface
+    # @api_client.resource_pool_groups
+    raise "#{self.class} has not defined @resource_pool_groups_interface" if @resource_pool_groups_interface.nil?
+    @resource_pool_groups_interface
+  end
+
+  def resource_pools_interface
+    # @api_client.resource_pool_groups
+    raise "#{self.class} has not defined @cloud_resource_pools_interface" if @cloud_resource_pools_interface.nil?
+    @cloud_resource_pools_interface
+  end
+
   def network_types_interface
     # @api_client.network_types
     raise "#{self.class} has not defined @network_types_interface" if @network_types_interface.nil?
@@ -343,6 +355,86 @@ module Morpheus::Cli::InfrastructureHelper
     end
   end
 
+  def find_resource_pool_by_name_or_id(val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_resource_pool_by_id(val)
+    else
+      return find_resource_pool_by_name(val)
+    end
+  end
+
+  def find_resource_pool_by_id(id)
+    begin
+      json_response = resource_pools_interface.get_without_cloud(id.to_i)
+      return json_response['resourcePool']
+    rescue RestClient::Exception => e
+      if e.response && e.response.code == 404
+        print_red_alert "Resource Pool not found by id #{id}"
+        return nil
+      else
+        raise e
+      end
+    end
+  end
+
+  def find_resource_pool_by_name(name)
+    json_response = resource_pools_interface.list_without_cloud({name: name.to_s})
+    resource_pools = json_response['resourcePools']
+    if resource_pools.empty?
+      print_red_alert "Resource Pool not found by name #{name}"
+      return nil
+    elsif resource_pools.size > 1
+      print_red_alert "#{resource_pools.size} resource pools found by name #{name}"
+      rows = resource_pools.collect do |it|
+        {id: it['id'], name: it['name']}
+      end
+      puts as_pretty_table(rows, [:id, :name], {color:red})
+      return nil
+    else
+      return resource_pools[0]
+    end
+  end
+
+  def find_resource_pool_group_by_name_or_id(val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_resource_pool_group_by_id(val)
+    else
+      return find_resource_pool_group_by_name(val)
+    end
+  end
+
+  def find_resource_pool_group_by_id(id)
+    begin
+      json_response = resource_pool_groups_interface.get(id.to_i)
+      return json_response['resourcePoolGroup']
+    rescue RestClient::Exception => e
+      if e.response && e.response.code == 404
+        print_red_alert "Resource Pool Group not found by id #{id}"
+        return nil
+      else
+        raise e
+      end
+    end
+  end
+
+  def find_resource_pool_group_by_name(name)
+    json_response = resource_pool_groups_interface.list({name: name.to_s})
+    resource_pool_groups = json_response['resourcePoolGroups']
+    if resource_pool_groups.empty?
+      print_red_alert "Resource Pool Group not found by name #{name}"
+      return nil
+    elsif resource_pool_groups.size > 1
+      print_red_alert "#{resource_pool_groups.size} resource pool groups found by name #{name}"
+      rows = resource_pool_groups.collect do |it|
+        {id: it['id'], name: it['name']}
+      end
+      puts as_pretty_table(rows, [:id, :name], {color:red})
+      return nil
+    else
+      return resource_pool_groups[0]
+    end
+  end
+
   def prompt_for_network(network_id, options={}, required=true, field_name='network', field_label='Network')
     # Prompt for a Network, text input that searches by name or id
     network = nil
@@ -477,6 +569,62 @@ module Morpheus::Cli::InfrastructureHelper
       end
     end
     return {success:true, data: record_ids}
+  end
+
+  def prompt_for_pools(params, options={}, api_client=nil, api_params={})
+    # Pools
+    pool_list = nil
+    pool_ids = nil
+    still_prompting = true
+    if params['pools'].nil?
+      still_prompting = true
+      while still_prompting do
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'pools', 'type' => 'text', 'fieldLabel' => 'Pools', 'required' => false, 'description' => 'Pools to include, comma separated list of names or IDs.'}], options[:options])
+        unless v_prompt['pools'].to_s.empty?
+          pool_list = v_prompt['pools'].split(",").collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
+        pool_ids = []
+        bad_ids = []
+        if pool_list && pool_list.size > 0
+          pool_list.each do |it|
+            found_pool = nil
+            begin
+              found_pool = find_resource_pool_by_name_or_id(it) 
+            rescue SystemExit => cmdexit
+            end
+            if found_pool
+              pool_ids << found_pool['id']
+            else
+              bad_ids << it
+            end
+          end
+        end
+        still_prompting = bad_ids.empty? ? false : true
+      end
+    else
+      pool_list = params['pools']
+      still_prompting = false
+      pool_ids = []
+      bad_ids = []
+      if pool_list && pool_list.size > 0
+        pool_list.each do |it|
+          found_pool = nil
+          begin
+            found_pool = find_resource_pool_by_name_or_id(it)
+          rescue SystemExit => cmdexit
+          end
+          if found_pool
+            pool_ids << found_pool['id']
+          else
+            bad_ids << it
+          end
+        end
+      end
+      if !bad_ids.empty?
+        return {success:false, msg:"Pools not found: #{bad_ids}"}
+      end
+    end
+    return {success:true, data: pool_ids}
   end
 
   def network_pool_server_list_column_definitions(options)
