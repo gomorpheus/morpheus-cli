@@ -89,7 +89,7 @@ module Morpheus
         # puts "Options Prompt #{options}"
         # Sort options by default, group, advanced
         # add displayOrder if it's missing, so it doesn't end up using a random order
-        if !option_types.find {|it| it['displayOrder'] }
+        if !option_types.find {|it| it['displayOrder'] && it['displayOrder'] != 0 }
           option_types.each_with_index {|it, i| it['displayOrder'] = i+1 }
         end
         cur_field_group = 'default'
