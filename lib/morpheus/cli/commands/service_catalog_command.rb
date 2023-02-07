@@ -999,11 +999,13 @@ EOT
         catalog_option_types = catalog_item_type['optionTypes']
         # instead of config.customOptions just use config...
         catalog_option_types = catalog_option_types.collect {|it|
-          it['fieldContext'] = 'config'
+          it['fieldContext'] = nil
+          it[:help_field_prefix] = 'config'
           it
         }
         if catalog_option_types && !catalog_option_types.empty?
-          config_prompt = Morpheus::Cli::OptionTypes.prompt(catalog_option_types, options[:options], @api_client, {})['config']
+          passed_config_values = (options[:options] && options[:options]['config'].is_a?(Hash)) ? options[:options]['config'] : {}
+          config_prompt = Morpheus::Cli::OptionTypes.prompt(catalog_option_types, passed_config_values, @api_client, {})
           item_payload.deep_merge!({'config' => config_prompt})
         end
         
