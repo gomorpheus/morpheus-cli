@@ -657,12 +657,14 @@ EOT
       catalog_option_types = catalog_item_type['optionTypes']
       # instead of config.customOptions just use config...
       catalog_option_types = catalog_option_types.collect {|it|
-        it['fieldContext'] = 'config'
+        it['fieldContext'] = nil
+        it[:help_field_prefix] = 'config'
         it
       }
       if catalog_option_types && !catalog_option_types.empty?
-        config_prompt = Morpheus::Cli::OptionTypes.prompt(catalog_option_types, options[:options], @api_client, {})['config']
-        payload[add_item_object_key].deep_merge!({'config' => config_prompt})
+        passed_config_values = (options[:options] && options[:options]['config'].is_a?(Hash)) ? options[:options]['config'] : {}
+        config_prompt = Morpheus::Cli::OptionTypes.prompt(catalog_option_types, passed_config_values, @api_client, {'catalogItemType' => {'id' => catalog_item_type['id']}})
+        item_payload.deep_merge!({'config' => config_prompt})
       end
       if workflow_context
         payload[add_item_object_key]['context'] = workflow_context
@@ -1005,7 +1007,7 @@ EOT
         }
         if catalog_option_types && !catalog_option_types.empty?
           passed_config_values = (options[:options] && options[:options]['config'].is_a?(Hash)) ? options[:options]['config'] : {}
-          config_prompt = Morpheus::Cli::OptionTypes.prompt(catalog_option_types, passed_config_values, @api_client, {})
+          config_prompt = Morpheus::Cli::OptionTypes.prompt(catalog_option_types, passed_config_values, @api_client, {'catalogItemType' => {'id' => catalog_item_type['id']}})
           item_payload.deep_merge!({'config' => config_prompt})
         end
         
