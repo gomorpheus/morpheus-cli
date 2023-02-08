@@ -657,13 +657,12 @@ EOT
       catalog_option_types = catalog_item_type['optionTypes']
       # instead of config.customOptions just use config...
       catalog_option_types = catalog_option_types.collect {|it|
-        it['fieldContext'] = nil
-        it[:help_field_prefix] = 'config'
+        it['fieldContext'] = 'config'
         it
       }
       if catalog_option_types && !catalog_option_types.empty?
-        passed_config_values = (options[:options] && options[:options]['config'].is_a?(Hash)) ? options[:options]['config'] : {}
-        config_prompt = Morpheus::Cli::OptionTypes.prompt(catalog_option_types, passed_config_values, @api_client, {'catalogItemType' => {'id' => catalog_item_type['id']}})
+        api_params = construct_catalog_api_params(catalog_item_type)
+        config_prompt = Morpheus::Cli::OptionTypes.prompt(catalog_option_types, options[:options], @api_client, api_params)['config']
         item_payload.deep_merge!({'config' => config_prompt})
       end
       if workflow_context
@@ -1002,12 +1001,12 @@ EOT
         # instead of config.customOptions just use config...
         catalog_option_types = catalog_option_types.collect {|it|
           it['fieldContext'] = nil
-          it[:help_field_prefix] = 'config'
+          it['fieldContext'] = 'config'
           it
         }
         if catalog_option_types && !catalog_option_types.empty?
-          passed_config_values = (options[:options] && options[:options]['config'].is_a?(Hash)) ? options[:options]['config'] : {}
-          config_prompt = Morpheus::Cli::OptionTypes.prompt(catalog_option_types, passed_config_values, @api_client, {'catalogItemType' => {'id' => catalog_item_type['id']}})
+          api_params = construct_catalog_api_params(catalog_item_type)
+          config_prompt = Morpheus::Cli::OptionTypes.prompt(catalog_option_types, options[:options], @api_client, api_params)['config']
           item_payload.deep_merge!({'config' => config_prompt})
         end
         
@@ -1473,6 +1472,37 @@ EOT
       end
     end
     out + return_color
+  end
+
+  
+  def construct_catalog_api_params(record)
+    catalog_item_type_id = record['id'].to_i
+    api_params = {}
+    api_params['catalogItemType'] ||= {}
+    api_params['catalogItemType']['id'] = catalog_item_type_id
+    # Determine instance.type value
+    # the UI is injecting this parameter into the option source requests
+    # it is needed to populate api option lists eg. optionTypeClouds
+    # this should be fixed on the api side, so it automatically extracts this input from the config
+    begin
+      instance_type_code = nil
+      catalog_item_type = find_by_id(:catalog_item_type, catalog_item_type_id.to_i)
+      if catalog_item_type
+        if catalog_item_type['type'] == 'instance'
+          if catalog_item_type['config'] && catalog_item_type['config']['type']
+            instance_type_code = catalog_item_type['config']['type']
+          end
+        end
+      end
+      if instance_type_code
+        api_params['instance'] ||= {}
+        api_params['instance']['type'] = instance_type_code
+      end
+    rescue ::RestClient::Exception => e
+      # users may not have permission to this endpoint
+      # puts "Failed to load catalog item type"
+    end
+    return api_params
   end
 
 end
