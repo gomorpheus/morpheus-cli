@@ -663,7 +663,7 @@ EOT
       if catalog_option_types && !catalog_option_types.empty?
         api_params = construct_catalog_api_params(catalog_item_type)
         config_prompt = Morpheus::Cli::OptionTypes.prompt(catalog_option_types, options[:options], @api_client, api_params)['config']
-        item_payload.deep_merge!({'config' => config_prompt})
+        payload[add_item_object_key].deep_merge!({'config' => config_prompt})
       end
       if workflow_context
         payload[add_item_object_key]['context'] = workflow_context
