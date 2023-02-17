@@ -55,7 +55,7 @@ module Morpheus
         end
       end
 
-      def self.prompt(option_types, options={}, api_client=nil, api_params={}, no_prompt=false, paging_enabled=false, ignore_empty=false)
+      def self.prompt(option_types, options={}, api_client=nil, api_params={}, no_prompt=false, paging_enabled=false, ignore_empty=false, skip_sort = false)
         paging_enabled = false if Morpheus::Cli.windows?
         no_prompt = no_prompt || options[:no_prompt]
         results = {}
@@ -89,12 +89,18 @@ module Morpheus
         # puts "Options Prompt #{options}"
         # Sort options by default, group, advanced
         # add displayOrder if it's missing, so it doesn't end up using a random order
-        if !option_types.find {|it| it['displayOrder'] && it['displayOrder'] != 0 }
-          option_types.each_with_index {|it, i| it['displayOrder'] = i+1 }
-        end
+        # if !option_types.find {|it| it['displayOrder'] && it['displayOrder'] != 0 }
+        #   option_types.each_with_index {|it, i| it['displayOrder'] = i+1 }
+        # end
         cur_field_group = 'default'
         prompt_local_credentials = true
-        self.sort_option_types(option_types.reject {|it| it[:for_help_only]}).each do |option_type|
+        # reject help only options..
+        option_types.reject! {|it| it[:for_help_only]}
+        # sort options
+        if !skip_sort
+          option_types = self.sort_option_types(option_types)
+        end
+        option_types.each do |option_type|
           next if option_type['localCredential'] && !prompt_local_credentials
           context_map = results
           value = nil
