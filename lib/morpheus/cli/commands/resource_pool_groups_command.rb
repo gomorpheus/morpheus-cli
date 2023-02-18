@@ -67,14 +67,14 @@ class Morpheus::Cli::ResourcePoolGroupsCommand
             id: resource_pool_group['id'],
             name: resource_pool_group['name'],
             description: resource_pool_group['description'],
+            mode: resource_pool_group['mode'],
             pools: resource_pool_group['pools'] ? resource_pool_group['pools'].size : 0,
-            active: format_boolean(resource_pool_group['active']),
             visibility: resource_pool_group['visibility'].to_s.capitalize,
             tenants: resource_pool_group['tenants'] ? resource_pool_group['tenants'].collect {|it| it['name'] }.uniq.join(', ') : ''
           }
           row
         }
-        columns = [:id, :name, :description, :pools, :active, :visibility, :tenants]
+        columns = [:id, :name, :description, :mode, :pools, :visibility, :tenants]
         if options[:include_fields]
           columns = options[:include_fields]
         end
@@ -134,8 +134,8 @@ class Morpheus::Cli::ResourcePoolGroupsCommand
         "ID" => 'id',
         "Name" => 'name',
         "Description" => 'description',
+        "Mode" => 'mode',
         "Pools" => lambda {|it| it['pools'].size rescue 'n/a' },
-        "Active" => lambda {|it| it['active'].to_s.capitalize },
         "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
         "Tenants" => lambda {|it| it['tenants'] ? it['tenants'].collect {|it| it['name'] }.uniq.join(', ') : '' },
       }
@@ -151,7 +151,6 @@ class Morpheus::Cli::ResourcePoolGroupsCommand
           #"Description" => 'description',
           "Cloud" => lambda {|it| it['zone']['name'] rescue it['zone'] },
           "Default" => lambda {|it| it['defaultPool'] },
-          "Active" => lambda {|it| it['active'].to_s.capitalize },
           "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
           "Tenants" => lambda {|it| it['tenants'] ? it['tenants'].collect {|it| it['name'] }.uniq.join(', ') : '' },
         }
@@ -204,6 +203,9 @@ class Morpheus::Cli::ResourcePoolGroupsCommand
       opts.on('--description VALUE', String, "Description of resource pool group") do |val|
         options['description'] = val
       end
+      opts.on('--mode VALUE', String, "Pool selection mode for the resource pool group. Can be roundrobin or availablecapacity") do |val|
+        options['mode'] = val
+      end
       opts.on('--pools LIST', Array, "Pools in the group, comma separated list of pool names or IDs") do |list|
         if list.size == 1 && ('[]' == list[0]) # clear array
           options['pools'] = []
@@ -244,9 +246,6 @@ class Morpheus::Cli::ResourcePoolGroupsCommand
       end
       opts.on('--visibility [private|public]', String, "Visibility") do |val|
         options['visibility'] = val
-      end
-      opts.on('--active [on|off]', String, "Can be used to disable a resource pool group") do |val|
-        options['active'] = val.to_s == 'on' || val.to_s == 'true'
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
       opts.footer = "Create a new resource pool group." + "\n" +
@@ -289,6 +288,14 @@ class Morpheus::Cli::ResourcePoolGroupsCommand
         else
           v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Name for this resource pool group.'}], options)
           payload['resourcePoolGroup']['name'] = v_prompt['name']
+        end
+
+        # Mode
+        if options['mode']
+          payload['resourcePoolGroup']['mode'] = options['mode']
+        else
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'mode', 'fieldLabel' => 'Mode', 'type' => 'text', 'required' => true, 'description' => 'Pool selection mode for the resource pool group. Can be roundrobin or availablecapacity.', 'defaultValue' => 'roundrobin'}], options)
+          payload['resourcePoolGroup']['mode'] = v_prompt['mode']
         end
 
         # Description
@@ -334,10 +341,6 @@ class Morpheus::Cli::ResourcePoolGroupsCommand
           payload['resourcePoolGroup']['visibility'] = options['visibility']
         end
 
-        # Active
-        if options['active'] != nil
-          payload['resourcePoolGroup']['active'] = options['active']
-        end
 
       end
 
@@ -375,6 +378,9 @@ class Morpheus::Cli::ResourcePoolGroupsCommand
       end
       opts.on('--description VALUE', String, "Description of resource pool group") do |val|
         options['description'] = val
+      end
+      opts.on('--mode VALUE', String, "Pool selection mode for the resource pool group. Can be roundrobin or availablecapacity") do |val|
+        options['mode'] = val
       end
       opts.on('--pools LIST', Array, "Pools in the group, comma separated list of pool IDs") do |list|
         if list.size == 1 && list[0] == 'null' # hacky way to clear it
@@ -417,9 +423,6 @@ class Morpheus::Cli::ResourcePoolGroupsCommand
       opts.on('--visibility [private|public]', String, "Visibility") do |val|
         options['visibility'] = val
       end
-      opts.on('--active [on|off]', String, "Can be used to disable a resource pool group") do |val|
-        options['active'] = val.to_s == 'on' || val.to_s == 'true'
-      end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Update a resource pool group." + "\n" +
                     "[resource-pool-group] is required. This is the id of a resource pool group."
@@ -458,9 +461,15 @@ class Morpheus::Cli::ResourcePoolGroupsCommand
           payload['resourcePoolGroup']['name'] = options['name']
         end
 
+        
         # Description
         if options['description']
           payload['resourcePoolGroup']['description'] = options['description']
+        end
+
+        # Description
+        if options['mode']
+          payload['resourcePoolGroup']['mode'] = options['mode']
         end
 
         # Pools
@@ -498,11 +507,6 @@ class Morpheus::Cli::ResourcePoolGroupsCommand
         # Visibility
         if options['visibility'] != nil
           payload['resourcePoolGroup']['visibility'] = options['visibility']
-        end
-
-        # Active
-        if options['active'] != nil
-          payload['resourcePoolGroup']['active'] = options['active']
         end
         
         # pre 4.2.1, would error with data not found unless you pass something in here
