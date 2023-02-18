@@ -215,6 +215,8 @@ EOT
             print reset,"(blank)","\n",reset
           end
         elsif item_type_code == 'workflow' || item_type_code == 'operationalworkflow' || item_type_code == 'taskset'
+          print_h2 "Config"
+          print reset,(JSON.pretty_generate(config) rescue config),"\n",reset
         end
       end
 
@@ -739,6 +741,7 @@ EOT
       {'fieldName' => 'iconPath', 'fieldLabel' => 'Logo', 'type' => 'select', 'optionSource' => 'iconList', 'displayOrder' => 9},
       #{'fieldName' => 'optionTypes', 'fieldLabel' => 'Option Types', 'type' => 'text', 'description' => 'Option Types to include, comma separated list of names or IDs.', 'displayOrder' => 8},
       {'dependsOnCode' => 'catalogItemType.type:instance', 'fieldName' => 'config', 'fieldLabel' => 'Config', 'type' => 'code-editor', 'description' => 'JSON or YAML', 'required' => true, 'displayOrder' => 10},
+      {'dependsOnCode' => 'catalogItemType.type:workflow', 'fieldName' => 'config', 'fieldLabel' => 'Config', 'type' => 'code-editor', 'description' => 'JSON or YAML', 'required' => true, 'displayOrder' => 10},
       {'dependsOnCode' => 'catalogItemType.type:blueprint', 'fieldName' => 'blueprint', 'fieldLabel' => 'Blueprint', 'type' => 'select', 'optionSource' => 'blueprints', 'description' => 'Choose a blueprint to apply to the catalog item.', 'required' => true, 'noParams' => true, 'displayOrder' => 11},
       {'dependsOnCode' => 'catalogItemType.type:blueprint', 'fieldName' => 'appSpec', 'fieldLabel' => 'App Spec', 'type' => 'code-editor', 'description' => 'Enter a spec in the for the App, the Scribe YAML format', 'required' => true, 'displayOrder' => 12},
       {'dependsOnCode' => 'catalogItemType.type:workflow', 'fieldName' => 'workflow', 'fieldLabel' => 'Workflow', 'type' => 'select', 'optionSource' => 'operationWorkflows', 'description' => 'Enter a spec in the for the App, the Scribe YAML format', 'noParams' => true, 'displayOrder' => 13},
