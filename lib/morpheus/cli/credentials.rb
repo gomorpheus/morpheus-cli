@@ -123,7 +123,8 @@ module Morpheus
               end
               if password.empty?
                 # readline is still echoing secret with 'NUL:'' so just use $stdin on windows for now
-                if Morpheus::Cli.windows?
+                # and some other environments? just use noecho unless running unit tests
+                if Morpheus::Cli.windows? || !Morpheus::Cli.testing?
                   print "Password: #{required_blue_prompt} "
                   # this should be my_terminal.stdin instead of STDIN and $stdin
                   password = $stdin.noecho(&:gets).chomp!
