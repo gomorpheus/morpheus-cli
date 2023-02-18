@@ -5,6 +5,9 @@ require 'morpheus'
 require 'test_config'
 #require 'securerandom'
 
+# hack needed for unit tests right now
+Morpheus::Cli.enable_test_mode()
+
 module MorpheusTest
 
   # TestCase is the base class for all unit tests to provide standard behavior
