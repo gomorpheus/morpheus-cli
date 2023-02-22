@@ -149,6 +149,7 @@ module Morpheus
         #opts.separator ""
         #opts.separator "Options:"
         options[:options] ||= {} # this is where these go..for now
+        options[:option_types] = (options[:option_types] || []) + option_types
         custom_options = options[:options]
         
         # add each one to the OptionParser
@@ -345,6 +346,7 @@ module Morpheus
               custom_option_args = option.sub(/\s?\=\s?/, '__OPTION_DELIM__').split('__OPTION_DELIM__')
               custom_options = options[:options]
               option_name_args = custom_option_args[0].split('.')
+              option_type = (options[:option_types] || []).find {|it| it['fieldName'] == custom_option_args[0]} || {}
               if option_name_args.count > 1
                 nested_options = custom_options
                 option_name_args.each_with_index do |name_element,index|
@@ -353,11 +355,13 @@ module Morpheus
                     nested_options = nested_options[name_element]
                   else
                     val = custom_option_args[1]
-                    if (val.to_s[0] == '{' && val.to_s[-1] == '}') || (val.to_s[0] == '[' && val.to_s[-1] == ']')
-                      begin
-                        val = JSON.parse(val)
-                      rescue
-                        Morpheus::Logging::DarkPrinter.puts "Failed to parse option value '#{val}' as JSON" if Morpheus::Logging.debug?
+                    unless option_type['noParse']
+                      if (val.to_s[0] == '{' && val.to_s[-1] == '}') || (val.to_s[0] == '[' && val.to_s[-1] == ']')
+                        begin
+                          val = JSON.parse(val)
+                        rescue
+                          Morpheus::Logging::DarkPrinter.puts "Failed to parse option value '#{val}' as JSON" if Morpheus::Logging.debug?
+                        end
                       end
                     end
                     nested_options[name_element] = val
@@ -365,11 +369,13 @@ module Morpheus
                 end
               else
                 val = custom_option_args[1]
-                if (val.to_s[0] == '{' && val.to_s[-1] == '}') || (val.to_s[0] == '[' && val.to_s[-1] == ']')
-                  begin
-                    val = JSON.parse(val)
-                  rescue
-                    Morpheus::Logging::DarkPrinter.puts "Failed to parse option value '#{val}' as JSON" if Morpheus::Logging.debug?
+                unless option_type['noParse']
+                  if (val.to_s[0] == '{' && val.to_s[-1] == '}') || (val.to_s[0] == '[' && val.to_s[-1] == ']')
+                    begin
+                      val = JSON.parse(val)
+                    rescue
+                      Morpheus::Logging::DarkPrinter.puts "Failed to parse option value '#{val}' as JSON" if Morpheus::Logging.debug?
+                    end
                   end
                 end
                 custom_options[custom_option_args[0]] = val

@@ -43,8 +43,11 @@ class Morpheus::Cli::CatalogItemTypesCommand
       opts.on('--all-labels LABEL', String, "Filter by labels, must match all of the values") do |val|
         add_query_parameter(params, 'allLabels', parse_labels(val))
       end
-       opts.on('--code CODE', String, "Filter by code" ) do |val|
+      opts.on('--code CODE', String, "Filter by code" ) do |val|
         params[:code] = val
+      end
+      opts.on('-c', '--category CATEGORY', String, "Filter by category") do |val|
+        add_query_parameter(params, 'category', val)
       end
       build_standard_list_options(opts, options)
       opts.footer = "List catalog item types."
@@ -215,8 +218,23 @@ EOT
             print reset,"(blank)","\n",reset
           end
         elsif item_type_code == 'workflow' || item_type_code == 'operationalworkflow' || item_type_code == 'taskset'
-          print_h2 "Config"
-          print reset,(JSON.pretty_generate(config) rescue config),"\n",reset
+          print_h2 "Workflow Config"
+          if catalog_item_type['workflowConfig']
+            #print reset,(JSON.pretty_generate(config) rescue config),"\n",reset
+            #print reset,(as_yaml(config, options) rescue config),"\n",reset
+            config_string = catalog_item_type['workflowConfig'] || ""
+            config_lines = config_string.split("\n")
+            config_line_count = config_lines.size
+            max_lines = 10
+            if config_lines.size > max_lines
+              config_string = config_lines.first(max_lines).join("\n")
+              config_string << "\n\n"
+              config_string << "#{dark}(#{(config_line_count - max_lines)} more lines were not shown, use -c to show the config)#{reset}"
+            end
+            print reset,config_string.chomp("\n"),"\n",reset
+          else
+            print reset,"(blank)","\n",reset
+          end
         end
       end
 
@@ -232,7 +250,7 @@ EOT
   end
 
   def add(args)
-    options = {}
+    options = {:option_types => add_catalog_item_type_option_types}
     params = {}
     logo_file = nil
     dark_logo_file = nil
@@ -663,6 +681,7 @@ EOT
       "ID" => 'id',
       "Name" => 'name',
       "Code" => 'code',
+      "Category" => 'category',
       "Labels" => lambda {|it| format_list(it['labels'], '', 3) },
       "Description" => 'description',
       "Type" => lambda {|it| format_catalog_type(it) },
@@ -687,6 +706,7 @@ EOT
       "Labels" => lambda {|it| format_list(it['labels']) },
       "Description" => 'description',
       "Code" => 'code',
+      "Category" => 'category',
       "Type" => lambda {|it| format_catalog_type(it) },
       "Visibility" => 'visibility',
       "Layout Code" => 'layoutCode',
@@ -733,6 +753,7 @@ EOT
       {'code' => 'catalogItemType.type', 'shorthand' => '-t', 'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => [{'name' => 'Instance', 'value' => 'instance'}, {'name' => 'Blueprint', 'value' => 'blueprint'}, {'name' => 'Workflow', 'value' => 'workflow'}], 'defaultValue' => 'instance', 'required' => true, 'displayOrder' => 1},
       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 2},
       {'fieldName' => 'code', 'fieldLabel' => 'Code', 'type' => 'text', 'displayOrder' => 3},
+      {'fieldName' => 'category', 'fieldLabel' => 'Category', 'type' => 'text', 'displayOrder' => 3.5},
       {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'displayOrder' => 4},
       {'fieldName' => 'enabled', 'fieldLabel' => 'Enabled', 'type' => 'checkbox', 'defaultValue' => true, 'displayOrder' => 5},
       {'fieldName' => 'featured', 'fieldLabel' => 'Featured', 'type' => 'checkbox', 'defaultValue' => false, 'displayOrder' => 6},
@@ -741,10 +762,10 @@ EOT
       {'fieldName' => 'iconPath', 'fieldLabel' => 'Logo', 'type' => 'select', 'optionSource' => 'iconList', 'displayOrder' => 9},
       #{'fieldName' => 'optionTypes', 'fieldLabel' => 'Option Types', 'type' => 'text', 'description' => 'Option Types to include, comma separated list of names or IDs.', 'displayOrder' => 8},
       {'dependsOnCode' => 'catalogItemType.type:instance', 'fieldName' => 'config', 'fieldLabel' => 'Config', 'type' => 'code-editor', 'description' => 'JSON or YAML', 'required' => true, 'displayOrder' => 10},
-      {'dependsOnCode' => 'catalogItemType.type:workflow', 'fieldName' => 'config', 'fieldLabel' => 'Config', 'type' => 'code-editor', 'description' => 'JSON or YAML', 'required' => true, 'displayOrder' => 10},
+      {'dependsOnCode' => 'catalogItemType.type:workflow', 'fieldName' => 'workflowConfig', 'fieldLabel' => 'Config', 'type' => 'textarea', 'description' => 'Enter configuration for the Workflow', 'required' => false, 'noParse' => true, 'displayOrder' => 10},
       {'dependsOnCode' => 'catalogItemType.type:blueprint', 'fieldName' => 'blueprint', 'fieldLabel' => 'Blueprint', 'type' => 'select', 'optionSource' => 'blueprints', 'description' => 'Choose a blueprint to apply to the catalog item.', 'required' => true, 'noParams' => true, 'displayOrder' => 11},
       {'dependsOnCode' => 'catalogItemType.type:blueprint', 'fieldName' => 'appSpec', 'fieldLabel' => 'App Spec', 'type' => 'code-editor', 'description' => 'Enter a spec in the for the App, the Scribe YAML format', 'required' => true, 'displayOrder' => 12},
-      {'dependsOnCode' => 'catalogItemType.type:workflow', 'fieldName' => 'workflow', 'fieldLabel' => 'Workflow', 'type' => 'select', 'optionSource' => 'operationWorkflows', 'description' => 'Enter a spec in the for the App, the Scribe YAML format', 'noParams' => true, 'displayOrder' => 13},
+      {'dependsOnCode' => 'catalogItemType.type:workflow', 'fieldName' => 'workflow', 'fieldLabel' => 'Workflow', 'type' => 'select', 'optionSource' => 'operationWorkflows', 'description' => 'Enter a spec in the for the App, the Scribe YAML format', 'required' => true, 'noParams' => true, 'displayOrder' => 13},
       {'dependsOnCode' => 'catalogItemType.type:workflow', 'fieldName' => 'context', 'fieldLabel' => 'Context Type', 'type' => 'select', 'optionSource' => lambda { |api_client, api_params| 
         [{'name' => "Select", 'value' => ""}, {'name' => "None", 'value' => "appliance"}, {'name' => "Instance", 'value' => "instance"}, {'name' => "Server", 'value' => "server"}]
         }, 'description' => 'Context for operational workflow, determines target type', 'defaultValue' => 'Select', 'required' => false},
