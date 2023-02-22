@@ -1,11 +1,6 @@
 require 'morpheus/api/api_client'
 
 class Morpheus::DocInterface < Morpheus::APIClient
-  
-  # no Authorization header is required
-  def authorization_required?
-    false
-  end
 
   def list(params={})
     url = "/api/doc"
@@ -24,8 +19,6 @@ class Morpheus::DocInterface < Morpheus::APIClient
     execute(method: :get, url: url, headers: headers, timeout: 172800, parse_json: !is_yaml)
   end
 
-  alias :swagger :openapi
-
   def download_openapi(outfile, params={})
     # note that RestClient.execute still requires the full path with base_url
     url = "#{@base_url}/api/doc/openapi"
@@ -33,7 +26,7 @@ class Morpheus::DocInterface < Morpheus::APIClient
     if fmt
       url = url + "." + fmt
     end
-    headers = {params: params}
+    headers = {params: params, authorization: "Bearer #{@access_token}"}
     opts = {method: :get, url: url, headers: headers, timeout: 172800, parse_json: false}
 
     if @dry_run
@@ -53,7 +46,5 @@ class Morpheus::DocInterface < Morpheus::APIClient
     }
     http_response
   end
-
-  alias :swagger :download_openapi
 
 end
