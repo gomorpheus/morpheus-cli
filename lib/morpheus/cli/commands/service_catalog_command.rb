@@ -1126,6 +1126,14 @@ EOT
       opts.on('--releaseEIPs [true|false]', String, "Release EIPs. Default is on. Applies to Amazon only.") do |val|
         params[:releaseEIPs] = ['true','on','1',''].include?(val.to_s.downcase)
       end
+      opts.on('--release-ips [on|off]', ['on','off'], "Release Floating IPs. Default is on. Applies to certain types only.") do |val|
+        params[:releaseFloatingIps] = ['true','on','1',''].include?(val.to_s.downcase)
+        params[:releaseEIPs] = params[:releaseFloatingIps] # old parameter before 6.0
+      end
+      opts.on('--releaseEIPs [on|off]', ['on','off'], "Alias for Release Floating IPs") do |val|
+        params[:releaseFloatingIps] = ['true','on','1',''].include?(val.to_s.downcase)
+        params[:releaseEIPs] = params[:releaseFloatingIps] # old parameter before 6.0
+      end
       opts.on( '-f', '--force', "Force Delete" ) do
         params[:force] = true
       end

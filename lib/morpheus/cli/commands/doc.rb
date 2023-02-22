@@ -22,7 +22,8 @@ class Morpheus::Cli::Doc
   end
 
   def connect(options)
-    @api_client = establish_remote_appliance_connection(options.merge({:no_prompt => true, :skip_verify_access_token => true, :skip_login => true}))
+    # @api_client = establish_remote_appliance_connection(options.merge({:no_prompt => true, :skip_verify_access_token => true, :skip_login => true}))
+    @api_client = establish_remote_appliance_connection(options)
     @doc_interface = @api_client.doc
   end
 
@@ -72,12 +73,12 @@ EOT
     params, options = {}, {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      opts.on(nil, "--refresh", "Refresh the document. By default the openapi.yml and openapi.json are cached by the server.") do
-        params['refresh'] = true
-      end
-      opts.on('-g', '--generate', "Alias for --refresh") do
-        params['refresh'] = true
-      end
+      # opts.on(nil, "--refresh", "Refresh the document. By default the openapi.yml and openapi.json are cached by the server.") do
+      #   params['refresh'] = true
+      # end
+      # opts.on('-g', '--generate', "Alias for --refresh") do
+      #   params['refresh'] = true
+      # end
       build_standard_get_options(opts, options, [], [:csv])
       opts.footer = <<-EOT
 Print the Morpheus API OpenAPI Documentation (swagger).
@@ -121,12 +122,12 @@ EOT
         options[:yaml] = true
         options[:format] = :yaml
       end
-      opts.on(nil, "--refresh", "Refresh the document. By default the openapi.yml and openapi.json are cached by the server.") do
-        params['refresh'] = true
-      end
-      opts.on('-g', '--generate', "Alias for --refresh") do
-        params['refresh'] = true
-      end
+      # opts.on(nil, "--refresh", "Refresh the document. By default the openapi.yml and openapi.json are cached by the server.") do
+      #   params['refresh'] = true
+      # end
+      # opts.on('-g', '--generate', "Alias for --refresh") do
+      #   params['refresh'] = true
+      # end
       opts.on( '-f', '--force', "Overwrite existing [local-file] if it exists." ) do
         options[:overwrite] = true
       end

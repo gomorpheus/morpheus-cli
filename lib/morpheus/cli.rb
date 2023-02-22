@@ -77,6 +77,19 @@ module Morpheus
       Dir[File.dirname(__FILE__)  + "/cli/commands/**/*.rb"].each {|file| load file }
     end
 
+    # hack needed for unit tests right now
+    @@testing = false unless defined?(@@testing)
+
+    # hack needed for unit tests right now
+    def self.enable_test_mode
+      @@testing = true
+    end
+
+    # hack needed for unit tests right now
+    def self.testing?
+      defined?(@@testing) && @@testing == true
+    end
+
     # require all CLI modules now (on require)
     load!
     
