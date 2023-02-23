@@ -3,7 +3,7 @@ require 'morpheus/cli/cli_command'
 class Morpheus::Cli::KeyPairs
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::AccountsHelper
-  register_subcommands :list, :get, :add, :update, :remove
+  register_subcommands :list, :get, :add, :update, :remove, :generate
   alias_subcommand :details, :get
 
   def initialize()
@@ -322,6 +322,47 @@ class Morpheus::Cli::KeyPairs
       else
         print_green_success "Key Pair #{key_pair['name']} removed"
         # list([])
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def generate(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[name]")
+      build_common_options(opts, options, [:account, :options, :json, :dry_run, :remote])
+    end
+    optparse.parse!(args)
+    # if args.count < 1
+    #   puts optparse
+    #   exit 1
+    # end
+    if args[0]
+      options[:options] ||= {}
+      options[:options]['name'] ||= args[0]
+    end
+    connect(options)
+    begin
+      account = find_account_from_options(options)
+      account_id = account ? account['id'] : nil
+      params = Morpheus::Cli::OptionTypes.prompt(add_key_pair_option_types.select {|it| ['name'].include?(it['fieldName'])}, options[:options], @api_client, options[:params])
+      key_pair_payload = params.select {|k,v| ['name'].include?(k) }
+      payload = {keyPair: key_pair_payload}
+      @key_pairs_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @key_pairs_interface.dry.generate(account_id, payload)
+        return
+      end
+      json_response = @key_pairs_interface.generate(account_id, payload)
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      else
+        print_green_success "Key Pair #{key_pair_payload['name']} added"
+        get([json_response['keyPair']['id']])
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)

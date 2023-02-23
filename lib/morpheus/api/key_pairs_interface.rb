@@ -45,4 +45,13 @@ class Morpheus::KeyPairsInterface < Morpheus::APIClient
     opts = {method: :delete, url: url, headers: headers}
     execute(opts)
   end
+
+  def generate(account_id, options)
+    url = "#{@base_url}/api/key-pairs/generate"
+    headers = { :params => {}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    headers[:params]['accountId'] = account_id if account_id
+    payload = options
+    opts = {method: :post, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
 end
