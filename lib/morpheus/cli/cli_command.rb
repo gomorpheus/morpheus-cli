@@ -1353,7 +1353,7 @@ module Morpheus
               if record.nil?
                  # avoid double error render by exiting here, ew
                 exit 1
-                raise_command_error "Storage Server not found for '#{val}'"
+                raise_command_error "#{type.titleize} not found for '#{val}'"
               end
               params[param_name] = record['id']
             else
