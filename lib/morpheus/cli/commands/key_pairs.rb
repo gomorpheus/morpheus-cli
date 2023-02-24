@@ -102,38 +102,7 @@ class Morpheus::Cli::KeyPairs
       return 0 if render_result
       
       unless options[:quiet]
-        print_h1 "Key Pair Details"
-        print cyan
-        if account
-          # print_description_list({"Account" => lambda {|it| it['account'] ? it['account']['name'] : '' } }, key_pair)
-          print_description_list({"Account" => lambda {|it| account['name'] } }, key_pair)
-        end
-        print_description_list({
-          "ID" => 'id',
-          "Name" => 'name',
-          "Fingerprint" => 'fingerprint',
-          #"MD5" => 'md5',
-          # "Has Private Key" => lambda {|it| format_boolean(it['hasPrivateKey']) },
-          # "Account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
-          "Created" => lambda {|it| format_local_dt(it['dateCreated']) }
-          #"Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
-        }, key_pair)
-
-        print_h2 "Public Key"
-        print cyan
-        puts "#{key_pair['publicKey']}"
-        
-        if key_pair['hasPrivateKey']
-          # print_h2 "Private Key"
-          # print cyan
-          # puts "(hidden)"
-        else
-          # print_h2 "Private Key"
-          print cyan, "\n"
-          puts "This is only a public key.  It does not include a private key."
-        end
-
-        print reset,"\n"
+        print_key_pair_details(account, key_pair)
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -180,6 +149,9 @@ class Morpheus::Cli::KeyPairs
       end
 
       build_common_options(opts, options, [:account, :options, :json, :dry_run, :remote])
+      opts.footer = <<-EOT
+Add a key pair.
+      EOT
     end
     optparse.parse!(args)
     # if args.count < 1
@@ -237,6 +209,10 @@ class Morpheus::Cli::KeyPairs
       opts.banner = subcommand_usage("[name] [options]")
       build_option_type_options(opts, options, update_key_pair_option_types)
       build_common_options(opts, options, [:account, :options, :json, :dry_run, :remote])
+      opts.footer = <<-EOT
+Update a key pair.
+[name] is required. This is the name or id of a key pair.
+      EOT
     end
     optparse.parse!(args)
 
@@ -290,6 +266,10 @@ class Morpheus::Cli::KeyPairs
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:account, :auto_confirm, :json, :dry_run, :remote])
+      opts.footer = <<-EOT
+Delete a key pair.
+[name] is required. This is the name or id of a key pair.
+      EOT
     end
     optparse.parse!(args)
 
@@ -334,6 +314,9 @@ class Morpheus::Cli::KeyPairs
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:account, :options, :json, :dry_run, :remote])
+      opts.footer = <<-EOT
+Generate a key pair.
+      EOT
     end
     optparse.parse!(args)
     # if args.count < 1
@@ -362,7 +345,7 @@ class Morpheus::Cli::KeyPairs
         print "\n"
       else
         print_green_success "Key Pair #{key_pair_payload['name']} added"
-        get([json_response['keyPair']['id']])
+        print_key_pair_details(account, json_response['keyPair'])
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -431,6 +414,41 @@ class Morpheus::Cli::KeyPairs
     print reset
   end
 
+  def print_key_pair_details(account, key_pair)
+    print_h1 "Key Pair Details"
+    print cyan
+    if account
+      # print_description_list({"Account" => lambda {|it| it['account'] ? it['account']['name'] : '' } }, key_pair)
+      print_description_list({"Account" => lambda {|it| account['name'] } }, key_pair)
+    end
+    print_description_list({
+                             "ID" => 'id',
+                             "Name" => 'name',
+                             "Fingerprint" => 'fingerprint',
+                             #"MD5" => 'md5',
+                             # "Has Private Key" => lambda {|it| format_boolean(it['hasPrivateKey']) },
+                             # "Account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
+                             "Created" => lambda {|it| format_local_dt(it['dateCreated']) }
+                             #"Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
+                           }, key_pair)
+
+    print_h2 "Public Key"
+    print cyan
+    puts "#{key_pair['publicKey']}"
+
+    # only happens upon generate
+    if key_pair['hasPrivateKey'] && key_pair['privateKey']
+      print_h2 "Private Key"
+      print cyan
+      puts "#{key_pair['privateKey']}"
+    else
+      # print_h2 "Private Key"
+      print cyan, "\n"
+      puts "This is only a public key.  It does not include a private key."
+    end
+
+    print reset,"\n"
+  end
 
   def add_key_pair_option_types
     [
