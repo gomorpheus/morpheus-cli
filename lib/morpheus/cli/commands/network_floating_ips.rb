@@ -22,6 +22,7 @@ class Morpheus::Cli::NetworkFloatingIps
       opts.footer = <<-EOT
 Release an existing #{rest_label.downcase}.
 [#{rest_arg}] is required. This is the #{rest_has_name ? 'name or id' : 'id'} of #{a_or_an(rest_label)} #{rest_label.downcase}.
+Only the following cloud types support this command: OpenStack, Huawei and OpenTelekom
 EOT
     end
     optparse.parse!(args)

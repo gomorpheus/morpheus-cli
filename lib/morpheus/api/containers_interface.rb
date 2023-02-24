@@ -137,9 +137,9 @@ class Morpheus::ContainersInterface < Morpheus::APIClient
     execute(method: :put, url: "#{base_path}/#{container_id}/attach-floating-ip", payload: payload, headers: headers)
   end
 
-  def release_floating_ip(container_id, payload={}, headers={})
+  def detach_floating_ip(container_id, payload={}, headers={})
     validate_id!(container_id)
-    execute(method: :put, url: "#{base_path}/#{container_id}/release-floating-ip", payload: payload, headers: headers)
+    execute(method: :put, url: "#{base_path}/#{container_id}/detach-floating-ip", payload: payload, headers: headers)
   end
 
 end
