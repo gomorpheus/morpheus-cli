@@ -1381,7 +1381,7 @@ EOT
       opts.on( '--keep-backups', '--keep-backups', "Preserve copy of backups" ) do
         query_params[:keepBackups] = 'on'
       end
-      opts.on('--release-ips [on|off]', ['on','off'], "Release Floating IPs. Default is on. Applies to certain types only.") do |val|
+      opts.on('--release-ips [on|off]', ['on','off'], "Release Floating IPs. Default is on. Applies to certain types only. Only applies when used with --remove-instances") do |val|
         query_params[:releaseFloatingIps] = val.nil? ? 'on' : val
         query_params[:releaseEIPs] = query_params[:releaseFloatingIps] # old parameter before 6.0
       end
