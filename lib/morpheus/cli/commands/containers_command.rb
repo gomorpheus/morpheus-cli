@@ -8,7 +8,7 @@ class Morpheus::Cli::ContainersCommand
   set_command_name :containers
   set_command_description "View and manage containers (nodes)."
   register_subcommands :get, :stop, :start, :restart, :suspend, :eject, :action, :actions, :logs,
-    {:exec => :execution_request}, :clone_image, :import, :attach_floating_ip, :release_floating_ip
+    {:exec => :execution_request}, :clone_image, :import, :attach_floating_ip, :detach_floating_ip
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
@@ -782,7 +782,7 @@ EOT
       opts.footer = <<-EOT
 Attach a floating IP to a container.
 [id] is required. This is the id of a container.
-This is only supported by certain cloud types.
+Only the following cloud types support this command: OpenStack, Huawei and OpenTelekom
 EOT
     end
     optparse.parse!(args)
@@ -799,8 +799,8 @@ EOT
       payload = parse_passed_options(options)
       attach_floating_ip_option_types = cloud_type['floatingIpTypes']
       if attach_floating_ip_option_types && !attach_floating_ip_option_types.empty?
-        api_params = {zoneId: container['cloud'] ? container['cloud']['id'] : nil, resourcePoolId: container['resourcePool'] ? container['resourcePool']['id'] : nil}
-        #api_params = {containerId: container['id']}
+        #api_params = {zoneId: container['cloud'] ? container['cloud']['id'] : nil, resourcePoolId: container['resourcePool'] ? container['resourcePool']['id'] : nil}
+        api_params = {containerId: container['id']}
         v_prompt = Morpheus::Cli::OptionTypes.prompt(attach_floating_ip_option_types, options[:options], @api_client, api_params)
         # payload.deep_merge!({'container' => v_prompt})
         payload.deep_merge!(v_prompt)
@@ -821,15 +821,15 @@ EOT
     return 0, nil
   end
 
-  def release_floating_ip(args)
+  def detach_floating_ip(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id]")
       build_standard_update_options(opts, options, [:auto_confirm])
       opts.footer = <<-EOT
-Release (detach) a floating IP for a container.
+Detach a floating IP from a container.
 [id] is required. This is the id of a container.
-This is only supported by certain cloud types.
+Only the following cloud types support this command: OpenStack, Huawei and OpenTelekom
 EOT
     end
     optparse.parse!(args)
@@ -846,15 +846,15 @@ EOT
       payload = parse_passed_options(options)
       # prompt
     end
-    confirm!("Are you sure you would like to release the floating IP for container #{container['id']}?", options)
+    confirm!("Are you sure you would like to detach the floating IP from container #{container['id']}?", options)
     @containers_interface.setopts(options)
     if options[:dry_run]
-      print_dry_run @containers_interface.dry.release_floating_ip(container['id'], payload)
+      print_dry_run @containers_interface.dry.detach_floating_ip(container['id'], payload)
       return
     end
-    json_response = @containers_interface.release_floating_ip(container['id'], payload)
+    json_response = @containers_interface.detach_floating_ip(container['id'], payload)
     render_response(json_response, options) do
-      print_green_success "Releasing floating IP for container #{container['id']}"
+      print_green_success "Detaching floating IP from container #{container['id']}"
     end
     return 0, nil
   end
