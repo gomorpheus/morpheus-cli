@@ -799,8 +799,8 @@ EOT
       payload = parse_passed_options(options)
       attach_floating_ip_option_types = cloud_type['floatingIpTypes']
       if attach_floating_ip_option_types && !attach_floating_ip_option_types.empty?
-        api_params = {zoneId: container['cloud'] ? container['cloud']['id'] : nil, resourcePoolId: container['resourcePool'] ? container['resourcePool']['id'] : nil}
-        #api_params = {containerId: container['id']}
+        #api_params = {zoneId: container['cloud'] ? container['cloud']['id'] : nil, resourcePoolId: container['resourcePool'] ? container['resourcePool']['id'] : nil}
+        api_params = {containerId: container['id']}
         v_prompt = Morpheus::Cli::OptionTypes.prompt(attach_floating_ip_option_types, options[:options], @api_client, api_params)
         # payload.deep_merge!({'container' => v_prompt})
         payload.deep_merge!(v_prompt)
