@@ -436,11 +436,13 @@ Generate a key pair.
     print cyan
     puts "#{key_pair['publicKey']}"
 
-    # only happens upon generate
-    if key_pair['hasPrivateKey'] && key_pair['privateKey']
-      print_h2 "Private Key"
-      print cyan
-      puts "#{key_pair['privateKey']}"
+    # only happens after generate
+    if key_pair['hasPrivateKey']
+      if key_pair['privateKey']
+        print_h2 "Private Key"
+        print cyan
+        puts "#{key_pair['privateKey']}"
+      end
     else
       # print_h2 "Private Key"
       print cyan, "\n"
