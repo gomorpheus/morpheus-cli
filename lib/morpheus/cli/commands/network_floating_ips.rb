@@ -65,7 +65,7 @@ EOT
     opts.on('--ip-address VALUE', String, "Filter by IP Address") do |val|
       add_query_parameter(params, 'ipAddress', val)
     end
-    opts.on('--status VALUE', String, "Filter by Status") do |val|
+    opts.on('--status VALUE', String, "Filter by Status (free, assigned, pending)") do |val|
       add_query_parameter(params, 'ipStatus', val)
     end
     # build_standard_list_options(opts, options)
