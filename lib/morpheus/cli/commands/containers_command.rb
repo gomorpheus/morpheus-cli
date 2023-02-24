@@ -778,6 +778,15 @@ EOT
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[id]")
+      opts.on('--ip ID', String, "Floating IP Address, in the format 'ip-ID'.") do |val|
+        options[:ip] = val
+      end
+      opts.on('--pool ID', String, "Floating IP Pool Identifier, in the format 'pool-ID'.") do |val|
+        options[:pool] = val
+      end
+      opts.on('--bandwidth VALUE', String, "Floating IP Bandidth (Mbit/s). Only cloud types Huawei and OpenTelekom support this option.") do |val|
+        options[:bandwidth] = val
+      end
       build_standard_update_options(opts, options, [:auto_confirm])
       opts.footer = <<-EOT
 Attach a floating IP to a container.
@@ -799,6 +808,21 @@ EOT
       payload = parse_passed_options(options)
       attach_floating_ip_option_types = cloud_type['floatingIpTypes']
       if attach_floating_ip_option_types && !attach_floating_ip_option_types.empty?
+        if options[:ip]
+          floating_ip = options[:ip].to_s.sub(/\Aip\-/i, '')
+          floating_ip = (floating_ip =~ /\A\d{1,}\Z/) ? "ip-#{floating_ip.to_s}" : floating_ip
+          options[:options]['config'] ||= {}
+          options[:options]['config']['osExternalNetworkId'] = floating_ip
+        elsif options[:pool]
+          floating_ip = options[:pool].to_s.sub(/\Apool\-/i, '')
+          floating_ip = (floating_ip =~ /\A\d{1,}\Z/) ? "pool-#{floating_ip.to_s}" : floating_ip
+          options[:options]['config'] ||= {}
+          options[:options]['config']['osExternalNetworkId'] = floating_ip
+        end
+        if options[:bandwidth]
+          options[:options]['config'] ||= {}
+          options[:options]['config']['floatingIpBandwidth'] = options[:bandwidth].to_i
+        end
         #api_params = {zoneId: container['cloud'] ? container['cloud']['id'] : nil, resourcePoolId: container['resourcePool'] ? container['resourcePool']['id'] : nil}
         api_params = {containerId: container['id']}
         v_prompt = Morpheus::Cli::OptionTypes.prompt(attach_floating_ip_option_types, options[:options], @api_client, api_params)
