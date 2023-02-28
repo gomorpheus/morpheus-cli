@@ -678,7 +678,7 @@ module Morpheus
               # print "Perhaps you meant one of these? #{ored_list(matched_options.collect {|i|i[value_field]}, 3)}\n"
               print "Try using value instead of name.\n"
               print "\n"
-              exit 1
+              #exit 1
             elsif matched_options.size == 1
               matched_option = matched_options[0]
             end

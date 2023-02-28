@@ -400,6 +400,10 @@ class Morpheus::APIClient
     Morpheus::CloudResourcePoolsInterface.new(common_interface_options).setopts(@options)
   end
 
+  def resource_pool_groups
+    Morpheus::ResourcePoolGroupsInterface.new(common_interface_options).setopts(@options)
+  end
+
   def cloud_folders
     Morpheus::CloudFoldersInterface.new(common_interface_options).setopts(@options)
   end
@@ -950,6 +954,10 @@ class Morpheus::APIClient
     Morpheus::SecurityScansInterface.new(common_interface_options).setopts(@options)
   end
 
+  def network_floating_ips
+    Morpheus::NetworkFloatingIpsInterface.new(common_interface_options).setopts(@options)
+  end
+  
   def rest(endpoint)
     Morpheus::RestInterface.new(common_interface_options).setopts(@options.merge({base_path: "#{@base_url}/api/#{endpoint}"}))
   end

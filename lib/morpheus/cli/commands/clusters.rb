@@ -33,6 +33,7 @@ class Morpheus::Cli::Clusters
     @security_groups_interface = @api_client.security_groups
     #@security_group_rules_interface = @api_client.security_group_rules
     @cloud_resource_pools_interface = @api_client.cloud_resource_pools
+    @resource_pool_groups_interface = @api_client.resource_pool_groups
     @clouds_interface = @api_client.clouds
     @servers_interface = @api_client.servers
     @server_types_interface = @api_client.server_types
@@ -644,6 +645,7 @@ class Morpheus::Cli::Clusters
             !type['enabled'] || !type['creatable'] || type['fieldComponent']
           } rescue []))
 
+
         # remove metadata option_type , prompt manually for that field 'tags' instead of 'metadata'
         metadata_option_type = option_type_list.find {|type| type['fieldName'] == 'metadata' }
         option_type_list = option_type_list.reject {|type| type['fieldName'] == 'metadata' }
@@ -664,6 +666,14 @@ class Morpheus::Cli::Clusters
 
         # Security Groups
         server_payload['securityGroups'] = prompt_security_groups_by_cloud(cloud, provision_type, resource_pool, options)
+
+        # KLUDGE part 2: need to ask for hauwei floating ip option
+        if option_type = option_type_list.find {|type| type['code'] == 'computeServerType.openstackLinux.selectFloatingIp'}
+          floating_ip = load_floating_options(cluster_payload, options)
+          if floating_ip != nil 
+            server_payload['config']['osExternalNetworkId'] = floating_ip
+          end
+        end
 
         # Visibility
         server_payload['visibility'] = options[:visibility] || (Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'defaultValue' => 'private', 'required' => true, 'selectOptions' => [{'name' => 'Private', 'value' => 'private'},{'name' => 'Public', 'value' => 'public'}]}], options[:options], @api_client, {})['visibility'])
@@ -3785,7 +3795,7 @@ class Morpheus::Cli::Clusters
           name: cluster['name'],
           type: (cluster['type']['name'] rescue ''),
           layout: (cluster['layout']['name'] rescue ''),
-          workers: cluster['workerCount'],
+          workers: cluster['servers'].size,
           cloud: (cluster['zone']['name'] rescue ''),
           status: format_cluster_status(cluster)
       }
@@ -4273,7 +4283,11 @@ class Morpheus::Cli::Clusters
           else
             resource_pool_id = resource_pool_options.first['id']
           end
-          resource_pool = @cloud_resource_pools_interface.get(cloud['id'], resource_pool_id)['resourcePool']
+          if resource_pool_id.to_s["poolGroup-"]
+            resource_pool = @resource_pool_groups_interface.get(resource_pool_id)['resourcePoolGroup'] 
+          else 
+            resource_pool = @cloud_resource_pools_interface.get(cloud['id'], resource_pool_id)['resourcePool']
+          end
         end
       end
     end
@@ -4355,6 +4369,13 @@ class Morpheus::Cli::Clusters
       end
       it
     end
+  end
+
+  def load_floating_options(cluster, options)
+    floating_ip_opts = @api_client.options.options_for_source('openstackFloatingIpOptions', {optionsSourceType: 'openStack', zoneId: cluster['cloud']['id']})['data']
+    floating_ip_opts = floating_ip_opts.reject {|it| it['value'] == '' }
+    floating_ip = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'osExternalNetworkId', 'fieldLabel' => 'Floating IP', 'type' => 'select', 'selectOptions' => floating_ip_opts, 'required' => false, 'description' => "Select Floating IP"}], options[:options])['osExternalNetworkId']
+    return floating_ip
   end
 
   def available_kube_templates

@@ -943,6 +943,8 @@ class Morpheus::Cli::Hosts
             end
           end
         end
+
+        metadata_option_type = option_type_list.find {|type| type['fieldName'] == 'metadata' }
         
         # Metadata Tags
         if metadata_option_type

@@ -89,6 +89,8 @@ class Morpheus::Cli::ApplianceSettingsCommand
         # Currency Settings
         "Currency Provider" => lambda {|it| it['currencyProvider'] },
         "Currency Provider API Key" => lambda {|it| it['currencyKey'] },
+        # Retention Settings
+        "Stats Retainment Period" => lambda {|it| it['statsRetainmentPeriod'] ? it['statsRetainmentPeriod'].to_s + ' days' : '' },
       }
       print_description_list(description_cols, appliance_settings)
 
@@ -214,6 +216,9 @@ class Morpheus::Cli::ApplianceSettingsCommand
       end
       opts.on("--disable-all-clouds", "Set all cloud types enabled status off, can be used in conjunction with --enable-clouds options") do
         params['disableAllZoneTypes'] = true
+      end
+      opts.on("--stats-retainment-period DAYS", Integer, "Stats retainment period. The number of days stats should be available. Can be 30, 60, or 90.") do |val|
+        params['statsRetainmentPeriod'] = val.to_i
       end
       build_common_options(opts, options, [:json, :payload, :dry_run, :quiet, :remote])
     end

@@ -1429,7 +1429,7 @@ EOT
     end
     name = args[0]
     access_value = args[1].to_s.downcase
-    if !['full', 'read', 'none'].include?(access_value)
+    if !['full', 'read', 'none', 'custom'].include?(access_value)
       puts optparse
       exit 1
     end
@@ -1582,7 +1582,7 @@ EOT
     end
     name = args[0]
     access_value = args[1].to_s.downcase
-    if !['full', 'read', 'none'].include?(access_value)
+    if !['full', 'read', 'none', 'custom'].include?(access_value)
       puts optparse
       exit 1
     end
@@ -1733,7 +1733,7 @@ EOT
     end
     name = args[0]
     access_value = args[1].to_s.downcase
-    if !['full', 'none'].include?(access_value)
+    if !['full', 'none', 'custom'].include?(access_value)
       puts optparse
       exit 1
     end
@@ -1881,7 +1881,7 @@ EOT
     end
     name = args[0]
     access_value = args[1].to_s.downcase
-    if !['full', 'none'].include?(access_value)
+    if !['full', 'none', 'custom'].include?(access_value)
       puts optparse
       exit 1
     end
@@ -2043,7 +2043,7 @@ EOT
     end
     name = args[0]
     access_value = args[1].to_s.downcase
-    if !['full', 'none'].include?(access_value)
+    if !['full', 'none', 'custom'].include?(access_value)
       puts optparse
       exit 1
     end
@@ -2198,7 +2198,7 @@ Update default persona access for a role.
     end
     name = args[0]
     access_value = args[1].to_s.downcase
-    if !['full', 'none'].include?(access_value)
+    if !['full', 'none', 'custom'].include?(access_value)
       puts optparse
       exit 1
     end
@@ -2341,7 +2341,7 @@ EOT
     verify_args!(args:args, optparse:optparse, count: 2)
     name = args[0]
     access_value = args[1].to_s.downcase
-    if !['full', 'none'].include?(access_value)
+    if !['full', 'none', 'custom'].include?(access_value)
       raise_command_error("invalid access value: #{args[1]}", args, optparse)
     end
 
@@ -2496,7 +2496,7 @@ EOT
     verify_args!(args:args, optparse:optparse, count: 2)
     name = args[0]
     access_value = args[1].to_s.downcase
-    if !['full', 'none'].include?(access_value)
+    if !['full', 'none', 'custom'].include?(access_value)
       raise_command_error("invalid access value: #{args[1]}", args, optparse)
     end
 
@@ -2652,7 +2652,7 @@ Update default task access for a role.
     verify_args!(args:args, optparse:optparse, count: 2)
     name = args[0]
     access_value = args[1].to_s.downcase
-    if !['full', 'none'].include?(access_value)
+    if !['full', 'none', 'custom'].include?(access_value)
       raise_command_error("invalid access value: #{args[1]}", args, optparse)
     end
 
@@ -2805,7 +2805,7 @@ Update default workflow access for a role.
     verify_args!(args:args, optparse:optparse, count: 2)
     name = args[0]
     access_value = args[1].to_s.downcase
-    if !['full', 'none'].include?(access_value)
+    if !['full', 'none', 'custom'].include?(access_value)
       raise_command_error("invalid access value: #{args[1]}", args, optparse)
     end
 

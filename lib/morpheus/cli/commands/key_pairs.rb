@@ -3,7 +3,7 @@ require 'morpheus/cli/cli_command'
 class Morpheus::Cli::KeyPairs
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::AccountsHelper
-  register_subcommands :list, :get, :add, :update, :remove
+  register_subcommands :list, :get, :add, :update, :remove, :generate
   alias_subcommand :details, :get
 
   def initialize()
@@ -102,38 +102,7 @@ class Morpheus::Cli::KeyPairs
       return 0 if render_result
       
       unless options[:quiet]
-        print_h1 "Key Pair Details"
-        print cyan
-        if account
-          # print_description_list({"Account" => lambda {|it| it['account'] ? it['account']['name'] : '' } }, key_pair)
-          print_description_list({"Account" => lambda {|it| account['name'] } }, key_pair)
-        end
-        print_description_list({
-          "ID" => 'id',
-          "Name" => 'name',
-          "Fingerprint" => 'fingerprint',
-          #"MD5" => 'md5',
-          # "Has Private Key" => lambda {|it| format_boolean(it['hasPrivateKey']) },
-          # "Account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
-          "Created" => lambda {|it| format_local_dt(it['dateCreated']) }
-          #"Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
-        }, key_pair)
-
-        print_h2 "Public Key"
-        print cyan
-        puts "#{key_pair['publicKey']}"
-        
-        if key_pair['hasPrivateKey']
-          # print_h2 "Private Key"
-          # print cyan
-          # puts "(hidden)"
-        else
-          # print_h2 "Private Key"
-          print cyan, "\n"
-          puts "This is only a public key.  It does not include a private key."
-        end
-
-        print reset,"\n"
+        print_key_pair_details(account, key_pair)
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -180,6 +149,9 @@ class Morpheus::Cli::KeyPairs
       end
 
       build_common_options(opts, options, [:account, :options, :json, :dry_run, :remote])
+      opts.footer = <<-EOT
+Add a key pair.
+      EOT
     end
     optparse.parse!(args)
     # if args.count < 1
@@ -237,6 +209,10 @@ class Morpheus::Cli::KeyPairs
       opts.banner = subcommand_usage("[name] [options]")
       build_option_type_options(opts, options, update_key_pair_option_types)
       build_common_options(opts, options, [:account, :options, :json, :dry_run, :remote])
+      opts.footer = <<-EOT
+Update a key pair.
+[name] is required. This is the name or id of a key pair.
+      EOT
     end
     optparse.parse!(args)
 
@@ -290,6 +266,10 @@ class Morpheus::Cli::KeyPairs
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
       build_common_options(opts, options, [:account, :auto_confirm, :json, :dry_run, :remote])
+      opts.footer = <<-EOT
+Delete a key pair.
+[name] is required. This is the name or id of a key pair.
+      EOT
     end
     optparse.parse!(args)
 
@@ -322,6 +302,50 @@ class Morpheus::Cli::KeyPairs
       else
         print_green_success "Key Pair #{key_pair['name']} removed"
         # list([])
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def generate(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[name]")
+      build_common_options(opts, options, [:account, :options, :json, :dry_run, :remote])
+      opts.footer = <<-EOT
+Generate a key pair.
+      EOT
+    end
+    optparse.parse!(args)
+    # if args.count < 1
+    #   puts optparse
+    #   exit 1
+    # end
+    if args[0]
+      options[:options] ||= {}
+      options[:options]['name'] ||= args[0]
+    end
+    connect(options)
+    begin
+      account = find_account_from_options(options)
+      account_id = account ? account['id'] : nil
+      params = Morpheus::Cli::OptionTypes.prompt(add_key_pair_option_types.select {|it| ['name'].include?(it['fieldName'])}, options[:options], @api_client, options[:params])
+      key_pair_payload = params.select {|k,v| ['name'].include?(k) }
+      payload = {keyPair: key_pair_payload}
+      @key_pairs_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @key_pairs_interface.dry.generate(account_id, payload)
+        return
+      end
+      json_response = @key_pairs_interface.generate(account_id, payload)
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      else
+        print_green_success "Key Pair #{key_pair_payload['name']} added"
+        print_key_pair_details(account, json_response['keyPair'])
       end
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
@@ -390,6 +414,43 @@ class Morpheus::Cli::KeyPairs
     print reset
   end
 
+  def print_key_pair_details(account, key_pair)
+    print_h1 "Key Pair Details"
+    print cyan
+    if account
+      # print_description_list({"Account" => lambda {|it| it['account'] ? it['account']['name'] : '' } }, key_pair)
+      print_description_list({"Account" => lambda {|it| account['name'] } }, key_pair)
+    end
+    print_description_list({
+                             "ID" => 'id',
+                             "Name" => 'name',
+                             "Fingerprint" => 'fingerprint',
+                             #"MD5" => 'md5',
+                             # "Has Private Key" => lambda {|it| format_boolean(it['hasPrivateKey']) },
+                             # "Account" => lambda {|it| it['account'] ? it['account']['name'] : '' },
+                             "Created" => lambda {|it| format_local_dt(it['dateCreated']) }
+                             #"Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
+                           }, key_pair)
+
+    print_h2 "Public Key"
+    print cyan
+    puts "#{key_pair['publicKey']}"
+
+    # only happens after generate
+    if key_pair['hasPrivateKey']
+      if key_pair['privateKey']
+        print_h2 "Private Key"
+        print cyan
+        puts "#{key_pair['privateKey']}"
+      end
+    else
+      # print_h2 "Private Key"
+      print cyan, "\n"
+      puts "This is only a public key.  It does not include a private key."
+    end
+
+    print reset,"\n"
+  end
 
   def add_key_pair_option_types
     [

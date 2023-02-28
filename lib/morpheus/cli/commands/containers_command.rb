@@ -8,7 +8,7 @@ class Morpheus::Cli::ContainersCommand
   set_command_name :containers
   set_command_description "View and manage containers (nodes)."
   register_subcommands :get, :stop, :start, :restart, :suspend, :eject, :action, :actions, :logs,
-    {:exec => :execution_request}, :clone_image, :import
+    {:exec => :execution_request}, :clone_image, :import, :attach_floating_ip, :detach_floating_ip
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
@@ -17,6 +17,7 @@ class Morpheus::Cli::ContainersCommand
     @provision_types_interface = @api_client.provision_types
     @logs_interface = @api_client.logs
     @execution_request_interface = @api_client.execution_request
+    @clouds_interface = @api_client.clouds
   end
   
   def handle(args)
@@ -696,7 +697,7 @@ EOT
     end
     json_response = @containers_interface.import(container['id'], payload)
     render_response(json_response, options) do
-      print_green_success "Import initiated for container [#{container['id']}] #{container['name']}"
+      print_green_success "Import initiated for container #{container['id']}"
     end
     return 0, nil
   end
@@ -768,12 +769,121 @@ EOT
     end
     json_response = @containers_interface.clone_image(container['id'], payload)
     render_response(json_response, options) do
-      print_green_success "Clone Image initiated for container [#{container['id']}] #{container['name']}"
+      print_green_success "Clone Image initiated for container #{container['id']}"
     end
     return 0, nil
   end
 
-private
+  def attach_floating_ip(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[id]")
+      opts.on('--ip ID', String, "Floating IP Address, in the format 'ip-ID'.") do |val|
+        options[:ip] = val
+      end
+      opts.on('--pool ID', String, "Floating IP Pool Identifier, in the format 'pool-ID'.") do |val|
+        options[:pool] = val
+      end
+      opts.on('--bandwidth VALUE', String, "Floating IP Bandidth (Mbit/s). Only cloud types Huawei and OpenTelekom support this option.") do |val|
+        options[:bandwidth] = val
+      end
+      build_standard_update_options(opts, options, [:auto_confirm])
+      opts.footer = <<-EOT
+Attach a floating IP to a container.
+[id] is required. This is the id of a container.
+Only the following cloud types support this command: OpenStack, Huawei and OpenTelekom
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    container = find_container_by_id(args[0])
+    return 1 if container.nil?
+    cloud_type = load_container_cloud_type(container)
+    if !cloud_type['hasFloatingIps']
+      raise_command_error "Cloud Type #{cloud_type['name']} does support floating IPs."
+    end
+    payload = parse_payload(options)
+    if payload.nil?
+      payload = parse_passed_options(options)
+      attach_floating_ip_option_types = cloud_type['floatingIpTypes']
+      if attach_floating_ip_option_types && !attach_floating_ip_option_types.empty?
+        if options[:ip]
+          floating_ip = options[:ip].to_s.sub(/\Aip\-/i, '')
+          floating_ip = (floating_ip =~ /\A\d{1,}\Z/) ? "ip-#{floating_ip.to_s}" : floating_ip
+          options[:options]['config'] ||= {}
+          options[:options]['config']['osExternalNetworkId'] = floating_ip
+        elsif options[:pool]
+          floating_ip = options[:pool].to_s.sub(/\Apool\-/i, '')
+          floating_ip = (floating_ip =~ /\A\d{1,}\Z/) ? "pool-#{floating_ip.to_s}" : floating_ip
+          options[:options]['config'] ||= {}
+          options[:options]['config']['osExternalNetworkId'] = floating_ip
+        end
+        if options[:bandwidth]
+          options[:options]['config'] ||= {}
+          options[:options]['config']['floatingIpBandwidth'] = options[:bandwidth].to_i
+        end
+        #api_params = {zoneId: container['cloud'] ? container['cloud']['id'] : nil, resourcePoolId: container['resourcePool'] ? container['resourcePool']['id'] : nil}
+        api_params = {containerId: container['id']}
+        v_prompt = Morpheus::Cli::OptionTypes.prompt(attach_floating_ip_option_types, options[:options], @api_client, api_params)
+        # payload.deep_merge!({'container' => v_prompt})
+        payload.deep_merge!(v_prompt)
+      else
+        # raise_command_error "Cloud Type #{cloud_type['name']} does not defined any floating IP inputs."
+      end
+    end
+    confirm!("Are you sure you would like to attach this floating IP to container #{container['id']}?", options)
+    @containers_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @containers_interface.dry.attach_floating_ip(container['id'], payload)
+      return
+    end
+    json_response = @containers_interface.attach_floating_ip(container['id'], payload)
+    render_response(json_response, options) do
+      print_green_success "Attaching floating IP to container #{container['id']}"
+    end
+    return 0, nil
+  end
+
+  def detach_floating_ip(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[id]")
+      build_standard_update_options(opts, options, [:auto_confirm])
+      opts.footer = <<-EOT
+Detach a floating IP from a container.
+[id] is required. This is the id of a container.
+Only the following cloud types support this command: OpenStack, Huawei and OpenTelekom
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    container = find_container_by_id(args[0])
+    return 1 if container.nil?
+    cloud_type = load_container_cloud_type(container)
+    if !cloud_type['hasFloatingIps']
+      raise_command_error "Cloud Type #{cloud_type['name']} does support floating IPs."
+    end
+    payload = parse_payload(options)
+    if payload.nil?
+      payload = parse_passed_options(options)
+      # prompt
+    end
+    confirm!("Are you sure you would like to detach the floating IP from container #{container['id']}?", options)
+    @containers_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @containers_interface.dry.detach_floating_ip(container['id'], payload)
+      return
+    end
+    json_response = @containers_interface.detach_floating_ip(container['id'], payload)
+    render_response(json_response, options) do
+      print_green_success "Detaching floating IP from container #{container['id']}"
+    end
+    return 0, nil
+  end
+
+  private
 
   def find_container_by_id(id)
     begin
@@ -837,4 +947,19 @@ private
     end
     return provision_type
   end
+
+  def load_container_cloud_type(container)
+    cloud_type_code = container['cloud']['type'] rescue nil
+    cloud_type = nil
+    if cloud_type_code
+      cloud_type = @clouds_interface.cloud_types({code:cloud_type_code})['zoneTypes'][0]
+      if cloud_type.nil?
+        raise_command_error "Cloud Type not found by code #{cloud_type_code}"
+      end
+    else
+      raise_command_error "Unable to determine cloud type for container #{container['id']}"
+    end
+    return cloud_type
+  end
+
 end

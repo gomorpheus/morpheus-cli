@@ -1381,9 +1381,15 @@ EOT
       opts.on( '--keep-backups', '--keep-backups', "Preserve copy of backups" ) do
         query_params[:keepBackups] = 'on'
       end
-      opts.on('--releaseEIPs [on|off]', ['on','off'], "Release EIPs. Default is on. Applies to Amazon only.") do |val|
-        query_params[:releaseEIPs] = val.nil? ? 'on' : val
+      opts.on('--release-ips [on|off]', ['on','off'], "Release Floating IPs. Default is on. Applies to certain types only. Only applies when used with --remove-instances") do |val|
+        query_params[:releaseFloatingIps] = val.nil? ? 'on' : val
+        query_params[:releaseEIPs] = query_params[:releaseFloatingIps] # old parameter before 6.0
       end
+      opts.on('--releaseEIPs [on|off]', ['on','off'], "Alias for Release Floating IPs") do |val|
+        query_params[:releaseFloatingIps] = val.nil? ? 'on' : val
+        query_params[:releaseEIPs] = query_params[:releaseFloatingIps] # old parameter before 6.0
+      end
+      opts.add_hidden_option('--releaseEIPs')
       opts.on( '-f', '--force', "Force Delete" ) do
         query_params[:force] = 'on'
       end
