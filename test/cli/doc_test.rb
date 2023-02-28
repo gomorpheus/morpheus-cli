@@ -28,7 +28,7 @@ class MorpheusTest::DocTest < MorpheusTest::TestCase
   def test_doc_get_unauthorized
     # authentication is NOT required for this api
     without_authentication do
-      assert_success("doc get -q")
+      assert_error("doc get -q")
     end
   end
 
