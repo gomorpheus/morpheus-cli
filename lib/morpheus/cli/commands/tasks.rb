@@ -902,7 +902,7 @@ class Morpheus::Cli::Tasks
       opts.on(nil, '--no-refresh', "Do not refresh" ) do
         options[:no_refresh] = true
       end
-      build_common_options(opts, options, [:options, :json, :dry_run, :remote])
+      build_standard_post_options(opts, options)
     end
     optparse.parse!(args)
     if args.count != 1
