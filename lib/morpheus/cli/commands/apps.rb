@@ -781,11 +781,11 @@ class Morpheus::Cli::Apps
           print_h2 "#{app_tier['tier']['name']}", options
           print cyan
           tier_instances = (app_tier['appInstances'] || []).collect {|it| it['instance']}
-          instances = tier_instances.collect { |tier_instance| instances.find { |i| i['id'] == tier_instance['id'] } }
-          if instances.empty?
+          instance_list = tier_instances.collect { |tier_instance| instances.find { |i| i['id'] == tier_instance['id'] } }
+          if instance_list.empty?
             puts yellow, "This tier is empty", reset
           else
-            instances_rows = instances.collect do |instance|
+            instances_rows = instance_list.collect do |instance|
               connection_string = ''
               if !instance['connectionInfo'].nil? && instance['connectionInfo'].empty? == false
                 connection_string = "#{instance['connectionInfo'][0]['ip']}:#{instance['connectionInfo'][0]['port']}"
