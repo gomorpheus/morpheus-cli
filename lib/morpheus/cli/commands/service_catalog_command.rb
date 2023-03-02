@@ -594,6 +594,7 @@ EOT
     type_id = nil
     workflow_context = nil
     workflow_target = nil
+    quantity = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[type] [options]")
       opts.on('-t', '--type TYPE', String, "Catalog Item Type Name or ID") do |val|
@@ -651,10 +652,14 @@ EOT
       payload[add_item_object_key]['type'] = {'name' => catalog_item_type['name']}
       #payload[add_item_object_key]['type'] = {'id' => catalog_item_type['id']}
 
-      if catalog_item_type['allowQuantity']
-        quantity_option_type = {'fieldName' => 'quantity', 'fieldLabel' => 'Quantity', 'type' => 'number', 'defaultValue' => 1, 'required' => true, 'displayOrder' => 1}
-        quantity_prompt = Morpheus::Cli::OptionTypes.prompt( [quantity_option_type], options[:options], @api_client, options[:params])['quantity']
-        payload[add_item_object_key].deep_merge!({'quantity' => quantity_prompt})
+      if quantity 
+        payload[add_item_object_key].deep_merge!({'quantity' => quantity})
+      else 
+        if catalog_item_type['allowQuantity']
+          quantity_option_type = {'fieldName' => 'quantity', 'fieldLabel' => 'Quantity', 'type' => 'number', 'defaultValue' => 1, 'required' => true, 'displayOrder' => 1}
+          quantity_prompt = Morpheus::Cli::OptionTypes.prompt( [quantity_option_type], options[:options], @api_client, options[:params])['quantity']
+          payload[add_item_object_key].deep_merge!({'quantity' => quantity_prompt})
+        end
       end
 
       # this is silly, need to load by id to get optionTypes
@@ -1003,11 +1008,16 @@ EOT
         item_payload['type'] = {'name' => catalog_item_type['name']}
         #payload[add_item_object_key]['type'] = {'id' => catalog_item_type['id']}
 
-        if catalog_item_type['allowQuantity']
-          quantity_option_type = {'fieldName' => 'quantity', 'fieldLabel' => 'Quantity', 'type' => 'number', 'defaultValue' => 1, 'required' => true, 'displayOrder' => 1}
-          quantity_prompt = Morpheus::Cli::OptionTypes.prompt( [quantity_option_type], options[:options], @api_client, options[:params])['quantity']
-          payload[add_item_object_key].deep_merge!({'quantity' => quantity_prompt})
+        if quantity 
+          payload[add_item_object_key].deep_merge!({'quantity' => quantity})
+        else 
+          if catalog_item_type['allowQuantity']
+            quantity_option_type = {'fieldName' => 'quantity', 'fieldLabel' => 'Quantity', 'type' => 'number', 'defaultValue' => 1, 'required' => true, 'displayOrder' => 1}
+            quantity_prompt = Morpheus::Cli::OptionTypes.prompt( [quantity_option_type], options[:options], @api_client, options[:params])['quantity']
+            item_payload.deep_merge!({'quantity' => quantity_prompt})
+          end
         end
+        
 
         # this is silly, need to load by id to get optionTypes
         # maybe do ?name=foo&includeOptionTypes=true 
