@@ -599,6 +599,9 @@ EOT
       opts.on('-t', '--type TYPE', String, "Catalog Item Type Name or ID") do |val|
         type_id = val.to_s
       end
+      opts.on('--quantity QUANTITY', String, "Quantity for this catalog item. Will be overridden to 1 if quantity not allowed.") do |val|
+        quantity = val.to_s
+      end
       opts.on('--validate','--validate', "Validate Only. Validates the configuration and skips adding the item.") do
         options[:validate_only] = true
       end
@@ -647,6 +650,12 @@ EOT
       # use name instead of id
       payload[add_item_object_key]['type'] = {'name' => catalog_item_type['name']}
       #payload[add_item_object_key]['type'] = {'id' => catalog_item_type['id']}
+
+      if catalog_item_type['allowQuantity']
+        quantity_option_type = {'fieldName' => 'quantity', 'fieldLabel' => 'Quantity', 'type' => 'number', 'defaultValue' => 1, 'required' => true, 'displayOrder' => 1}
+        quantity_prompt = Morpheus::Cli::OptionTypes.prompt( [quantity_option_type], options[:options], @api_client, options[:params])['quantity']
+        payload[add_item_object_key].deep_merge!({'quantity' => quantity_prompt})
+      end
 
       # this is silly, need to load by id to get optionTypes
       # maybe do ?name=foo&includeOptionTypes=true 
@@ -1200,6 +1209,7 @@ EOT
       # "Blueprint" => lambda {|it| it['blueprint'] ? it['blueprint']['name'] : nil },
       # "Enabled" => lambda {|it| format_boolean(it['enabled']) },
       "Featured" => lambda {|it| format_boolean(it['featured']) },
+      "Allow Quantity" => lambda {|it| format_boolean(it['allowQuantity']) },
       #"Config" => lambda {|it| it['config'] },
       # "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
       # "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
