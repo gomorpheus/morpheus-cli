@@ -940,6 +940,7 @@ EOT
     type_id = nil
     workflow_context = nil
     workflow_target = nil
+    quantity = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[type] [options]")
       opts.on('-t', '--type TYPE', String, "Catalog Item Type Name or ID") do |val|
@@ -1009,7 +1010,7 @@ EOT
         #payload[add_item_object_key]['type'] = {'id' => catalog_item_type['id']}
 
         if quantity 
-          payload[add_item_object_key].deep_merge!({'quantity' => quantity})
+          item_payload.deep_merge!({'quantity' => quantity})
         else 
           if catalog_item_type['allowQuantity']
             quantity_option_type = {'fieldName' => 'quantity', 'fieldLabel' => 'Quantity', 'type' => 'number', 'defaultValue' => 1, 'required' => true, 'displayOrder' => 1}
