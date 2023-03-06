@@ -359,7 +359,7 @@ class Morpheus::Cli::Shell
         end
         out <<  "See the available commands below.\n"
 
-        out << "\nCommands:"
+        out << "\nCommands:\n"
         # commands = @morpheus_commands + @shell_commands
         # @morpheus_commands.sort.each {|cmd|
         #   out <<  "\t#{cmd.to_s}\n"
