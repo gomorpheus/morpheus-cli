@@ -778,6 +778,7 @@ module Morpheus::Cli::ProvisioningHelper
 
           resource_pool_options = options_interface.options_for_source('zonePools', {groupId: group_id, siteId: group_id, zoneId: cloud_id, cloudId: cloud_id, instanceTypeId: instance_type['id'], layoutId: layout["id"]}.merge(service_plan.nil? ? {} : {planId: service_plan["id"]}))['data']
           resource_pool = resource_pool_options.find {|opt| opt['id'] == options[:resource_pool].to_i} if options[:resource_pool]
+          pool_required = provision_type["zonePoolRequired"]
 
           if resource_pool
             pool_id = resource_pool['id']
@@ -785,7 +786,7 @@ module Morpheus::Cli::ProvisioningHelper
             if options[:default_resource_pool]
               default_resource_pool = resource_pool_options.find {|rp| rp['id'] == options[:default_resource_pool]}
             end
-            resource_pool_option_type ||= {'fieldContext' => 'config', 'fieldName' => 'resourcePoolId', 'type' => 'select', 'fieldLabel' => 'Resource Pool', 'selectOptions' => resource_pool_options, 'required' => true, 'skipSingleOption' => true, 'description' => 'Select resource pool.', 'defaultValue' => default_resource_pool ? default_resource_pool['name'] : nil}
+            resource_pool_option_type ||= {'fieldContext' => 'config', 'fieldName' => 'resourcePoolId', 'type' => 'select', 'fieldLabel' => 'Resource Pool', 'selectOptions' => resource_pool_options, 'required' => pool_required, 'skipSingleOption' => true, 'description' => 'Select resource pool.', 'defaultValue' => default_resource_pool ? default_resource_pool['name'] : nil}
             resource_pool_prompt = Morpheus::Cli::OptionTypes.prompt([resource_pool_option_type],options[:options],api_client,{}, no_prompt, true)
             resource_pool_prompt.deep_compact!
             payload.deep_merge!(resource_pool_prompt)
