@@ -296,13 +296,13 @@ class Morpheus::Cli::ServicePlanCommand
       opts.on('--price-sets [LIST]', Array, 'Price set(s), comma separated list of price set IDs') do |list|
         params['priceSets'] = list.collect {|it| it.to_s.strip.empty? || !it.to_i ? nil : it.to_s.strip}.compact.uniq.collect {|it| {'id' => it.to_i}}
       end
-      opts.on('--min-storage NUMBER', String, "Min storage. Assumes GB unless optional modifier specified, ex: 512MB") do |val|
+      opts.on('--min-storage NUMBER', String, "Min total storage. Assumes GB unless optional modifier specified, ex: 512MB") do |val|
         # Storage doesn't get converted to bytes
         bytes = parse_bytes_param(val, '--min-storage', 'GB', true)
         ((params['config'] ||= {})['ranges'] ||= {})['minStorage'] = bytes[:number]
         (params['config'] ||= {})['storageSizeType'] = bytes[:unit].downcase
       end
-      opts.on('--max-storage NUMBER', String, "Max storage. Assumes GB unless optional modifier specified, ex: 512MB") do |val|
+      opts.on('--max-storage NUMBER', String, "Max total storage. Assumes GB unless optional modifier specified, ex: 512MB") do |val|
         # Storage doesn't get converted to bytes
         bytes = parse_bytes_param(val.to_s, '--max-storage', 'GB', true)
         ((params['config'] ||= {})['ranges'] ||= {})['maxStorage'] = bytes[:number]
@@ -431,8 +431,8 @@ class Morpheus::Cli::ServicePlanCommand
           {'fieldName' => 'maxCores', 'fieldLabel' => 'Core Count', 'type' => 'number', 'required' => true, 'defaultValue' => 1, 'displayOrder' => 1},
           {'fieldName' => 'customCores', 'fieldLabel' => 'Custom Cores', 'type' => 'checkbox', 'defaultValue' => false, 'displayOrder' => 2},
           {'fieldName' => 'coresPerSocket', 'fieldLabel' => 'Cores Per Socket', 'type' => 'number', 'required' => true, 'defaultValue' => 1, 'displayOrder' => 3},
-          {'fieldContext' => 'config.ranges', 'fieldGroup' => 'Custom Ranges', 'fieldName' => 'minStorage', 'fieldLabel' => 'Min Storage (GB)', 'type' => 'number', 'displayOrder' => 1},
-          {'fieldContext' => 'config.ranges', 'fieldGroup' => 'Custom Ranges', 'fieldName' => 'maxStorage', 'fieldLabel' => 'Max Storage (GB)', 'type' => 'number', 'displayOrder' => 2},
+          {'fieldContext' => 'config.ranges', 'fieldGroup' => 'Custom Ranges', 'fieldName' => 'minStorage', 'fieldLabel' => 'Min Total Storage (GB)', 'type' => 'number', 'displayOrder' => 1},
+          {'fieldContext' => 'config.ranges', 'fieldGroup' => 'Custom Ranges', 'fieldName' => 'maxStorage', 'fieldLabel' => 'Max Total Storage (GB)', 'type' => 'number', 'displayOrder' => 2},
           {'fieldContext' => 'config.ranges', 'fieldGroup' => 'Custom Ranges', 'fieldName' => 'minPerDiskSize', 'fieldLabel' => 'Min Disk Size (GB)', 'type' => 'number', 'displayOrder' => 3},
           {'fieldContext' => 'config.ranges', 'fieldGroup' => 'Custom Ranges', 'fieldName' => 'maxPerDiskSize', 'fieldLabel' => 'Max Disk Size (GB)', 'type' => 'number', 'displayOrder' => 4},
           {'fieldContext' => 'config.ranges', 'fieldGroup' => 'Custom Ranges', 'fieldName' => 'minMemory', 'fieldLabel' => 'Min Memory (GB)', 'type' => 'number', 'displayOrder' => 5},
@@ -558,13 +558,13 @@ class Morpheus::Cli::ServicePlanCommand
       opts.on('--price-sets [LIST]', Array, 'Price set(s), comma separated list of price set IDs') do |list|
         params['priceSets'] = list.collect {|it| it.to_s.strip.empty? || !it.to_i ? nil : it.to_s.strip}.compact.uniq.collect {|it| {'id' => it.to_i}}
       end
-      opts.on('--min-storage NUMBER', String, "Min storage. Assumes GB unless optional modifier specified, ex: 512MB") do |val|
+      opts.on('--min-storage NUMBER', String, "Min total storage. Assumes GB unless optional modifier specified, ex: 512MB") do |val|
         # Storage doesn't get converted to bytes
         bytes = parse_bytes_param(val, '--min-storage', 'GB')
         ((params['config'] ||= {})['ranges'] ||= {})['minStorage'] = bytes[:number]
         (params['config'] ||= {})['storageSizeType'] = bytes[:unit].downcase
       end
-      opts.on('--max-storage NUMBER', String, "Max storage. Assumes GB unless optional modifier specified, ex: 512MB") do |val|
+      opts.on('--max-storage NUMBER', String, "Max total storage. Assumes GB unless optional modifier specified, ex: 512MB") do |val|
         # Storage doesn't get converted to bytes
         bytes = parse_bytes_param(val, '--max-storage', 'GB', true)
         ((params['config'] ||= {})['ranges'] ||= {})['maxStorage'] = bytes[:number]
