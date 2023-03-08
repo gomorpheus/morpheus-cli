@@ -814,7 +814,7 @@ module Morpheus
           api_params ||= {}
           api_params['query'] = query_value
           # skip refresh if you just hit enter
-          if !query_value.empty?
+          if !query_value.empty? || (select_options.nil? || select_options.empty?)
             select_options = load_options(option_type, api_client, api_params, query_value)
           end
 

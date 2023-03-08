@@ -442,7 +442,7 @@ class Morpheus::Cli::Tasks
         # Result Type
         if options[:options]['resultType']
           payload['task']['resultType'] = options[:options]['resultType']
-        else
+        elsif task_type['hasResults']
           result_types_dropdown = [{"name" => "Value", "value" => "value"}, {"name" => "Exit Code", "value" => "exitCode"}, {"name" => "Key Value", "value" => "keyValue"}, {"name" => "JSON", "value" => "json"}]
           v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'resultType', 'fieldLabel' => 'Result Type', 'type' => 'select', 'selectOptions' => result_types_dropdown}], options[:options], @api_client)
           payload['task']['resultType'] = v_prompt['resultType'] unless v_prompt['resultType'].to_s.empty?
@@ -471,6 +471,7 @@ class Morpheus::Cli::Tasks
             end
           end
         end
+        process_special_task_option_typeaheads(task_option_types)
         # inject file_params into options for file-content prompt
         # or into taskOptions.script for types not yet using file-content
         unless file_params.empty?
@@ -1293,4 +1294,24 @@ class Morpheus::Cli::Tasks
     end
   end
 
+  def process_special_task_option_typeaheads(option_types)
+    # massage special task typeaheads options
+    # this makes us all sad
+    option_types.each do |option_type|
+      if option_type['type'] == 'typeahead'
+        if ['operationalWorkflowName','containerScript','containerTemplate'].include?(option_type['code'])
+          option_type.deep_merge!({'config' => {'valueField' => 'name'}})
+        end
+      elsif option_type['type'] == 'hidden'
+        if ['operationalWorkflowId','containerScriptId','containerTemplateId'].include?(option_type['code'])
+          option_type['processValue'] = lambda {|val| 
+            if val.to_s.empty?
+              selected_option = Morpheus::Cli::OptionTypes.get_last_select()
+              selected_option ? selected_option['value'] : nil
+            end
+          }
+        end
+      end
+    end
+  end
 end
