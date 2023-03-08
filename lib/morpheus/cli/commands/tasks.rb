@@ -442,7 +442,7 @@ class Morpheus::Cli::Tasks
         # Result Type
         if options[:options]['resultType']
           payload['task']['resultType'] = options[:options]['resultType']
-        else
+        elsif task_type['hasResults']
           result_types_dropdown = [{"name" => "Value", "value" => "value"}, {"name" => "Exit Code", "value" => "exitCode"}, {"name" => "Key Value", "value" => "keyValue"}, {"name" => "JSON", "value" => "json"}]
           v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'resultType', 'fieldLabel' => 'Result Type', 'type' => 'select', 'selectOptions' => result_types_dropdown}], options[:options], @api_client)
           payload['task']['resultType'] = v_prompt['resultType'] unless v_prompt['resultType'].to_s.empty?
