@@ -781,11 +781,11 @@ class Morpheus::Cli::Apps
           print_h2 "#{app_tier['tier']['name']}", options
           print cyan
           tier_instances = (app_tier['appInstances'] || []).collect {|it| it['instance']}
-          instances = tier_instances.collect { |tier_instance| instances.find { |i| i['id'] == tier_instance['id'] } }
-          if instances.empty?
+          instance_list = tier_instances.collect { |tier_instance| instances.find { |i| i['id'] == tier_instance['id'] } }
+          if instance_list.empty?
             puts yellow, "This tier is empty", reset
           else
-            instances_rows = instances.collect do |instance|
+            instances_rows = instance_list.collect do |instance|
               connection_string = ''
               if !instance['connectionInfo'].nil? && instance['connectionInfo'].empty? == false
                 connection_string = "#{instance['connectionInfo'][0]['ip']}:#{instance['connectionInfo'][0]['port']}"
@@ -1381,7 +1381,7 @@ EOT
       opts.on( '--keep-backups', '--keep-backups', "Preserve copy of backups" ) do
         query_params[:keepBackups] = 'on'
       end
-      opts.on('--release-ips [on|off]', ['on','off'], "Release Floating IPs. Default is on. Applies to certain types only.") do |val|
+      opts.on('--release-ips [on|off]', ['on','off'], "Release Floating IPs. Default is on. Applies to certain types only. Only applies when used with --remove-instances") do |val|
         query_params[:releaseFloatingIps] = val.nil? ? 'on' : val
         query_params[:releaseEIPs] = query_params[:releaseFloatingIps] # old parameter before 6.0
       end
