@@ -178,6 +178,14 @@ class Morpheus::Cli::ServicePlanCommand
           )
         }
       end
+      if (ranges['minPerDiskSize'] && ranges['minPerDiskSize'] != '') || (ranges['maxPerDiskSize'] && ranges['maxPerDiskSize'] != '')
+        description_cols['Custom Per Disk Range'] = lambda {|it|
+          get_range(
+            ranges['minPerDiskSize'] && ranges['minPerDiskSize'] != '' ? "#{ranges['minPerDiskSize']} GB" : nil,
+            ranges['maxPerDiskSize'] && ranges['maxPerDiskSize'] != '' ? "#{ranges['maxPerDiskSize']} GB" : nil
+          )
+        }
+      end
       if (ranges['minMemory'] && ranges['minMemory'] != '') || (ranges['maxMemory'] && ranges['maxMemory'] != '')
         description_cols['Custom Memory Range'] = lambda {|it|
           get_range(
@@ -264,6 +272,9 @@ class Morpheus::Cli::ServicePlanCommand
       opts.on('--disks [NUMBER]', Integer, "Max disks allowed" ) do |val|
         params['maxDisks'] = val.to_i || 1
       end
+      opts.on('--cores-per-socket [NUMBER]', Integer, "Cores Per Socket") do |val|
+        params['coresPerSocket'] = val.to_i || 1
+      end
       opts.on('--custom-cores [on|off]', String, "Can be used to enable / disable customizable cores. Default is on") do |val|
         params['customCores'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
@@ -290,6 +301,18 @@ class Morpheus::Cli::ServicePlanCommand
         bytes = parse_bytes_param(val, '--min-storage', 'GB', true)
         ((params['config'] ||= {})['ranges'] ||= {})['minStorage'] = bytes[:number]
         (params['config'] ||= {})['storageSizeType'] = bytes[:unit].downcase
+      end
+      opts.on('--max-storage NUMBER', String, "Max storage. Assumes GB unless optional modifier specified, ex: 512MB") do |val|
+        # Storage doesn't get converted to bytes
+        bytes = parse_bytes_param(val.to_s, '--max-storage', 'GB', true)
+        ((params['config'] ||= {})['ranges'] ||= {})['maxStorage'] = bytes[:number]
+        (params['config'] ||= {})['storageSizeType'] = bytes[:unit].downcase
+      end
+      opts.on('--min-per-disk-size NUMBER', String, "Min per disk size in GB.") do |val|
+        ((params['config'] ||= {})['ranges'] ||= {})['minPerDiskSize'] = val.to_i
+      end
+      opts.on('--max-per-disk-size NUMBER', String, "Max per disk size in GB.") do |val|
+        ((params['config'] ||= {})['ranges'] ||= {})['maxPerDiskSize'] = val.to_i
       end
       opts.on('--max-storage NUMBER', String, "Max storage. Assumes GB unless optional modifier specified, ex: 512MB") do |val|
         # Storage doesn't get converted to bytes
@@ -396,12 +419,30 @@ class Morpheus::Cli::ServicePlanCommand
                   true
               )
               params['maxMemory'] = bytes[:bytes]
-              # (params['config'] ||= {})['memorySizeType'] = bytes[:unit].downcase
             rescue
               print "Invalid Value... Please try again.\n"
             end
+            params['customMaxMemory'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'customMaxMemory', 'type' => 'checkbox', 'fieldLabel' => 'Custom Max Memory', 'required' => false, 'description' => 'Custom Max Memory', 'defaultValue' => false}],options[:options],@api_client,{}, options[:no_prompt])['customMaxMemory']
           end
         end
+
+        # add'n options
+        addn_options = [
+          {'fieldName' => 'maxCores', 'fieldLabel' => 'Core Count', 'type' => 'number', 'required' => true, 'defaultValue' => 1, 'displayOrder' => 1},
+          {'fieldName' => 'customCores', 'fieldLabel' => 'Custom Cores', 'type' => 'checkbox', 'defaultValue' => false, 'displayOrder' => 2},
+          {'fieldName' => 'coresPerSocket', 'fieldLabel' => 'Cores Per Socket', 'type' => 'number', 'required' => true, 'defaultValue' => 1, 'displayOrder' => 3},
+          {'fieldContext' => 'config.ranges', 'fieldGroup' => 'Custom Ranges', 'fieldName' => 'minStorage', 'fieldLabel' => 'Min Storage (GB)', 'type' => 'number', 'displayOrder' => 1},
+          {'fieldContext' => 'config.ranges', 'fieldGroup' => 'Custom Ranges', 'fieldName' => 'maxStorage', 'fieldLabel' => 'Max Storage (GB)', 'type' => 'number', 'displayOrder' => 2},
+          {'fieldContext' => 'config.ranges', 'fieldGroup' => 'Custom Ranges', 'fieldName' => 'minPerDiskSize', 'fieldLabel' => 'Min Disk Size (GB)', 'type' => 'number', 'displayOrder' => 3},
+          {'fieldContext' => 'config.ranges', 'fieldGroup' => 'Custom Ranges', 'fieldName' => 'maxPerDiskSize', 'fieldLabel' => 'Max Disk Size (GB)', 'type' => 'number', 'displayOrder' => 4},
+          {'fieldContext' => 'config.ranges', 'fieldGroup' => 'Custom Ranges', 'fieldName' => 'minMemory', 'fieldLabel' => 'Min Memory (GB)', 'type' => 'number', 'displayOrder' => 5},
+          {'fieldContext' => 'config.ranges', 'fieldGroup' => 'Custom Ranges', 'fieldName' => 'maxMemory', 'fieldLabel' => 'Max Memory (GB)', 'type' => 'number', 'displayOrder' => 6},
+          {'fieldContext' => 'config.ranges', 'fieldGroup' => 'Custom Ranges', 'fieldName' => 'minCores', 'fieldLabel' => 'Min Cores', 'type' => 'number', 'displayOrder' => 7},
+          {'fieldContext' => 'config.ranges', 'fieldGroup' => 'Custom Ranges', 'fieldName' => 'maxCores', 'fieldLabel' => 'Max Cores', 'type' => 'number', 'displayOrder' => 8}
+        ]
+
+        v_prompt = Morpheus::Cli::OptionTypes.prompt(addn_options, options[:options], @api_client, options[:params])
+        params.deep_merge!(v_prompt)
 
         # price sets
         if params['priceSets'].nil? && !options[:no_prompt]
@@ -528,6 +569,12 @@ class Morpheus::Cli::ServicePlanCommand
         bytes = parse_bytes_param(val, '--max-storage', 'GB', true)
         ((params['config'] ||= {})['ranges'] ||= {})['maxStorage'] = bytes[:number]
         (params['config'] ||= {})['storageSizeType'] = bytes[:unit].downcase
+      end
+      opts.on('--min-per-disk-size NUMBER', String, "Min per disk size in GB.") do |val|
+        ((params['config'] ||= {})['ranges'] ||= {})['minPerDiskSize'] = val.to_i
+      end
+      opts.on('--max-per-disk-size NUMBER', String, "Max per disk size in GB.") do |val|
+        ((params['config'] ||= {})['ranges'] ||= {})['maxPerDiskSize'] = val.to_i
       end
       opts.on('--min-memory NUMBER', String, "Min memory. Assumes MB unless optional modifier specified, ex: 1GB") do |val|
         # Memory does get converted to bytes
