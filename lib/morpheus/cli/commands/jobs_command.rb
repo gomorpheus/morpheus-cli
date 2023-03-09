@@ -280,16 +280,36 @@ class Morpheus::Cli::JobsCommand
         end
         options[:type] = 'morpheus.securityScan'
       end
-      opts.on('--context-type [TYPE]', String, "Context type (instance|server|none). Default is none") do |val|
+      opts.on('--context-type [TYPE]', String, "Context type (instance|instance-label|server|server-label|none). Default is none") do |val|
+        val = val.to_s.downcase
         params['targetType'] = (val == 'none' ? 'appliance' : val)
       end
+      opts.on('--target-type [TYPE]', String, "alias for --context-type") do |val|
+        val = val.to_s.downcase
+        params['targetType'] = (val == 'none' ? 'appliance' : val)
+      end
+      opts.add_hidden_option('--target-type')
       opts.on('--instances [LIST]', Array, "Context instances(s), comma separated list of instance IDs. Incompatible with --servers") do |list|
         params['targetType'] = 'instance'
         params['targets'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq.collect {|it| {'refId' => it.to_i}}
       end
+      opts.on('--instance-label LABEL', String, "Instance Label") do |val|
+        if params['targetType'] && params['targetType'] != 'instance-label'
+          raise ::OptionParser::InvalidOption.new("cannot be combined with another context (#{params['targetType']})")
+        end
+        params['targetType'] = 'instance-label'
+        params['instanceLabel'] = val
+      end
       opts.on('--servers [LIST]', Array, "Context server(s), comma separated list of server IDs. Incompatible with --instances") do |list|
         params['targetType'] = 'server'
         params['targets'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq.collect {|it| {'refId' => it.to_i}}
+      end
+      opts.on('--server-label LABEL', String, "alias for --server-label") do |val|
+        if params['targetType'] && params['targetType'] != 'server-label'
+          raise ::OptionParser::InvalidOption.new("cannot be combined with another context (#{params['targetType']})")
+        end
+        params['targetType'] = 'server-label'
+        params['serverLabel'] = val
       end
       opts.on('-S', '--schedule [SCHEDULE]', String, "Job execution schedule type name or ID") do |val|
         options[:schedule] = val
@@ -465,8 +485,15 @@ class Morpheus::Cli::JobsCommand
           end
         end
         params['targets'] = targets.collect {|it| {'refId' => it}}
+      elsif params['targetType'] == 'instance-label'
+        if params['instanceLabel'].nil?
+          params['instanceLabel'] = Morpheus::Cli::OptionTypes.prompt([{'switch' => 'instance-label', 'fieldName' => 'instanceLabel', 'fieldLabel' => 'Instance Label', 'type' => 'text', 'required' => true, 'description' => 'Instance Label'}], options[:options], @api_client)['instanceLabel']
+        end
+      elsif params['targetType'] == 'server-label'
+        if params['serverLabel'].nil?
+          params['serverLabel'] = Morpheus::Cli::OptionTypes.prompt([{'switch' => 'server-label', 'fieldName' => 'serverLabel', 'fieldLabel' => 'Server Label', 'type' => 'text', 'required' => true, 'description' => 'Server Label'}], options[:options], @api_client)['serverLabel']
+        end
       end
-
       # schedule
       if options[:schedule].nil?
         options[:schedule] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'scheduleMode', 'fieldLabel' => "Schedule", 'type' => 'select', 'required' => true, 'selectOptions' => job_options['schedules'], 'defaultValue' => job_options['schedules'].first['name']}], options[:options], @api_client, {})['scheduleMode']

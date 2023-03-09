@@ -868,7 +868,7 @@ class Morpheus::Cli::Tasks
     all_target_types = ['appliance', 'instance', 'instance-label', 'server', 'server-label']
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[task] [options]")
-      opts.on('--target-type VALUE', String, "Context Type, #{ored_list(all_target_types)}") do |val|
+      opts.on('--context-type VALUE', String, "Context Type, #{ored_list(all_target_types)}") do |val|
         val = val.downcase
         val = 'appliance' if val == 'none'
         if target_type && target_type != val
@@ -879,6 +879,18 @@ class Morpheus::Cli::Tasks
         end
         target_type = val
       end
+      opts.on('--target-type VALUE', String, "alias for context-type") do |val|
+        val = val.downcase
+        val = 'appliance' if val == 'none'
+        if target_type && target_type != val
+          raise ::OptionParser::InvalidOption.new("cannot be combined with another context (#{target_type})")
+        end
+        if !all_target_types.include?(val)
+          raise ::OptionParser::InvalidOption.new("'#{val}' is invalid. It must be one of the following: instance, instance-label, server, server-label or appliance")
+        end
+        target_type = val
+      end
+      opts.add_hidden_option('--target-type')
       opts.on('--instance INSTANCE', String, "Instance name or id to target for execution. This option can be passed more than once.") do |val|
         if target_type && target_type != 'instance'
           raise ::OptionParser::InvalidOption.new("cannot be combined with another context (#{target_type})")
@@ -978,7 +990,7 @@ class Morpheus::Cli::Tasks
           default_target_type = available_target_types.first ? available_target_types.first['name'] : nil
           if !available_target_types.empty?
             default_target_type = available_target_types.first ? available_target_types.first['name'] : nil
-            target_type = Morpheus::Cli::OptionTypes.prompt([{'switch' => 'target-type', 'fieldName' => 'targetType', 'fieldLabel' => 'Context Type', 'type' => 'select', 'selectOptions' => available_target_types, 'defaultValue' => default_target_type, 'required' => true, 'description' => 'Context Type determines the type of target(s) for the execution'}], options[:options], @api_client)['targetType']
+            target_type = Morpheus::Cli::OptionTypes.prompt([{'switch' => 'context-type', 'fieldName' => 'targetType', 'fieldLabel' => 'Context Type', 'type' => 'select', 'selectOptions' => available_target_types, 'defaultValue' => default_target_type, 'required' => true, 'description' => 'Context Type determines the type of target(s) for the execution'}], options[:options], @api_client)['targetType']
           end
         end
         if target_type
