@@ -41,8 +41,8 @@ module Morpheus::Cli::JobsHelper
           "Created By" => lambda {|it| it[:created_by]},
           "Duration" => lambda {|it| it[:duration]},
           "Status" => lambda {|it| it[:status]},
-          "Error" => lambda {|it| options[:details] ? it[:error] : truncate_string(it[:error], 32) },
-          "Output" => lambda {|it| options[:details] ? it[:output] : truncate_string(it[:output], 32) }
+          "Error" => lambda {|it| options[:details] ? it[:error].to_s.strip : truncate_string(it[:error], 32).to_s.strip.gsub("\n", ' ') },
+          "Output" => lambda {|it| options[:details] ? it[:output].to_s.strip : truncate_string(it[:output], 32).to_s.strip.gsub("\n", ' ') }
       }
     print as_pretty_table(events.collect {|it| get_process_event_data(it)}, event_columns.upcase_keys!, options)
   end
