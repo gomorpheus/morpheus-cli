@@ -581,9 +581,15 @@ class Morpheus::Cli::JobsCommand
           options[:security_package] = val
         end
       end
-      opts.on('--context-type [TYPE]', String, "Context type (instance|server|none). Default is none") do |val|
+      opts.on('--context-type [TYPE]', String, "Context type (instance|instance-label|server|server-label|none). Default is none") do |val|
+        val = val.to_s.downcase
         params['targetType'] = (val == 'none' ? 'appliance' : val)
       end
+      opts.on('--target-type [TYPE]', String, "alias for --context-type") do |val|
+        val = val.to_s.downcase
+        params['targetType'] = (val == 'none' ? 'appliance' : val)
+      end
+      opts.add_hidden_option('--target-type')
       opts.on('--instances [LIST]', Array, "Context instances(s), comma separated list of instance IDs. Incompatible with --servers") do |list|
         params['targetType'] = 'instance'
         options[:targets] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip.to_i }.compact.uniq.collect {|it| {'refId' => it.to_i}}
