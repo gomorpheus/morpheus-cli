@@ -616,7 +616,7 @@ class Morpheus::Cli::Workflows
         target_type = 'server'
         server_ids = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
       end
-      opts.on('--server-label LABEL', String, "alias for --server-label") do |val|
+      opts.on('--server-label LABEL', String, "Server Label") do |val|
         if target_type && target_type != 'server-label'
           raise ::OptionParser::InvalidOption.new("cannot be combined with another context (#{target_type})")
         end

@@ -304,7 +304,7 @@ class Morpheus::Cli::JobsCommand
         params['targetType'] = 'server'
         params['targets'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq.collect {|it| {'refId' => it.to_i}}
       end
-      opts.on('--server-label LABEL', String, "alias for --server-label") do |val|
+      opts.on('--server-label LABEL', String, "Server Label") do |val|
         if params['targetType'] && params['targetType'] != 'server-label'
           raise ::OptionParser::InvalidOption.new("cannot be combined with another context (#{params['targetType']})")
         end
@@ -588,9 +588,23 @@ class Morpheus::Cli::JobsCommand
         params['targetType'] = 'instance'
         options[:targets] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip.to_i }.compact.uniq.collect {|it| {'refId' => it.to_i}}
       end
+      opts.on('--instance-label LABEL', String, "Instance Label") do |val|
+        if params['targetType'] && params['targetType'] != 'instance-label'
+          raise ::OptionParser::InvalidOption.new("cannot be combined with another context (#{params['targetType']})")
+        end
+        params['targetType'] = 'instance-label'
+        params['instanceLabel'] = val
+      end
       opts.on('--servers [LIST]', Array, "Context server(s), comma separated list of server IDs. Incompatible with --instances") do |list|
         params['targetType'] = 'server'
         options[:targets] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip.to_i }.compact.uniq.collect {|it| {'refId' => it.to_i}}
+      end
+      opts.on('--server-label LABEL', String, "Server Label") do |val|
+        if params['targetType'] && params['targetType'] != 'server-label'
+          raise ::OptionParser::InvalidOption.new("cannot be combined with another context (#{params['targetType']})")
+        end
+        params['targetType'] = 'server-label'
+        params['serverLabel'] = val
       end
       opts.on('--schedule [SCHEDULE]', String, "Job execution schedule type name or ID") do |val|
         options[:schedule] = val
