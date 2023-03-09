@@ -43,10 +43,10 @@ class Morpheus::JobsInterface < Morpheus::APIClient
     execute(method: :delete, url: url, headers: headers)
   end
 
-  def execute_job(id, params={})
+  def execute_job(id, payload={}, params={})
     url = "#{base_path}/#{id}/execute"
     headers = { params: params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    execute(method: :put, url: url, headers: headers)
+    execute(method: :put, url: url, headers: headers, payload: payload.to_json)
   end
 
 =begin
