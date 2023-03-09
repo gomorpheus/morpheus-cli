@@ -862,7 +862,7 @@ class Morpheus::Cli::Tasks
     instances = []
     server_ids = []
     servers = []
-    default_refresh_interval = 10
+    default_refresh_interval = 5
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[task] --instance [instance] [options]")
       opts.on('--instance INSTANCE', String, "Instance name or id to execute the task on. This option can be passed more than once.") do |val|
