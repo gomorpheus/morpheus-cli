@@ -550,40 +550,101 @@ class Morpheus::Cli::Workflows
     target_type = nil
     instance_ids = []
     instances = []
+    instance_label = nil
     server_ids = []
     servers = []
-    default_refresh_interval = 10
+    server_label = nil
+    default_refresh_interval = 5
+    all_target_types = ['appliance', 'instance', 'instance-label', 'server', 'server-label']
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[workflow] --instance [instance] [options]")
-      opts.on('--instance INSTANCE', String, "Instance name or id to execute the workflow on. This option can be passed more than once.") do |val|
+      opts.banner = subcommand_usage("[workflow] [options]")
+      opts.on('--context-type VALUE', String, "Context Type, #{ored_list(all_target_types)}") do |val|
+        val = val.downcase
+        val = 'appliance' if val == 'none'
+        if target_type && target_type != val
+          raise ::OptionParser::InvalidOption.new("cannot be combined with another context (#{target_type})")
+        end
+        if !all_target_types.include?(val)
+          raise ::OptionParser::InvalidOption.new("'#{val}' is invalid. It must be one of the following: instance, instance-label, server, server-label or appliance")
+        end
+        target_type = val
+      end
+      opts.on('--target-type VALUE', String, "alias for context-type") do |val|
+        val = val.downcase
+        val = 'appliance' if val == 'none'
+        if target_type && target_type != val
+          raise ::OptionParser::InvalidOption.new("cannot be combined with another context (#{target_type})")
+        end
+        if !all_target_types.include?(val)
+          raise ::OptionParser::InvalidOption.new("'#{val}' is invalid. It must be one of the following: instance, instance-label, server, server-label or appliance")
+        end
+        target_type = val
+      end
+      opts.add_hidden_option('--target-type')
+      opts.on('--instance INSTANCE', String, "Instance name or id to target for execution. This option can be passed more than once.") do |val|
+        if target_type && target_type != 'instance'
+          raise ::OptionParser::InvalidOption.new("cannot be combined with another context (#{target_type})")
+        end
         target_type = 'instance'
         instance_ids << val
       end
-      opts.on('--instances [LIST]', Array, "Instances, comma separated list of instance names or IDs.") do |list|
+      opts.on('--instances LIST', Array, "Instances, comma separated list of instance names or IDs.") do |list|
+        if target_type && target_type != 'instance'
+          raise ::OptionParser::InvalidOption.new("cannot be combined with another context (#{target_type})")
+        end
         target_type = 'instance'
         instance_ids = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
       end
-      opts.on('--host HOST', String, "Host name or id to execute the workflow on. This option can be passed more than once.") do |val|
+      opts.on('--instance-label LABEL', String, "Instance Label") do |val|
+        if target_type && target_type != 'instance-label'
+          raise ::OptionParser::InvalidOption.new("cannot be combined with another context (#{target_type})")
+        end
+        target_type = 'instance-label'
+        instance_label = val
+      end
+      opts.on('--server SERVER', String, "Server name or id to target for execution. This option can be passed more than once.") do |val|
+        if target_type && target_type != 'server'
+          raise ::OptionParser::InvalidOption.new("cannot be combined with another context (#{target_type})")
+        end
         target_type = 'server'
         server_ids << val
       end
-      opts.on('--hosts [LIST]', Array, "Hosts, comma separated list of host names or IDs.") do |list|
+      opts.on('--servers LIST', Array, "Servers, comma separated list of host names or IDs.") do |list|
+        if target_type && target_type != 'server'
+          raise ::OptionParser::InvalidOption.new("cannot be combined with another context (#{target_type})")
+        end
         target_type = 'server'
         server_ids = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
       end
-      opts.on('--server HOST', String, "alias for --host") do |val|
+      opts.on('--server-label LABEL', String, "Server Label") do |val|
+        if target_type && target_type != 'server-label'
+          raise ::OptionParser::InvalidOption.new("cannot be combined with another context (#{target_type})")
+        end
+        target_type = 'server-label'
+        server_label = val
+      end
+      opts.on('--host HOST', String, "alias for --server") do |val|
+        if target_type && target_type != 'server'
+          raise ::OptionParser::InvalidOption.new("cannot be combined with another context (#{target_type})")
+        end
         target_type = 'server'
         server_ids << val
       end
-      opts.on('--servers [LIST]', Array, "alias for --hosts") do |list|
+      opts.add_hidden_option('--host')
+      opts.on('--hosts HOSTS', Array, "alias for --servers") do |list|
+        if target_type && target_type != 'server'
+          raise ::OptionParser::InvalidOption.new("The --hosts option cannot be combined with another context (#{target_type})")
+        end
         target_type = 'server'
         server_ids = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
       end
+      opts.add_hidden_option('--hosts')
       opts.on('-a', '--appliance', "Execute on the appliance, the target is the appliance itself.") do
+        if target_type && target_type != 'appliance'
+          raise ::OptionParser::InvalidOption.new("The --appliance option cannot be combined with another context (#{target_type})")
+        end
         target_type = 'appliance'
       end
-      opts.add_hidden_option('--server')
-      opts.add_hidden_option('--servers')
       opts.on('--config [TEXT]', String, "Custom config") do |val|
         params['customConfig'] = val.to_s
       end
@@ -611,27 +672,55 @@ class Morpheus::Cli::Workflows
         payload = options[:payload]
         payload.deep_merge!({'job' => passed_options})  unless passed_options.empty?
       else
-        if instance_ids.size > 0 && server_ids.size > 0
-          raise_command_error "Pass --instance or --host, not both.\n#{optparse}"
-        elsif instance_ids.size > 0
+        # prompt for target type and target
+        if target_type.nil?
+          # todo: Need api to fetch available Context Types for taskId/workflowId
+          available_target_types = get_available_contexts_for_workflow(workflow)
+          default_target_type = available_target_types.first ? available_target_types.first['name'] : nil
+          if !available_target_types.empty?
+            default_target_type = available_target_types.first ? available_target_types.first['name'] : nil
+            target_type = Morpheus::Cli::OptionTypes.prompt([{'switch' => 'context-type', 'fieldName' => 'targetType', 'fieldLabel' => 'Context Type', 'type' => 'select', 'selectOptions' => available_target_types, 'defaultValue' => default_target_type, 'required' => true, 'description' => 'Context Type determines the type of target(s) for the execution'}], options[:options], @api_client)['targetType']
+          end
+        end
+        if target_type
+          params['targetType'] = target_type
+        end
+        if target_type == 'instance'
+          if instance_ids.empty?
+            instance_ids_value = Morpheus::Cli::OptionTypes.prompt([{'switch' => 'instances', 'fieldName' => 'instances', 'fieldLabel' => 'Instance(s)', 'type' => 'text', 'required' => true, 'description' => 'Instances, comma separated list of instance names or IDs.'}], options[:options], @api_client)['instances']
+            instance_ids = parse_array(instance_ids_value)
+          end
           instance_ids.each do |instance_id|
             instance = find_instance_by_name_or_id(instance_id)
             return 1 if instance.nil?
             instances << instance
           end
           params['instances'] = instances.collect {|it| it['id'] }
-        elsif server_ids.size > 0
+        elsif target_type == 'instance-label'
+          if instance_label.nil?
+            instance_label = Morpheus::Cli::OptionTypes.prompt([{'switch' => 'instance-label', 'fieldName' => 'instanceLabel', 'fieldLabel' => 'Instance Label', 'type' => 'text', 'required' => true, 'description' => 'Instance Label'}], options[:options], @api_client)['instanceLabel']
+          end
+          # params['config'] ||= {}
+          # params['config']['instanceLabel'] = instance_label
+          params['instanceLabel'] = instance_label
+        elsif target_type == 'server'
+          if server_ids.empty?
+            server_ids_value = Morpheus::Cli::OptionTypes.prompt([{'switch' => 'servers', 'fieldName' => 'servers', 'fieldLabel' => 'Server(s)', 'type' => 'text', 'required' => true, 'description' => 'Servers, comma separated list of server names or IDs.'}], options[:options], @api_client)['servers']
+            server_ids = parse_array(server_ids_value)
+          end
           server_ids.each do |server_id|
             server = find_server_by_name_or_id(server_id)
             return 1 if server.nil?
             servers << server
           end
           params['servers'] = servers.collect {|it| it['id'] }
-        elsif target_type == 'appliance'
-          # cool, run it locally.
-        else
-          # cool, run it locally.
-          #raise_command_error "missing required option: --instance, --host or --appliance\n#{optparse}"
+        elsif target_type == 'server-label'
+          if server_label.nil?
+            server_label = Morpheus::Cli::OptionTypes.prompt([{'switch' => 'server-label', 'fieldName' => 'serverLabel', 'fieldLabel' => 'Server Label', 'type' => 'text', 'required' => true, 'description' => 'Server Label'}], options[:options], @api_client)['serverLabel']
+          end
+          # params['config'] ||= {}
+          # params['config']['serverLabel'] = server_label
+          params['serverLabel'] = server_label
         end
 
         # prompt to workflow optionTypes for customOptions
@@ -642,9 +731,6 @@ class Morpheus::Cli::Workflows
             it
           }
           custom_options = Morpheus::Cli::OptionTypes.prompt(custom_option_types, options[:options], @api_client, {})
-        end
-        if target_type
-          params['targetType'] = target_type
         end
         job_payload = {}
         job_payload.deep_merge!(params)

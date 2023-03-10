@@ -41,8 +41,8 @@ module Morpheus::Cli::JobsHelper
           "Created By" => lambda {|it| it[:created_by]},
           "Duration" => lambda {|it| it[:duration]},
           "Status" => lambda {|it| it[:status]},
-          "Error" => lambda {|it| options[:details] ? it[:error] : truncate_string(it[:error], 32) },
-          "Output" => lambda {|it| options[:details] ? it[:output] : truncate_string(it[:output], 32) }
+          "Error" => lambda {|it| options[:details] ? it[:error].to_s.strip : truncate_string(it[:error], 32).to_s.strip.gsub("\n", ' ') },
+          "Output" => lambda {|it| options[:details] ? it[:output].to_s.strip : truncate_string(it[:output], 32).to_s.strip.gsub("\n", ' ') }
       }
     print as_pretty_table(events.collect {|it| get_process_event_data(it)}, event_columns.upcase_keys!, options)
   end
@@ -147,7 +147,7 @@ module Morpheus::Cli::JobsHelper
   # refresh execution request until it is finished
   # returns json response data of the last execution request when status reached 'completed' or 'failed'
   def wait_for_job_execution(job_execution_id, options={}, print_output = true)
-    refresh_interval = 10
+    refresh_interval = 5
     if options[:refresh_interval].to_i > 0
       refresh_interval = options[:refresh_interval]
     end
@@ -168,5 +168,32 @@ module Morpheus::Cli::JobsHelper
   end
 
 
+  def get_available_contexts_for_task(task)
+    #If task has target of resource, then CAN NOT run it local
+    targets = []
+    has_resource = task['executeTarget'] == 'resource'
+    if !has_resource
+      targets << {'name' => 'None', 'value' => 'appliance'}
+    end
+    targets << {'name' => 'Instance', 'value' => 'instance'}
+    targets << {'name' => 'Instance Label', 'value' => 'instance-label'}
+    targets << {'name' => 'Server', 'value' => 'server'}
+    targets << {'name' => 'Server Label', 'value' => 'server-label'}
+    return targets
+  end
+
+  def get_available_contexts_for_workflow(workflow)
+    #If any task has target of resource, then CAN NOT run it local
+    targets = []
+    has_resource = workflow['taskSetTasks'].find {|task| task['executeTarget'] == 'resource' }
+    if !has_resource
+      targets << {'name' => 'None', 'value' => 'appliance'}
+    end
+    targets << {'name' => 'Instance', 'value' => 'instance'}
+    targets << {'name' => 'Instance Label', 'value' => 'instance-label'}
+    targets << {'name' => 'Server', 'value' => 'server'}
+    targets << {'name' => 'Server Label', 'value' => 'server-label'}
+    return targets
+  end
 
 end

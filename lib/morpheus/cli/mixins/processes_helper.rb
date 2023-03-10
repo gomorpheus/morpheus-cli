@@ -88,36 +88,12 @@ module Morpheus::Cli::ProcessesHelper
 
   # decolorize, remove newlines and truncate for table cell
   def format_process_error(process, max_length=20, return_color=cyan)
-    #return max_length ? truncate_string(process['error'], max_length) :  process['error']
-    out = ""
-    if process['error']
-      # lines = process['error'].split("\n").collect {|line| reset + "#{line.to_s.strip}" }
-      # lines = process['error'].split("\n").collect {|line| "#{line.to_s.strip}" }
-      lines = [process['error']]
-      out = lines.join(" ")
-      if max_length
-        out = truncate_string(out, max_length)
-      end
-      out << return_color if return_color
-    end
-    out
+    truncate_string(process['error'].to_s.strip.gsub("\n", " "), max_length)
   end
 
   # decolorize, remove newlines and truncate for table cell
   def format_process_output(process, max_length=20, return_color=cyan)
-    return max_length ? truncate_string(process['output'], max_length) :  process['output']
-    out = ""
-    if process['output']
-      # lines = process['output'].split("\n").collect {|line| reset + "#{line.to_s.strip}" }
-      # lines = process['error'].split("\n").collect {|line| "#{line.to_s.strip}" }
-      lines = [process['output']]
-      out = lines.join(" ")
-      if max_length
-        out = truncate_string(out, max_length)
-      end
-      out << return_color if return_color
-    end
-    out
+    truncate_string(process['output'].to_s.strip.gsub("\n", " "), max_length)
   end
 
   # format for either ETA/Duration
