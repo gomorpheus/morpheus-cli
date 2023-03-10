@@ -24,6 +24,9 @@ class Morpheus::Cli::LoadBalancers
     render_response(json_response, options, rest_object_key) do
       record = json_response[rest_object_key]
       options[:exclude_username] = record['username'].nil?
+      options[:exclude_owner] = record['owner'].nil?
+      options[:exclude_tenants] = record['tenants'].nil? || record['tenants'].empty?
+      options[:exclude_permissions] = record['resourcePermission'].nil?
       print_h1 rest_label, [], options
       print cyan
       print_description_list(rest_column_definitions(options), record, options)
@@ -125,6 +128,8 @@ EOT
       "Provider ID" => 'externalId'
     }
     columns.merge!({"Username" => 'username'}) if !options[:exclude_username]
+    columns.merge!({"Owner" => lambda { |it| it['owner']['name'] rescue '' }}) if !options[:exclude_owner]
+    columns.merge!({"Tenants" => lambda { |it| it['tenants'].collect {|tenant| tenant['name']}.join(', ') rescue '' }}) if !options[:exclude_tenants]
     columns.merge({
       "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
       "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
