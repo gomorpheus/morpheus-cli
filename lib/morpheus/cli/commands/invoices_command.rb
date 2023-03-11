@@ -350,7 +350,7 @@ class Morpheus::Cli::InvoicesCommand
             if cost_rows.sum { |it| it[:extra].to_f } == 0
               cost_columns.delete("Extra".upcase)
             end
-            print as_pretty_table(cost_rows, cost_columns, options)
+            print as_pretty_table(cost_rows, cost_columns, options.merge(include_fields: nil))
           else
             print "\n"
             print yellow, "No invoice totals data", reset, "\n"
