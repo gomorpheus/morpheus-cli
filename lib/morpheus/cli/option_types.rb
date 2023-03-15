@@ -582,6 +582,9 @@ module Morpheus
 
         if no_prompt
           if !value_found
+            if default_value == ""
+              default_value = nil
+            end
             if !default_value.nil? && !select_options.nil?
               matched_option = select_options.find {|it| it[value_field].to_s == default_value.to_s }
               if matched_option.nil?
