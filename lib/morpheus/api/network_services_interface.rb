@@ -23,6 +23,22 @@ class Morpheus::NetworkServicesInterface < Morpheus::APIClient
     execute(method: :get, url: url, headers: headers)
   end
 
+  def get_server(server_id)
+    execute(method: :get, url: "#{@base_url}/api/networks/servers/#{server_id}", params: {}, headers: {})
+  end
+
+  def list_servers()
+    execute(method: :get, url: "#{@base_url}/api/networks/servers", params: {}, headers: {})
+  end
+
+  def refresh(server_id)
+    url = "#{@base_url}/api/networks/servers/#{server_id}/refresh"
+
+    headers = { :params => {}, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :post, url: url, headers: headers}
+    execute(opts)
+  end
+
   # def create(payload)
   #   url = "#{@base_url}/api/networks/services"
   #   headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
