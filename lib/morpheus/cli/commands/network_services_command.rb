@@ -107,6 +107,9 @@ class Morpheus::Cli::NetworkServicesCommand
     connect(options)
     begin
       server = find_network_server_by_name_or_id(args[0])
+      if !server
+        exit 1
+      end
      @network_services_interface.setopts(options)
       if options[:dry_run]
         print_dry_run @network_services_interface.dry.refresh(server['id'])
