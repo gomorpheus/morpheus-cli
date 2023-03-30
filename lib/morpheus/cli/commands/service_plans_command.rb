@@ -326,6 +326,18 @@ class Morpheus::Cli::ServicePlanCommand
       opts.on('--max-cores NUMBER', String, "Max cores") do |val|
         ((params['config'] ||= {})['ranges'] ||= {})['maxCores'] = val.to_i
       end
+      opts.on('--min-sockets NUMBER', String, "Min sockets") do |val|
+        ((params['config'] ||= {})['ranges'] ||= {})['minSockets'] = val.to_i
+      end
+      opts.on('--max-sockets NUMBER', String, "Max sockets") do |val|
+        ((params['config'] ||= {})['ranges'] ||= {})['maxSockets'] = val.to_i
+      end
+      opts.on('--min-cores-per-socket NUMBER', String, "Min cores per socket") do |val|
+        ((params['config'] ||= {})['ranges'] ||= {})['minCoresPerSocket'] = val.to_i
+      end
+      opts.on('--max-cores-per-socket NUMBER', String, "Max cores per socket") do |val|
+        ((params['config'] ||= {})['ranges'] ||= {})['maxCoresPerSocket'] = val.to_i
+      end
       add_perms_options(opts, options, ['plans', 'groupDefaults'])
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote, :quiet])
       opts.footer = "Create service plan"
@@ -428,6 +440,16 @@ class Morpheus::Cli::ServicePlanCommand
           {'fieldContext' => 'config.ranges', 'fieldGroup' => 'Custom Ranges', 'fieldName' => 'minCores', 'fieldLabel' => 'Min Cores', 'type' => 'number', 'displayOrder' => 7},
           {'fieldContext' => 'config.ranges', 'fieldGroup' => 'Custom Ranges', 'fieldName' => 'maxCores', 'fieldLabel' => 'Max Cores', 'type' => 'number', 'displayOrder' => 8}
         ]
+
+        if provision_type['hasSocketRange']
+          addn_options.push({'fieldContext' => 'config.ranges', 'fieldGroup' => 'Custom Ranges', 'fieldName' => 'minSockets', 'fieldLabel' => 'Min Sockets', 'type' => 'number', 'displayOrder' => 9})
+          addn_options.push({'fieldContext' => 'config.ranges', 'fieldGroup' => 'Custom Ranges', 'fieldName' => 'maxSockets', 'fieldLabel' => 'Max Sockets', 'type' => 'number', 'displayOrder' => 10})
+        end
+
+        if provision_type['hasCoresPerSocketRange']
+          addn_options.push({'fieldContext' => 'config.ranges', 'fieldGroup' => 'Custom Ranges', 'fieldName' => 'minCoresPerSocket', 'fieldLabel' => 'Min Cores Per Socket', 'type' => 'number', 'displayOrder' => 11})
+          addn_options.push({'fieldContext' => 'config.ranges', 'fieldGroup' => 'Custom Ranges', 'fieldName' => 'maxCoresPerSocket', 'fieldLabel' => 'Max Cores Per Socket', 'type' => 'number', 'displayOrder' => 12})
+        end
 
         v_prompt = Morpheus::Cli::OptionTypes.prompt(addn_options, options[:options], @api_client, params)
         params.deep_merge!(v_prompt)
@@ -575,6 +597,18 @@ class Morpheus::Cli::ServicePlanCommand
       end
       opts.on('--max-cores NUMBER', String, "Max cores") do |val|
         ((params['config'] ||= {})['ranges'] ||= {})['maxCores'] = val.to_i
+      end
+       opts.on('--min-sockets NUMBER', String, "Min sockets") do |val|
+        ((params['config'] ||= {})['ranges'] ||= {})['minSockets'] = val.to_i
+      end
+      opts.on('--max-sockets NUMBER', String, "Max sockets") do |val|
+        ((params['config'] ||= {})['ranges'] ||= {})['maxSockets'] = val.to_i
+      end
+      opts.on('--min-cores-per-socket NUMBER', String, "Min cores per socket") do |val|
+        ((params['config'] ||= {})['ranges'] ||= {})['minCoresPerSocket'] = val.to_i
+      end
+      opts.on('--max-cores-per-socket NUMBER', String, "Max cores per socket") do |val|
+        ((params['config'] ||= {})['ranges'] ||= {})['maxCoresPerSocket'] = val.to_i
       end
       add_perms_options(opts, options, ['plans', 'groupDefaults'])
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote, :quiet])
