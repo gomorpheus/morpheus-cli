@@ -787,7 +787,7 @@ module Morpheus::Cli::ProvisioningHelper
               default_resource_pool = resource_pool_options.find {|rp| rp['id'] == options[:default_resource_pool]}
             end
             if options[:options]['config']['resourcePoolId'] && !(options[:options]['config']['resourcePoolId'].to_s.include? "pool")
-              options[:options]['config']['resourcePoolId'] = "pool-" + options[:options]['config']['resourcePoolId']
+              options[:options]['config']['resourcePoolId'] = "pool-" + options[:options]['config']['resourcePoolId'].to_s
             end
             resource_pool_option_type ||= {'fieldContext' => 'config', 'fieldName' => 'resourcePoolId', 'type' => 'select', 'fieldLabel' => 'Resource Pool', 'selectOptions' => resource_pool_options, 'required' => pool_required, 'skipSingleOption' => true, 'description' => 'Select resource pool.', 'defaultValue' => default_resource_pool ? default_resource_pool['name'] : nil}
             resource_pool_prompt = Morpheus::Cli::OptionTypes.prompt([resource_pool_option_type],options[:options],api_client,{}, no_prompt, true)
