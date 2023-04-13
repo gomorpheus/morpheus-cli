@@ -426,6 +426,9 @@ module Morpheus
             opts.add_hidden_option('--no-options')
             opts.add_hidden_option('--skip-options')
             opts.add_hidden_option('--only-options')
+            
+            #hide for confusion reasons
+            opts.add_hidden_option('--payload-dir')
 
           when :payload
             opts.on('--payload FILE', String, "Payload from a local JSON or YAML file, skip all prompting") do |val|
@@ -462,6 +465,7 @@ module Morpheus
                   raise ::OptionParser::InvalidOption.new("No .json/yaml files found in config directory: #{payload_dir}")
                 end
                 payload_files.each do |payload_file|
+                  puts payload_file
                   Morpheus::Logging::DarkPrinter.puts "parsing payload file: #{payload_file}" if Morpheus::Logging.debug?
                   config_payload = {}
                   if payload_file =~ /\.ya?ml\Z/
@@ -469,6 +473,7 @@ module Morpheus
                   else
                     config_payload = JSON.parse(File.read(payload_file))
                   end
+                  puts config_payload
                   merged_payload.deep_merge!(config_payload)
                 end
                 options[:payload] = merged_payload
