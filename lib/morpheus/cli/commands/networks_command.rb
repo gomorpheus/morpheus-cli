@@ -224,6 +224,7 @@ class Morpheus::Cli::NetworksCommand
         "Pool" => lambda {|it| it['pool'] ? it['pool']['name'] : '' },
         "VPC" => lambda {|it| it['zonePool'] ? it['zonePool']['name'] : '' },
         "DHCP" => lambda {|it| it['dhcpServer'] ? 'Yes' : 'No' },
+        "IPv6 DHCP" => lambda {|it| it['dhcpServerIPv6'] ? 'Yes' : 'No' },
         "Active" => lambda {|it| format_boolean(it['active']) },
         "Allow IP Override" => lambda {|it| it['allowStaticOverride'] ? 'Yes' : 'No' },
         "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
@@ -380,6 +381,12 @@ class Morpheus::Cli::NetworksCommand
       end
       opts.on('--dhcp-server [on|off]', String, "DHCP Server") do |val|
         options['dhcpServer'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      end
+      opts.on('--dhcp-serverIPv6 [on|off]', String, "IPv6 DHCP Server") do |val|
+        options['dhcpServerIPv6'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      end
+      opts.on('--dhcp-server-ipv6 [on|off]', String, "IPv6 DHCP Server") do |val|
+        options['dhcpServerIPv6'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
       opts.on('--allow-ip-override [on|off]', String, "Allow IP Override") do |val|
         options['allowStaticOverride'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
@@ -724,6 +731,15 @@ class Morpheus::Cli::NetworksCommand
               payload['network']['dnsSecondaryIPv6'] = v_prompt['dnsSecondaryIPv6']
             end
           end
+                    # DHCP Server
+          if network_type['dhcpServerEditable'] && payload['network']['dhcpServerIPv6'].nil?
+            if options['dhcpServerIPv6'] != nil
+              payload['network']['dhcpServerIPv6'] = options['dhcpServerIPv6']
+            else
+              v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'dhcpServerIPv6', 'fieldLabel' => 'IPv6 DHCP Server', 'type' => 'checkbox', 'required' => false, 'description' => ''}], options)
+              payload['network']['dhcpServerIPv6'] = v_prompt['dhcpServerIPv6']
+            end
+          end
         end
 
 
@@ -1003,6 +1019,12 @@ class Morpheus::Cli::NetworksCommand
       opts.on('--dhcp-server [on|off]', String, "DHCP Server") do |val|
         options['dhcpServer'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
+      opts.on('--dhcp-serverIPv6 [on|off]', String, "IPv6 DHCP Server") do |val|
+        options['dhcpServerIPv6'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      end
+      opts.on('--dhcp-server-ipv6 [on|off]', String, "IPv6 DHCP Server") do |val|
+        options['dhcpServerIPv6'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      end
       opts.on('--allow-ip-override [on|off]', String, "Allow IP Override") do |val|
         options['allowStaticOverride'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
@@ -1242,6 +1264,14 @@ class Morpheus::Cli::NetworksCommand
         else
           # v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'dhcpServer', 'fieldLabel' => 'DHCP Server', 'type' => 'checkbox', 'required' => false, 'description' => ''}], options)
           # payload['network']['dhcpServer'] = v_prompt['dhcpServer']
+        end
+
+        # IPv6 DHCP Server
+        if options['dhcpServerIPv6'] != nil
+          payload['network']['dhcpServerIPv6'] = options['dhcpServerIPv6']
+        else
+          # v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'dhcpServerIPv6', 'fieldLabel' => 'IPv6 DHCP Server', 'type' => 'checkbox', 'required' => false, 'description' => ''}], options)
+          # payload['network']['dhcpServerIPv6'] = v_prompt['dhcpServerIPv6']
         end
 
         # Allow IP Override
