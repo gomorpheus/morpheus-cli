@@ -613,7 +613,7 @@ EOT
         workflow_target = val.to_s
       end
       opts.add_hidden_option('--sigdig')
-      build_standard_update_options(opts, options, [:sigdig])
+      build_standard_update_options(opts, options, [:payloads, :sigdig])
       opts.footer = <<-EOT
 Add an item to your cart
 [type] is required, this is name or id of a catalog item type.
@@ -626,13 +626,8 @@ EOT
     if args.count > 0
       type_id = args.join(" ")
     end
-    payload = {}
-    add_item_object_key = 'item'
-    payload = {add_item_object_key => {} }
-    if options[:payload]
-      payload = options[:payload]
-      payload.deep_merge!({add_item_object_key => parse_passed_options(options)})
-    else
+    payloads = parse_payloads(options) do |payload|
+      add_item_object_key = 'item'
       payload.deep_merge!({add_item_object_key => parse_passed_options(options)})
       # prompt for Type
       if type_id
@@ -725,48 +720,44 @@ EOT
     if options[:validate_only]
       params['validate'] = true
     end
-    @service_catalog_interface.setopts(options)
-    if options[:dry_run]
-      print_dry_run @service_catalog_interface.dry.create_cart_item(payload, params)
-      return
-    end
-    json_response = @service_catalog_interface.create_cart_item(payload, params)
-    cart_item = json_response['item']
-    render_response(json_response, options) do
-      if options[:validate_only]
-        if json_response['success']
-          print_h2 "Validated Cart Item", [], options
-          cart_item_columns = {
-            "Type" => lambda {|it| it['type']['name'] rescue '' },
-            #"Qty" => lambda {|it| it['quantity'] },
-            "Price" => lambda {|it| it['price'] ? format_money(it['price'] , it['currency'], {sigdig:options[:sigdig] || default_sigdig}) : "No pricing configured" },
-            "Status" => lambda {|it| 
-              status_string = format_catalog_item_status(it)
-              if it['errorMessage'].to_s != ""
-                status_string << " - #{it['errorMessage']}"
-              end
-              status_string
-            },
-            #"Config" => lambda {|it| truncate_string(format_name_values(it['config']), 50) }
-          }
-          print as_pretty_table([cart_item], cart_item_columns.upcase_keys!)
-          print reset, "\n"
-          print_green_success(json_response['msg'] || "Item is valid")
-          print reset, "\n"
-        else
-          # not needed because it will be http 400
-          print_rest_errors(json_response, options)
-        end
-      else
-        print_green_success "Added item to cart"
-        get_cart([] + (options[:remote] ? ["-r",options[:remote]] : []))
+    process_payloads(payloads, options) do |payload|
+      @service_catalog_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @service_catalog_interface.dry.create_cart_item(payload, params)
+        next
       end
-    end
-    if json_response['success']
-      return 0, nil
-    else
-      # not needed because it will be http 400
-      return 1, json_response['msg'] || 'request failed'
+      json_response = @service_catalog_interface.create_cart_item(payload, params)
+      cart_item = json_response['item']
+      render_response(json_response, options) do
+        if options[:validate_only]
+          if json_response['success']
+            print_h2 "Validated Cart Item", [], options
+            cart_item_columns = {
+              "Type" => lambda {|it| it['type']['name'] rescue '' },
+              #"Qty" => lambda {|it| it['quantity'] },
+              "Price" => lambda {|it| it['price'] ? format_money(it['price'] , it['currency'], {sigdig:options[:sigdig] || default_sigdig}) : "No pricing configured" },
+              "Status" => lambda {|it| 
+                status_string = format_catalog_item_status(it)
+                if it['errorMessage'].to_s != ""
+                  status_string << " - #{it['errorMessage']}"
+                end
+                status_string
+              },
+              #"Config" => lambda {|it| truncate_string(format_name_values(it['config']), 50) }
+            }
+            print as_pretty_table([cart_item], cart_item_columns.upcase_keys!)
+            print reset, "\n"
+            print_green_success(json_response['msg'] || "Item is valid")
+            print reset, "\n"
+          else
+            # not needed because it will be http 400
+            print_rest_errors(json_response, options)
+          end
+        else
+          print_green_success "Added item to cart"
+          get_cart([] + (options[:remote] ? ["-r",options[:remote]] : []))
+        end
+      end
     end
   end
 
