@@ -777,14 +777,20 @@ module Morpheus::Cli::ProvisioningHelper
           option_type_list = option_type_list.reject {|opt| ['resourcePool','resourcePoolId','azureResourceGroupId'].include?(opt['fieldName']) }
 
           resource_pool_options = options_interface.options_for_source('zonePools', {groupId: group_id, siteId: group_id, zoneId: cloud_id, cloudId: cloud_id, instanceTypeId: instance_type['id'], layoutId: layout["id"]}.merge(service_plan.nil? ? {} : {planId: service_plan["id"]}))['data']
-          resource_pool = resource_pool_options.find {|opt| opt['id'] == options[:resource_pool].to_i} if options[:resource_pool]
+          if options[:resource_pool]
+            resource_pool = resource_pool_options.find {|opt| opt['value'] == options[:resource_pool].to_s || opt['value'] == "pool-#{options[:resource_pool]}"}
+          end
           pool_required = provision_type["zonePoolRequired"]
-
+          # Should pool_id have the pool-,poolGroup- prefix or not?
+          use_pool_prefix = resource_pool_options.find {|opt| opt['value'].to_s.include?("pool") }
           if resource_pool
-            pool_id = resource_pool['id']
+            pool_id = resource_pool['id'] # id or value?
           else
             if options[:default_resource_pool]
               default_resource_pool = resource_pool_options.find {|rp| rp['id'] == options[:default_resource_pool]}
+            end
+            if use_pool_prefix && options[:options]['config'] && options[:options]['config']['resourcePoolId'] && !options[:options]['config']['resourcePoolId'].to_s.include?("pool")
+              options[:options]['config']['resourcePoolId'] = "pool-" + options[:options]['config']['resourcePoolId'].to_s
             end
             resource_pool_option_type ||= {'fieldContext' => 'config', 'fieldName' => 'resourcePoolId', 'type' => 'select', 'fieldLabel' => 'Resource Pool', 'selectOptions' => resource_pool_options, 'required' => pool_required, 'skipSingleOption' => true, 'description' => 'Select resource pool.', 'defaultValue' => default_resource_pool ? default_resource_pool['name'] : nil}
             resource_pool_prompt = Morpheus::Cli::OptionTypes.prompt([resource_pool_option_type],options[:options],api_client,{}, no_prompt, true)
@@ -796,7 +802,7 @@ module Morpheus::Cli::ProvisioningHelper
             elsif resource_pool_prompt[resource_pool_option_type['fieldName']]
               pool_id = resource_pool_prompt[resource_pool_option_type['fieldName']]
             end
-            resource_pool ||= resource_pool_options.find {|it| it['id'] == pool_id}
+            resource_pool ||= resource_pool_options.find {|it| it['value'].to_s == pool_id.to_s}
           end
         end
       end

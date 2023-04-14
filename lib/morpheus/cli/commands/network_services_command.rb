@@ -7,7 +7,7 @@ class Morpheus::Cli::NetworkServicesCommand
   set_command_name :'network-services'
 
   # register_subcommands :list, :get, :add, :update, :remove
-  register_subcommands :list
+  register_subcommands :list, :refresh
   
   # set_default_subcommand :list
   
@@ -90,6 +90,43 @@ class Morpheus::Cli::NetworkServicesCommand
       exit 1
     end
   end
+
+  def refresh(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[name]")
+      build_common_options(opts, options, [:auto_confirm, :quiet, :json, :dry_run, :remote])
+      opts.footer = "Refresh a network integration/server.\n" +
+                    "[name] is required. This is the name or id of a network server/integration."
+    end
+    optparse.parse!(args)
+    if args.count < 1
+      puts optparse
+      exit 1
+    end
+    connect(options)
+    begin
+      server = find_network_server_by_name_or_id(args[0])
+      if !server
+        exit 1
+      end
+     @network_services_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @network_services_interface.dry.refresh(server['id'])
+        return
+      end
+      json_response = @network_services_interface.refresh(server['id'])
+      if options[:json]
+        print JSON.pretty_generate(json_response)
+        print "\n"
+      elsif !options[:quiet]
+        print_green_success "Refreshing #{server["name"]}"
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
   
 
   private
@@ -133,6 +170,28 @@ class Morpheus::Cli::NetworkServicesCommand
       return nil
     else
       return network_services[0]
+    end
+  end
+
+  def find_network_server_by_name_or_id(val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_network_server_by_id(val)
+    else
+      return find_network_service_by_name(val)
+    end
+  end
+
+  def find_network_server_by_id(id)
+    begin
+      json_response = @network_services_interface.get_server(id.to_i)
+      return json_response['networkServer']
+    rescue RestClient::Exception => e
+      if e.response && e.response.code == 404
+        print_red_alert "Network Service not found by id #{id}"
+        return nil
+      else
+        raise e
+      end
     end
   end
 
