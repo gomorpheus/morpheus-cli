@@ -446,7 +446,8 @@ module Morpheus
                 raise ::OptionParser::InvalidOption.new("Failed to parse payload file: #{payload_file} Error: #{ex.message}")
               end
             end
-            opts.on('--payload-dir DIRECTORY', String, "Payload from a local directory containing 1-N JSON or YAML files, skip all prompting.") do |val|
+            opts.on('--payload-dir DIRECTORY', String, "Payload from a local directory containing 1-N JSON or YAML files, skip all prompting. This makes one request, merging all the files into a single payload.") do |val|
+              print_error yellow,"[DEPRECATED] The option `--payload-dir` is deprecated and will be removed. Use `--payloads` to make requests for each file in a directory.",reset,"\n"
               options[:payload_dir] = val.to_s
               payload_dir = File.expand_path(options[:payload_dir])
               if !Dir.exist?(payload_dir) || !File.directory?(payload_dir)
@@ -495,15 +496,36 @@ module Morpheus
             # --payloads test-data/item*.json
             opts.on('--payloads PATH', String, "Payload(s) from one or more local JSON or YAML files, skip all prompting and execute the request 1-N times, once for each file. PATH can be a directory or a file pattern.") do |val|
               # maybe use parse_array(val) to support csv..
+              # find files matching PATH
+              # todo: probably support recursive... can be done with '**/*.json' now though.
+              if val.to_s.strip.empty?
+                raise ::OptionParser::InvalidOption.new("PATH must be provided as directory, file or pattern to find JSON or YAML files.")
+              end
+              filepath = File.expand_path(val.to_s.strip)
+              files = []
+              if File.directory?(filepath)
+                # passed the name of a directory, include all the JSON and YAML files directly under it
+                Dir.glob(File.join(filepath, "*")).each do |file| 
+                  if File.file?(file) && ['.json','.yaml','.yml'].include?(File.extname(file))
+                    files << file
+                  end
+                end
+                if files.empty?
+                  raise ::OptionParser::InvalidOption.new("Failed to find any .json or .yaml files under the directory: #{filepath}")
+                end
+              elsif File.file?(filepath)
+                # passed the name of a file
+                files << filepath
+              else
+                # assume it is a pattern to find files with
+                files = Dir.glob(filepath)
+                if files.empty?
+                  raise ::OptionParser::InvalidOption.new("Failed to find any files matching path: #{filepath}")
+                end
+              end
+              # parse files as JSON or YAML
               options[:payload_files] ||= []
               options[:payloads] ||= []
-              # might need to check if PATH is a directory name and
-              # and find the files under it, probably support recursive...
-              file_pattern = val.to_s
-              files = Dir.glob(File.expand_path(file_pattern))
-              if files.empty?
-                raise ::OptionParser::InvalidOption.new("Failed to find any payload files matching '#{file_pattern}'")
-              end
               files.each do |file|
                 if options[:payload_files].include?(file)
                   next

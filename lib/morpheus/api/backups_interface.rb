@@ -6,6 +6,10 @@ class Morpheus::BackupsInterface < Morpheus::RestInterface
     "/api/backups"
   end
 
+  def create_options(payload, params={}, headers={})
+    execute(method: :post, url: "#{base_path}/create", params: params, payload: payload, headers: headers)
+  end
+
   def summary(params={})
     execute(method: :get, url: "#{base_path}/summary", params: params)
   end

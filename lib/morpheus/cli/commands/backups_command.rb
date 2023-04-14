@@ -10,12 +10,14 @@ class Morpheus::Cli::BackupsCommand
   
   set_command_name :'backups'
 
-  register_subcommands :list, :get #, :add, :update, :remove, :run, :restore
+  register_subcommands :list, :get, :add, :update, :remove, :run, :restore
   
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
     @backups_interface = @api_client.backups
     @backup_jobs_interface = @api_client.backup_jobs
+    @instances_interface = @api_client.instances
+    @servers_interface = @api_client.servers
   end
 
   def handle(args)
@@ -50,16 +52,12 @@ class Morpheus::Cli::BackupsCommand
       if backups.empty?
         print cyan,"No backups found.",reset,"\n"
       else
-        print as_pretty_table(backups, backup_column_definitions.upcase_keys!, options)
+        print as_pretty_table(backups, backup_list_column_definitions.upcase_keys!, options)
         print_results_pagination(json_response)
       end
       print reset,"\n"
     end
-    if backups.empty?
-      return 1, "no backups found"
-    else
-      return 0, nil
-    end
+    return 0, nil
   end
   
   def get(args)
@@ -83,6 +81,13 @@ EOT
   end
 
   def _get(id, params, options)
+    if id.to_s !~ /\A\d{1,}\Z/
+      record = find_by_name(:backup, id)
+      if record.nil?
+        return 1, "Backup not found for '#{id}'"
+      end
+      id = record['id']
+    end
     @backups_interface.setopts(options)
     if options[:dry_run]
       print_dry_run @backups_interface.dry.get(id, params)
@@ -93,7 +98,11 @@ EOT
     render_response(json_response, options, 'backup') do
       print_h1 "Backup Details", [], options
       print cyan
-      print_description_list(backup_column_definitions, backup)
+      columns = backup_column_definitions
+      columns.delete("Instance") if backup['instance'].nil?
+      columns.delete("Container ID") if backup['containerId'].nil?
+      columns.delete("Host") if backup['server'].nil?
+      print_description_list(columns, backup, options)
       print reset,"\n"
     end
     return 0, nil
@@ -104,8 +113,26 @@ EOT
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [options]")
-      build_option_type_options(opts, options, add_backup_option_types)
-      build_option_type_options(opts, options, add_backup_advanced_option_types)
+      # build_option_type_options(opts, options, add_backup_option_types)
+      opts.on('--source VALUE', String, "Backup Source: instance, host or provider") do |val|
+        options[:options]['source'] = val
+      end
+      opts.on('--instance VALUE', String, "Instance Name or ID") do |val|
+        options[:options]['source'] = 'instance'
+        options[:options]['instanceId'] = val
+      end
+      opts.on('--host VALUE', String, "Host Name or ID") do |val|
+        options[:options]['source'] = 'server'
+        options[:options]['serverId'] = val
+      end
+      opts.on('--server VALUE', String, "alias for --host") do |val|
+        options[:options]['source'] = 'server'
+        options[:options]['serverId'] = val
+      end
+      opts.add_hidden_option('--server')
+      opts.on('--name VALUE', String, "Name") do |val|
+        options[:options]['name'] = val
+      end
       build_standard_add_options(opts, options)
       opts.footer = <<-EOT
 Create a new backup.
@@ -121,11 +148,74 @@ EOT
       payload.deep_merge!({'backup' => parse_passed_options(options)})
     else
       payload.deep_merge!({'backup' => parse_passed_options(options)})
-      v_prompt = Morpheus::Cli::OptionTypes.prompt(add_backup_option_types(), options[:options], @api_client, options[:params])
-      params.deep_merge!(v_prompt)
-      advanced_config = Morpheus::Cli::OptionTypes.no_prompt(add_backup_advanced_option_types, options[:options], @api_client, options[:params])
-      advanced_config.deep_compact!
-      params.deep_merge!(advanced_config)
+
+      location_type = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'source', 'fieldLabel' => 'Source', 'type' => 'select', 'selectOptions' => [{'name' => 'Instance', 'value' => 'instance'}, {'name' => 'Host', 'value' => 'server'}, {'name' => 'Provider', 'value' => 'provider'}], 'defaultValue' => 'instance', 'required' => true, 'description' => 'Where is the backup located?'}], options[:options], @api_client)['source']
+      params['locationType'] = location_type
+      if location_type == 'instance'
+        # Instance
+        avail_instances = @instances_interface.list({max:10000})['instances'].collect {|it| {'name' => it['name'], 'value' => it['id']}}
+        params['instanceId'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'instanceId', 'fieldLabel' => 'Instance', 'type' => 'select', 'selectOptions' => avail_instances, 'required' => true}], options[:options], @api_client)['instanceId']
+        # Name
+        params['name'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Backup Name'}], options[:options], @api_client)['name']
+      elsif location_type == 'server'
+        # Server
+        avail_servers = @servers_interface.list({max:10000, 'vmHypervisor' => nil, 'containerHypervisor' => nil})['servers'].collect {|it| {'name' => it['name'], 'value' => it['id']}}
+        params['serverId'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'serverId', 'fieldLabel' => 'Host', 'type' => 'select', 'selectOptions' => avail_servers, 'required' => true}], options[:options], @api_client)['serverId']
+        # Name
+        params['name'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Backup Name'}], options[:options], @api_client)['name']
+      elsif location_type == 'provider'
+        # todo: prompt for provider inputs
+        # sourceProviderId
+        # storageProvider
+      end
+      # POST to /create to get available option info for containers, backupTypes, backupProviderTypes, etc.
+      payload['backup'].deep_merge!(params)
+      create_results = @backups_interface.create_options(payload)
+
+      if location_type == 'instance' || location_type == 'server'
+        if location_type == 'instance'
+          # Container
+          avail_containers = (create_results['containers'] || []).collect {|it| {'name' => it['name'], 'value' => it['id']} }
+          if avail_containers.empty?
+            raise_command_error "No available containers found for selected instance"
+          else
+            params['containerId'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'containerId', 'fieldLabel' => 'Container', 'type' => 'select', 'selectOptions' => avail_containers, 'defaultValue' => avail_containers[0] ? avail_containers[0]['name'] : nil, 'required' => true}], options[:options], @api_client)['containerId']
+          end
+        elsif location_type == 'server'
+          
+          
+        end
+        # Backup Type
+        avail_backup_types = (create_results['backupTypes'] || []).collect {|it| {'name' => it['name'], 'value' => it['code']} }
+        if avail_backup_types.empty?
+          raise_command_error "No available backup types found"
+        else
+          params['backupType'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'backupType', 'fieldLabel' => 'Backup Type', 'type' => 'select', 'selectOptions' => avail_backup_types, 'defaultValue' => avail_backup_types[0] ? avail_backup_types[0]['name'] : nil, 'required' => true}], options[:options], @api_client)['backupType']  
+        end
+
+        # Job / Schedule
+        params['jobAction'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'jobAction', 'fieldLabel' => 'Backup Job Type', 'type' => 'select', 'optionSource' => 'backupJobActions', 'required' => true, 'defaultValue' => 'new'}], options[:options], @api_client)['jobAction']
+        if params['jobAction'] == 'new'
+          params['jobName'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'jobName', 'fieldLabel' => 'Job Name', 'type' => 'text', 'required' => false, 'defaultValue' => nil}], options[:options], @api_client)['jobName']
+          default_retention_count = create_results['backup'] ? create_results['backup']['retentionCount'] : nil
+          params['retentionCount'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'retentionCount', 'fieldLabel' => 'Retention Count', 'type' => 'number', 'required' => false, 'defaultValue' => default_retention_count}], options[:options], @api_client)['retentionCount']
+          params['jobSchedule'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'jobSchedule', 'fieldLabel' => 'Backup Schedule', 'type' => 'select', 'optionSource' => 'executeSchedules', 'required' => true}], options[:options], @api_client)['jobSchedule']
+        elsif params['jobAction'] == 'clone'
+          params['jobId'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'jobId', 'fieldLabel' => 'Backup Job', 'type' => 'select', 'optionSource' => lambda { |api_client, api_params| 
+            @backup_jobs_interface.list({max:10000})['jobs'].collect {|backup_job|
+              {'name' => backup_job['name'], 'value' => backup_job['id'], 'id' => backup_job['id']}
+            }
+          }, 'required' => true}], options[:options], @api_client)['jobId']
+          params['jobName'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'jobName', 'fieldLabel' => 'Job Name', 'type' => 'text', 'required' => false, 'defaultValue' => nil}], options[:options], @api_client)['jobName']
+        elsif params['jobAction'] == 'addTo'
+          params['jobId'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'jobId', 'fieldLabel' => 'Backup Job', 'type' => 'select', 'optionSource' => lambda { |api_client, api_params| 
+            @backup_jobs_interface.list({max:10000})['jobs'].collect {|backup_job|
+              {'name' => backup_job['name'], 'value' => backup_job['id'], 'id' => backup_job['id']}
+            }
+          }, 'required' => true}], options[:options], @api_client)['jobId']
+        end
+      end
+
       payload['backup'].deep_merge!(params)
     end
     @backups_interface.setopts(options)
@@ -226,7 +316,7 @@ EOT
 
   private
 
-  def backup_column_definitions()
+  def backup_list_column_definitions()
     {
       "ID" => 'id',
       "Name" => 'name',
@@ -237,16 +327,40 @@ EOT
     }
   end
 
+  def backup_column_definitions()
+    {
+      "ID" => 'id',
+      "Name" => 'name',
+      "Location Type" => lambda {|it| 
+        if it['locationType'] == "instance"
+          "Instance"
+        elsif it['locationType'] == "server"
+          "Host"
+        elsif it['locationType'] == "storage"
+          "Provider"
+        end
+      },
+      "Instance" => lambda {|it| it['instance']['name'] rescue '' },
+      "Container ID" => lambda {|it| it['containerId'] rescue '' },
+      "Host" => lambda {|it| it['server']['name'] rescue '' },
+      "Schedule" => lambda {|it| it['schedule']['name'] rescue '' },
+      "Backup Job" => lambda {|it| it['job']['name'] rescue '' },
+      "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+      "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
+    }
+  end
+
   # this is not so simple, need to first choose select instance, host or provider
   def add_backup_option_types
     [
-      {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
+      {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true},
+      {'fieldName' => 'backupType', 'fieldLabel' => 'Backup Type', 'type' => 'select', 'optionSource' => 'backupTypes', 'required' => true},
+      {'fieldName' => 'jobAction', 'fieldLabel' => 'Backup Job Type', 'type' => 'select', 'optionSource' => 'backupJobActions', 'required' => true},
       {'fieldName' => 'jobId', 'fieldLabel' => 'Backup Job', 'type' => 'select', 'optionSource' => lambda { |api_client, api_params| 
-        # @options_interface.options_for_source("licenseTypes", {})['data']
-        @backup_jobs_interface.list({max:10000})['backupJobs'].collect {|backup_job|
+        @backup_jobs_interface.list({max:10000})['jobs'].collect {|backup_job|
           {'name' => backup_job['name'], 'value' => backup_job['id'], 'id' => backup_job['id']}
         }
-      }, 'required' => true, 'displayOrder' => 3},
+      }, 'required' => true},
     ]
   end
 

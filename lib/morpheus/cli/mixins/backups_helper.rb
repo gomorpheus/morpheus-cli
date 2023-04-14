@@ -12,7 +12,7 @@ module Morpheus::Cli::BackupsHelper
     @backups_interface
   end
 
-  def backup_jobs_interfaces
+  def backup_jobs_interface
     raise "#{self.class} has not defined @backup_jobs_interface" if @backup_jobs_interface.nil?
     @backup_jobs_interface
   end

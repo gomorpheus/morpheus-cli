@@ -641,7 +641,7 @@ Update an invoice.
         payload[:date] = val.to_s
       end
       opts.on( '--rebuild', "Rebuild invoices for period. Only applies to mode=costing." ) do |val|
-        query_params[:rebuild] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
+        payload[:rebuild] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
       build_standard_update_options(opts, options, [:query, :auto_confirm])
       opts.footer = <<-EOT
