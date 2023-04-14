@@ -626,8 +626,8 @@ EOT
     if args.count > 0
       type_id = args.join(" ")
     end
-    payloads = parse_payloads(options) do |payload|
-      add_item_object_key = 'item'
+    add_item_object_key = 'item'
+    payloads = parse_payloads(options, add_item_object_key) do |payload|
       payload.deep_merge!({add_item_object_key => parse_passed_options(options)})
       # prompt for Type
       if type_id
