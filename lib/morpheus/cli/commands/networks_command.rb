@@ -222,6 +222,7 @@ class Morpheus::Cli::NetworksCommand
         "Domain" => lambda {|it| it['networkDomain'] ? it['networkDomain']['name'] : '' },
         "Search Domains" => lambda {|it| it['searchDomains'] },
         "Pool" => lambda {|it| it['pool'] ? it['pool']['name'] : '' },
+        "IPv6 Pool" => lambda {|it| it['poolIPv6'] ? it['poolIPv6']['name'] : '' },
         "VPC" => lambda {|it| it['zonePool'] ? it['zonePool']['name'] : '' },
         "DHCP" => lambda {|it| it['dhcpServer'] ? 'Yes' : 'No' },
         "IPv6 DHCP" => lambda {|it| it['dhcpServerIPv6'] ? 'Yes' : 'No' },
