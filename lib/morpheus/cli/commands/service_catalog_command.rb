@@ -544,13 +544,12 @@ EOT
   def update_cart(args)
     options = {}
     params = {}
-    payload = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("--name [name]")
       opts.on('--name [NAME]', String, "Set an optional name for your catalog order") do |val|
         options[:options]['name'] = val.to_s
       end
-      build_standard_update_options(opts, options, [:sigdig])
+      build_standard_update_options(opts, options, [:payloads, :sigdig])
       opts.footer = <<-EOT
 Update your cart settings, such as name.
 EOT
@@ -560,29 +559,26 @@ EOT
     connect(options)
     # fetch current cart
     # cart = @service_catalog_interface.get_cart()['cart']
-    payload = {}
     update_cart_object_key = 'order'
-    if options[:payload]
-      payload = options[:payload]
+    payloads = parse_payloads(options, update_cart_object_key) do |payload|
       payload.deep_merge!({update_cart_object_key => parse_passed_options(options)})
-    else
-      payload.deep_merge!({update_cart_object_key => parse_passed_options(options)})
-      payload.deep_merge!({update_cart_object_key => params})
       if payload[update_cart_object_key].empty? # || options[:no_prompt]
         raise_command_error "Specify at least one option to update.\n#{optparse}"
       end
     end
-    @service_catalog_interface.setopts(options)
-    if options[:dry_run]
-      print_dry_run @service_catalog_interface.dry.update_cart(payload)
-      return
-    end
-    json_response = @service_catalog_interface.update_cart(payload)
-    #cart = json_response['cart']
-    #cart = @service_catalog_interface.get_cart()['cart']
-    render_response(json_response, options, 'cart') do
-      print_green_success "Updated cart"
-      get_cart([] + (options[:remote] ? ["-r",options[:remote]] : []))
+    process_payloads(payloads, options) do |payload|
+      @service_catalog_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @service_catalog_interface.dry.update_cart(payload)
+        next
+      end
+      json_response = @service_catalog_interface.update_cart(payload)
+      #cart = json_response['cart']
+      #cart = @service_catalog_interface.get_cart()['cart']
+      render_response(json_response, options, 'cart') do
+        print_green_success "Updated cart"
+        get_cart([] + (options[:remote] ? ["-r",options[:remote]] : []))
+      end
     end
     return 0, nil
   end
@@ -590,7 +586,6 @@ EOT
   def add(args)
     options = {}
     params = {}
-    payload = {}
     type_id = nil
     workflow_context = nil
     workflow_target = nil
@@ -613,7 +608,7 @@ EOT
         workflow_target = val.to_s
       end
       opts.add_hidden_option('--sigdig')
-      build_standard_update_options(opts, options, [:sigdig])
+      build_standard_update_options(opts, options, [:payloads, :sigdig])
       opts.footer = <<-EOT
 Add an item to your cart
 [type] is required, this is name or id of a catalog item type.
@@ -626,13 +621,8 @@ EOT
     if args.count > 0
       type_id = args.join(" ")
     end
-    payload = {}
     add_item_object_key = 'item'
-    payload = {add_item_object_key => {} }
-    if options[:payload]
-      payload = options[:payload]
-      payload.deep_merge!({add_item_object_key => parse_passed_options(options)})
-    else
+    payloads = parse_payloads(options, add_item_object_key) do |payload|
       payload.deep_merge!({add_item_object_key => parse_passed_options(options)})
       # prompt for Type
       if type_id
@@ -725,48 +715,44 @@ EOT
     if options[:validate_only]
       params['validate'] = true
     end
-    @service_catalog_interface.setopts(options)
-    if options[:dry_run]
-      print_dry_run @service_catalog_interface.dry.create_cart_item(payload, params)
-      return
-    end
-    json_response = @service_catalog_interface.create_cart_item(payload, params)
-    cart_item = json_response['item']
-    render_response(json_response, options) do
-      if options[:validate_only]
-        if json_response['success']
-          print_h2 "Validated Cart Item", [], options
-          cart_item_columns = {
-            "Type" => lambda {|it| it['type']['name'] rescue '' },
-            #"Qty" => lambda {|it| it['quantity'] },
-            "Price" => lambda {|it| it['price'] ? format_money(it['price'] , it['currency'], {sigdig:options[:sigdig] || default_sigdig}) : "No pricing configured" },
-            "Status" => lambda {|it| 
-              status_string = format_catalog_item_status(it)
-              if it['errorMessage'].to_s != ""
-                status_string << " - #{it['errorMessage']}"
-              end
-              status_string
-            },
-            #"Config" => lambda {|it| truncate_string(format_name_values(it['config']), 50) }
-          }
-          print as_pretty_table([cart_item], cart_item_columns.upcase_keys!)
-          print reset, "\n"
-          print_green_success(json_response['msg'] || "Item is valid")
-          print reset, "\n"
-        else
-          # not needed because it will be http 400
-          print_rest_errors(json_response, options)
-        end
-      else
-        print_green_success "Added item to cart"
-        get_cart([] + (options[:remote] ? ["-r",options[:remote]] : []))
+    process_payloads(payloads, options) do |payload|
+      @service_catalog_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @service_catalog_interface.dry.create_cart_item(payload, params)
+        next
       end
-    end
-    if json_response['success']
-      return 0, nil
-    else
-      # not needed because it will be http 400
-      return 1, json_response['msg'] || 'request failed'
+      json_response = @service_catalog_interface.create_cart_item(payload, params)
+      cart_item = json_response['item']
+      render_response(json_response, options) do
+        if options[:validate_only]
+          if json_response['success']
+            print_h2 "Validated Cart Item", [], options
+            cart_item_columns = {
+              "Type" => lambda {|it| it['type']['name'] rescue '' },
+              #"Qty" => lambda {|it| it['quantity'] },
+              "Price" => lambda {|it| it['price'] ? format_money(it['price'] , it['currency'], {sigdig:options[:sigdig] || default_sigdig}) : "No pricing configured" },
+              "Status" => lambda {|it| 
+                status_string = format_catalog_item_status(it)
+                if it['errorMessage'].to_s != ""
+                  status_string << " - #{it['errorMessage']}"
+                end
+                status_string
+              },
+              #"Config" => lambda {|it| truncate_string(format_name_values(it['config']), 50) }
+            }
+            print as_pretty_table([cart_item], cart_item_columns.upcase_keys!)
+            print reset, "\n"
+            print_green_success(json_response['msg'] || "Item is valid")
+            print reset, "\n"
+          else
+            # not needed because it will be http 400
+            print_rest_errors(json_response, options)
+          end
+        else
+          print_green_success "Added item to cart"
+          get_cart([] + (options[:remote] ? ["-r",options[:remote]] : []))
+        end
+      end
     end
   end
 
@@ -882,7 +868,6 @@ EOT
   def checkout(args)
     options = {}
     params = {}
-    payload = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
       build_standard_add_options(opts, options, [:auto_confirm, :sigdig])
@@ -936,7 +921,6 @@ EOT
   def add_order(args)
     options = {}
     params = {}
-    payload = {}
     type_id = nil
     workflow_context = nil
     workflow_target = nil
@@ -961,7 +945,7 @@ EOT
       opts.on('--target ID', String, "Target Resource (Instance or Server) for operational workflow types") do |val|
         workflow_target = val.to_s
       end
-      build_standard_add_options(opts, options, [:sigdig])
+      build_standard_add_options(opts, options, [:payloads, :sigdig])
       opts.footer = <<-EOT
 Place an order for new inventory.
 This allows creating a new order without using the cart.
@@ -978,14 +962,8 @@ EOT
     end
     payload = {}
     order_object_key = 'order'
-    payload = {order_object_key => {} }
-    passed_options = parse_passed_options(options)
-    if options[:payload]
-      payload = options[:payload]
-      payload.deep_merge!({order_object_key => passed_options}) unless passed_options.empty?
-    else
-      payload.deep_merge!({order_object_key => passed_options}) unless passed_options.empty?
-
+    payloads = parse_payloads(options, order_object_key) do |payload|
+      payload.deep_merge!({order_object_key => {}})
       # Prompt for 1-N Types
       # still_prompting = options[:no_prompt] != true
       still_prompting = true
@@ -1106,35 +1084,31 @@ EOT
       params['validate'] = true
       #payload['validate'] = true
     end
-    @service_catalog_interface.setopts(options)
-    if options[:dry_run]
-      print_dry_run @service_catalog_interface.dry.create_order(payload, params)
-      return
-    end
-    json_response = @service_catalog_interface.create_order(payload, params)
-    order = json_response['order'] || json_response['cart']
-    render_response(json_response, options) do
-      if options[:validate_only]
-        if json_response['success']
-          print_h2 "Review Order", [], options
-          print_order_details(order, options)
-          print_green_success(json_response['msg'] || "Order is valid")
-          print reset, "\n"
-        else
-          # not needed because it will be http 400
-          print_rest_errors(json_response, options)
-        end
-      else
-        print_green_success "Order placed"
-        print_h2 "Order Details", [], options
-        print_order_details(order, options)
+    process_payloads(payloads, options) do |payload|
+      @service_catalog_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @service_catalog_interface.dry.create_order(payload, params)
+        next
       end
-    end
-    if json_response['success']
-      return 0, nil
-    else
-      # not needed because it will be http 400
-      return 1, json_response['msg'] || 'request failed'
+      json_response = @service_catalog_interface.create_order(payload, params)
+      order = json_response['order'] || json_response['cart']
+      render_response(json_response, options) do
+        if options[:validate_only]
+          if json_response['success']
+            print_h2 "Review Order", [], options
+            print_order_details(order, options)
+            print_green_success(json_response['msg'] || "Order is valid")
+            print reset, "\n"
+          else
+            # not needed because it will be http 400
+            print_rest_errors(json_response, options)
+          end
+        else
+          print_green_success "Order placed"
+          print_h2 "Order Details", [], options
+          print_order_details(order, options)
+        end
+      end
     end
   end
 

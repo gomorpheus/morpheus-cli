@@ -10,7 +10,7 @@ class Morpheus::Cli::BackupJobsCommand
 
   set_command_name :'backup-jobs'
 
-  register_subcommands :list, :get #, :add, :update, :remove, :run
+  register_subcommands :list, :get, :add, :update, :remove, :run
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
@@ -55,11 +55,7 @@ class Morpheus::Cli::BackupJobsCommand
       end
       print reset,"\n"
     end
-    if backup_jobs.empty?
-      return 1, "no backup jobs found"
-    else
-      return 0, nil
-    end
+    return 0, nil
   end
   
   def get(args)
@@ -250,7 +246,7 @@ EOT
   def add_backup_job_option_types
     [
       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
-      {'fieldName' => 'code', 'fieldLabel' => 'Code', 'type' => 'text', 'required' => true, 'displayOrder' => 2},
+      #{'fieldName' => 'code', 'fieldLabel' => 'Code', 'type' => 'text', 'required' => false, 'displayOrder' => 2},
       {'fieldName' => 'retentionCount', 'fieldLabel' => 'Retention Count', 'type' => 'number', 'displayOrder' => 3},
       {'fieldName' => 'scheduleId', 'fieldLabel' => 'Schedule', 'type' => 'select', 'optionSource' => 'executeSchedules', 'displayOrder' => 4}, # should use jobSchedules instead maybe? do we support manual schedules for backups?
     ]

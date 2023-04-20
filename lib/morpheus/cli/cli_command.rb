@@ -293,6 +293,7 @@ module Morpheus
         #opts.separator ""
         # opts.separator "Common options:"
         option_keys = includes.clone
+        all_option_keys = option_keys.dup
         # todo: support --quiet everywhere
         # turn on some options all the time..
         # unless command_name == "shell"
@@ -445,7 +446,8 @@ module Morpheus
                 raise ::OptionParser::InvalidOption.new("Failed to parse payload file: #{payload_file} Error: #{ex.message}")
               end
             end
-            opts.on('--payload-dir DIRECTORY', String, "Payload from a local directory containing 1-N JSON or YAML files, skip all prompting.") do |val|
+            opts.on('--payload-dir DIRECTORY', String, "Payload from a local directory containing 1-N JSON or YAML files, skip all prompting. This makes one request, merging all the files into a single payload.") do |val|
+              print_error yellow,"[DEPRECATED] The option `--payload-dir` is deprecated and will be removed. Use `--payloads` to make requests for each file in a directory.",reset,"\n"
               options[:payload_dir] = val.to_s
               payload_dir = File.expand_path(options[:payload_dir])
               if !Dir.exist?(payload_dir) || !File.directory?(payload_dir)
@@ -476,6 +478,7 @@ module Morpheus
                 raise ::OptionParser::InvalidOption.new("Failed to parse payload file: #{payload_file} Error: #{ex.message}")
               end
             end
+            opts.add_hidden_option('--payload-dir')
             opts.on('--payload-json JSON', String, "Payload JSON, skip all prompting") do |val|
               begin
                 options[:payload] = JSON.parse(val.to_s)
@@ -490,7 +493,69 @@ module Morpheus
                 raise ::OptionParser::InvalidOption.new("Failed to parse payload as YAML. Error: #{ex.message}")
               end
             end
-
+            # --payloads test-data/item*.json
+            opts.on('--payloads PATH', String, "Payload(s) from one or more local JSON or YAML files, skip all prompting and execute the request 1-N times, once for each file. PATH can be a directory or a file pattern.") do |val|
+              # maybe use parse_array(val) to support csv..
+              # find files matching PATH
+              # todo: probably support recursive... can be done with '**/*.json' now though.
+              if val.to_s.strip.empty?
+                raise ::OptionParser::InvalidOption.new("PATH must be provided as directory, file or pattern to find JSON or YAML files.")
+              end
+              filepath = File.expand_path(val.to_s.strip)
+              files = []
+              if File.directory?(filepath)
+                # passed the name of a directory, include all the JSON and YAML files directly under it
+                Dir.glob(File.join(filepath, "*")).each do |file| 
+                  if File.file?(file) && ['.json','.yaml','.yml'].include?(File.extname(file))
+                    files << file
+                  end
+                end
+                if files.empty?
+                  raise ::OptionParser::InvalidOption.new("Failed to find any .json or .yaml files under the directory: #{filepath}")
+                end
+              elsif File.file?(filepath)
+                # passed the name of a file
+                files << filepath
+              else
+                # assume it is a pattern to find files with
+                files = Dir.glob(filepath)
+                if files.empty?
+                  raise ::OptionParser::InvalidOption.new("Failed to find any files matching path: #{filepath}")
+                end
+              end
+              # parse files as JSON or YAML
+              options[:payload_files] ||= []
+              options[:payloads] ||= []
+              files.each do |file|
+                if options[:payload_files].include?(file)
+                  next
+                else
+                  options[:payload_files] << file
+                end
+                payload = nil
+                begin
+                  payload_file = File.expand_path(file)
+                  if !File.exist?(payload_file) || !File.file?(payload_file)
+                    raise ::OptionParser::InvalidOption.new("File not found: #{payload_file}")
+                  end
+                  # todo: could use parse_json_or_yaml()
+                  payload = nil
+                  if payload_file =~ /\.ya?ml\Z/
+                    payload = YAML.load_file(payload_file)
+                  else
+                    payload = JSON.parse(File.read(payload_file))
+                  end
+                  options[:payloads] << payload
+                rescue => ex
+                  raise ::OptionParser::InvalidOption.new("Failed to parse payload file: #{payload_file} Error: #{ex.message}")
+                end
+              end
+            end if all_option_keys.include?(:payloads)
+            opts.on('--payloads-ignore-error', "Continue processing payloads if an error occurs. The default behavior is to stop processing when an error occurs.") do
+              options[:payloads_ignore_error] = true
+            end if all_option_keys.include?(:payloads)
+          when :payloads
+            # added under when :payloads... just need it here to avoid unknown key error
           when :list
             opts.on( '-m', '--max MAX', "Max Results" ) do |val|
               # api supports max=-1 for all at the moment..
@@ -1433,6 +1498,54 @@ module Morpheus
           apply_options(payload, options, object_key)
         end
         payload
+      end
+
+      def parse_payloads(options={}, object_key=nil, &block)
+        payloads = []
+        if options[:payload]
+          # --payload option was used
+          payload = options[:payload]
+          # support -O OPTION switch on top of --payload
+          apply_options(payload, options, object_key)
+          payloads << payload
+        elsif options[:payloads]
+          # --payloads option was used
+          payloads = options[:payloads]
+          # payloads.each { |it| apply_options(it, options, object_key) }
+        else
+          # default is to construct one using the block
+          payload = {}
+          apply_options(payload, options, object_key)
+          if block_given?
+            result = yield payload
+            #payload = result if result
+          end
+          payloads << payload
+        end
+        return payloads
+      end
+
+      def process_payloads(payloads, options, &block)
+        if !payloads.is_a?(Array) || payloads.compact.empty?
+          raise "process_payloads() requires an Array of at least one payload and instead got: (#{payloads.class}) #{payloads.inspect}"
+        end
+        results = []
+        payloads.each do |payload|
+          begin
+            result = yield payload
+            results << [0, nil]
+          rescue => e
+            if options[:payloads_ignore_error]
+              # results << [1, e.message]
+              result = Morpheus::Cli::ErrorHandler.new(my_terminal.stderr).handle_error(e) # lol
+              results << result
+              # continue
+            else
+              raise e
+            end
+          end
+        end
+        return results.last
       end
 
       def build_payload(options, object_key=nil)
