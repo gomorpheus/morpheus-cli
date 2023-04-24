@@ -551,11 +551,12 @@ module Morpheus
                 end
               end
             end if all_option_keys.include?(:payloads)
-            opts.on('--payloads-ignore-error', "Continue processing payloads if an error occurs. The default behavior is to stop processing when an error occurs.") do
-              options[:payloads_ignore_error] = true
+            opts.on('--ignore-payload-errors', "Continue processing any remaining payloads if an error occurs. The default behavior is to stop processing when an error occurs.") do
+              options[:ignore_payload_errors] = true
             end if all_option_keys.include?(:payloads)
           when :payloads
-            # added under when :payloads... just need it here to avoid unknown key error
+            # added with :payload too... just need it here to avoid unknown key error
+            # todo: remove this when every command supporting :payload is updated to use parse_payload(options) and execute_api(options)
           when :list
             opts.on( '-m', '--max MAX', "Max Results" ) do |val|
               # api supports max=-1 for all at the moment..
@@ -1490,50 +1491,76 @@ module Morpheus
         return subtitles
       end
 
-      def parse_payload(options={}, object_key=nil)
-        payload = nil
-        if options[:payload]
-          payload = options[:payload]
-          # support -O OPTION switch on top of --payload
-          apply_options(payload, options, object_key)
-        end
-        payload
-      end
-
-      def parse_payloads(options={}, object_key=nil, &block)
+      # Parse payload(s) from the standard command options or else invoke the given block. 
+      # First looks for --payload or --payload options and  if they are nil then the block is executed to establish the payload
+      # By default this also merges all the values passed with -O, --options foo="bar" into payload under the object_key context.
+      # and they are merged under the object_key context (if passed). This can be disabled with apply_options: false
+      #
+      # @param options [Hash] standard command options
+      # @option options [Hash] :payload is a Hash of objects to serialize as the payload
+      # @option options [Hash] :payloads is an array of payload objects@yield [street_name] Invokes the block with a street name for eac
+      # @option options [Boolean] :apply_options can be set to false to skip -O options merge
+      # @param object_key [String] The name of the object being constructed, -O --options will be merged under this context.
+      # @return array of payloads
+      # @yield [payload] Invokes the block to establish :payload (only when --payload(s) is not used)
+      def parse_payload(options={}, object_key=nil, &block)
         payloads = []
         if options[:payload]
           # --payload option was used
           payload = options[:payload]
           # support -O OPTION switch on top of --payload
-          apply_options(payload, options, object_key)
+          apply_options(payload, options, object_key) unless options[:apply_options] == false
           payloads << payload
         elsif options[:payloads]
           # --payloads option was used
           payloads = options[:payloads]
-          # payloads.each { |it| apply_options(it, options, object_key) }
-        else
-          # default is to construct one using the block
-          payload = {}
-          apply_options(payload, options, object_key)
-          if block_given?
-            result = yield payload
-            #payload = result if result
+          # support -O OPTION switch on top of --payloads
+          payloads.each do |payload|
+            apply_options(payload, options, object_key) unless options[:apply_options] == false
           end
-          payloads << payload
+        else
+          # yield to block to construct the payload, 
+          # this is typically where prompting for inputs with optionTypes happens
+          payload = {}
+          apply_options(payload, options, object_key) unless options[:apply_options] == false
+          if block_given?
+            yield payload
+          end
+          payloads << payloads
+          options[:payload] = payload
         end
         return payloads
       end
 
-      def process_payloads(payloads, options, &block)
+      # Executes the block with each payload (:payload or :payloads)
+      # This is a wrapper to support execution on 1-N payloads 
+      # It also looks for --ignore-payload-errors behavior to continue processing
+      # It is up to the block to actually make the api request
+      # @param options [Hash] standard command options
+      # @raise [Error] if there is no :payload or :payloads defined.
+      # @yield [payload] Yields each payload to the block
+      # @return parsed command result of the last return value of the block ie. [0, nil]
+      def each_payload(options, &block)
+        payloads = []
+        if options[:payloads]
+          payloads = options[:payloads]
+        elsif options[:payload]
+          payloads << options[:payload]
+        else
+          raise "each_payload() requires :payload or :payloads"
+        end
         if !payloads.is_a?(Array) || payloads.compact.empty?
-          raise "process_payloads() requires an Array of at least one payload and instead got: (#{payloads.class}) #{payloads.inspect}"
+          raise "each_payload() requires a payload"
+        end
+        if !block_given?
+          raise "each_payload() requires a block to process the payload(s) with"
         end
         results = []
         payloads.each do |payload|
           begin
             result = yield payload
-            results << [0, nil]
+            results << Morpheus::Cli::CliRegistry.parse_command_result(result)
+            #results << [0, nil]
           rescue => e
             if options[:payloads_ignore_error]
               # results << [1, e.message]
@@ -1548,16 +1575,60 @@ module Morpheus
         return results.last
       end
 
-      def build_payload(options, object_key=nil)
-        payload = {}
-        if options[:payload]
-          parse_payload(options, object_key)
+      # Standard handler for all commands that execute an api request.
+      # This is a wrapper to support 1-N payloads and the --ignore-payload-errors behavior to continue processing
+      # It is up to the block to handle the rendering behavior
+      # @param api_interface [APIClient] An APIClient instance
+      # @param api_method [String or Symbol] api method to invoke eg. :get, :create, :update, :destroy
+      # @param args [Array] Array of arguments to be passed to the api method, usually just the [payload] or [payload, query_params]
+      # @param options [Hash] options
+      # @param object_key [String or Symbol] name of object being constructed, used by default rendering eg. --fields id,name
+      # @yield [json_response] Invokes the block with the json response to handle rendering.
+      # @return parsed command result of the last block.call(json_response)
+      #
+      # @example Fetch first 100 backups
+      #   execute_api(@api_client.backups, :list, [{"max" => 100}], options) do |json_response|
+      #     print_green_success "Fetched first #{json_response['backups'].size} of #{json_response['meta']['total']} backups"
+      #   end
+      #
+      # @example Create a backup, uses POST with options[:payload] as the body
+      #   @options[:payload] = {"backup" => { }}
+      #   execute_api(@api_client.backups, :create, nil, options, 'backup') do |json_response|
+      #     print_green_success "Added backup #{json_response['backup']['name']}"
+      #   end
+      #
+      def execute_api(api_interface, api_method, args, options, object_key=nil, &block)
+        if options[:payload] || options[:payloads]
+          execute_api_payload(api_interface, api_method, args, options, object_key, &block)
         else
-          apply_options(payload, options, object_key)
+          execute_api_request(api_interface, api_method, args, options, object_key, &block)
         end
-        return payload
       end
 
+      # Standard handler for all POST and PUT commands commands that send a request for 1-N payloads
+      def execute_api_payload(api_interface, api_method, args, options, object_key=nil, &block)
+        args = args.is_a?(Array) ? args : [args].compact
+        each_payload(options) do |payload|
+          execute_api_request(api_interface, api_method, [payload] + args, options, object_key, &block)
+        end
+      end
+
+      # Standard handler for executing any API request
+      def execute_api_request(api_interface, api_method, args, options, object_key=nil, &block)
+        args = args.is_a?(Array) ? args : [args].compact # allow caller to pass [payload] or payload
+        api_interface.setopts(options) # this is needed to support --timeout and --headers
+        if options[:dry_run]
+          # this is a dry run
+          dry_response = api_interface.dry.send(api_method, *args)
+          print_dry_run(dry_response, options)
+        else
+          # execute the request and render the result
+          json_response = api_interface.send(api_method, *args)
+          render_response(json_response, options, object_key, &block)
+        end
+      end
+
+      # Parse an array from a string (csv)
       def parse_array(val, opts={})
         opts = {strip:true, allow_blank:false}.merge(opts)
         values = []

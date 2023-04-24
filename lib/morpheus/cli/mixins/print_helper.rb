@@ -191,7 +191,19 @@ module Morpheus::Cli::PrintHelper
     output = ""
     if api_request[:curl] || options[:curl]
       output = format_curl_command(http_method, url, headers, payload, options)
+    elsif options[:json]
+      # --dry --json should print the payload only
+      #output = as_json(payload, options)
+      #output = JSON.fast_generate(payload)
+      #output = JSON.pretty_generate(payload)
+      payload_object = payload.is_a?(String) ? JSON.parse(payload) : payload
+      output = as_json(payload_object, options)
+    elsif options[:yaml]
+      # --dry --yaml should print the payload only as yaml, this doesn't make much sense though since the API is json only..
+      payload_object = payload.is_a?(String) ? JSON.parse(payload) : payload
+      output = as_yaml(payload_object, options)
     else
+      # default format is DRY RUN with REQUEST url and JSON
       output = format_api_request(http_method, url, headers, payload, options)
     end
     # this is an extra scrub, should remove
@@ -210,14 +222,20 @@ module Morpheus::Cli::PrintHelper
     if api_request[:curl] || options[:curl]
       print "\n"
       print "#{cyan}#{bold}#{dark}CURL COMMAND#{reset}\n"
+      print output
+      print reset, "\n"
+      print reset
+    elsif options[:json] || options[:yaml]
+      # print just the just payload
+      print output, "\n"
     else
       print "\n"
       print "#{cyan}#{bold}#{dark}REQUEST#{reset}\n"
+      print output
+      print reset, "\n"
+      print reset
     end
-    print output
-    print reset, "\n"
-    print reset
-    return
+    return output
   end
 
   def print_system_command_dry_run(cmd, options={})
