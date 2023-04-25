@@ -1,4 +1,3 @@
-
 require 'morpheus/cli/cli_command'
 
 class Morpheus::Cli::BackupsCommand
@@ -143,8 +142,13 @@ EOT
     verify_args!(args:args, optparse:optparse, min:0, max:1)
     options[:options]['name'] = args[0] if args[0]
     connect(options)
-    parse_payload(options, 'backup') do |payload|
+    payload = {}
+    if options[:payload]
+      payload = options[:payload]
       payload.deep_merge!({'backup' => parse_passed_options(options)})
+    else
+      payload.deep_merge!({'backup' => parse_passed_options(options)})
+
       location_type = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'source', 'fieldLabel' => 'Source', 'type' => 'select', 'selectOptions' => [{'name' => 'Instance', 'value' => 'instance'}, {'name' => 'Host', 'value' => 'server'}, {'name' => 'Provider', 'value' => 'provider'}], 'defaultValue' => 'instance', 'required' => true, 'description' => 'Where is the backup located?'}], options[:options], @api_client)['source']
       params['locationType'] = location_type
       if location_type == 'instance'
@@ -211,13 +215,21 @@ EOT
           }, 'required' => true}], options[:options], @api_client)['jobId']
         end
       end
+
       payload['backup'].deep_merge!(params)
     end
-    execute_api(@backups_interface, :create, nil, options, 'backup') do |json_response|
-      backup = json_response['backup']
-      print_green_success "Added backup #{backup['name']}"
-      _get(backup["id"], {}, options)
+    @backups_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @backups_interface.dry.create(payload)
+      return 0, nil
     end
+    json_response = @backups_interface.create(payload)
+    backup = json_response['backup']
+    render_response(json_response, options, 'backup') do
+      print_green_success "Added backup #{backup['name']}"
+      return _get(backup["id"], {}, options)
+    end
+    return 0, nil
   end
 
   def update(args)

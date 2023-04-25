@@ -231,7 +231,9 @@ class Morpheus::Cli::ApplianceSettingsCommand
     end
 
     begin
-      parse_payload(options) do |payload|
+      payload = parse_payload(options)
+
+      if !payload
         available_zone_types = @appliance_settings_interface.cloud_types['zoneTypes']
 
         if options[:enableZoneTypes]
@@ -281,19 +283,29 @@ class Morpheus::Cli::ApplianceSettingsCommand
             exit 1
           end
         end
-        payload['applianceSettings'] = params
+
+        payload = {'applianceSettings' => params}
       end
-      execute_api(@appliance_settings_interface, :update, nil, options, "applianceSettings") do |json_response|
+
+      @appliance_settings_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @appliance_settings_interface.dry.update(payload)
+        return
+      end
+      json_response = @appliance_settings_interface.update(payload)
+
+      if options[:json]
+        puts as_json(json_response, options)
+      elsif !options[:quiet]
         if json_response['success']
           print_green_success  "Updated appliance settings"
           get([] + (options[:remote] ? ["-r",options[:remote]] : []))
         else
-          #todo: API should return 400 on error and then this is not needed
-          #print_red_alert "Error updating appliance settings"
-          print_rest_errors(json_response)
-          [1, "Error updating appliance settings"]
+          print_red_alert "Error updating appliance settings: #{json_response['msg'] || json_response['errors']}"
         end
       end
+      return 0
+
     rescue RestClient::Exception => e
       print_rest_exception(e, options)
       exit 1
