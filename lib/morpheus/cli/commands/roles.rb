@@ -255,23 +255,17 @@ EOT
       if has_group_access
         #print_h2 "Group Access: #{get_access_string(json_response['globalSiteAccess'])}", options
         print cyan
-        if json_response['sites'].find {|it| !it['access'].nil?}
-          print_h2 "Group Access", options
-          if options[:include_group_access] || options[:include_all_access]
-            rows = json_response['sites'].select {|it| !it['access'].nil?}.collect do |it|
-              {
-                name: it['name'],
-                access: format_access_string(it['access'], ["none","read","full"]),
-              }
-            end
-            print as_pretty_table(rows, [:name, :access], options)
-          else
-            print cyan,"Use -g, --group-access to list custom access","\n"
+        print_h2 "Group Access", options
+        if options[:include_group_access] || options[:include_all_access]
+          rows = json_response['sites'].collect do |it|
+            {
+              name: it['name'],
+              access: format_access_string(it['access'], ["none","read","full"]),
+            }
           end
-          # print reset,"\n"
+          print as_pretty_table(rows, [:name, :access], options)
         else
-          # print "\n"
-          # print cyan,bold,"Group Access: #{get_access_string(json_response['globalSiteAccess'])}",reset,"\n"
+          print cyan,"Use -g, --group-access to list custom access","\n"
         end
       end
 
