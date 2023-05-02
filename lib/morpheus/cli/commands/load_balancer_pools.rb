@@ -8,11 +8,13 @@ class Morpheus::Cli::LoadBalancerPools
 
   set_command_description "View and manage load balancer pools."
   set_command_name :'load-balancer-pools'
-  register_subcommands :list, :get, :add, :update, :remove
-  register_interfaces :load_balancer_pools,
-                      :load_balancers, :load_balancer_types
 
+  set_rest_interface_name :load_balancer_pools_secondary
   set_rest_parent_name :load_balancers
+
+  register_subcommands :list, :get, :add, :update, :remove
+  register_interfaces :load_balancers, :load_balancer_types
+
 
   # set_rest_interface_name :load_balancer_pools
   # set_parent_rest_interface_name :load_balancers

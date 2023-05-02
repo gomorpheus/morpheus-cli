@@ -1,9 +1,9 @@
-require 'morpheus/api/secondary_rest_interface'
+require 'morpheus/api/rest_interface'
 
-class Morpheus::LoadBalancerPoolsInterface < Morpheus::SecondaryRestInterface
+class Morpheus::LoadBalancerPoolsInterface < Morpheus::RestInterface
 
-  def base_path(load_balancer_id)
-    "/api/load-balancers/#{load_balancer_id}/pools"
+  def base_path
+    "/api/load-balancer-pools"
   end
 
 end
