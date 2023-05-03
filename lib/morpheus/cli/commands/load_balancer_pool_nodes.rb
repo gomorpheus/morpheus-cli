@@ -18,15 +18,7 @@ class Morpheus::Cli::LoadBalancerPoolNodes
 
   protected
 
-  def xload_balancer_pool_node_object_key
-    'loadBalancerNode'
-  end
-
-  def xload_balancer_pool_node_list_key
-    "#{load_balancer_pool_node_object_key}s"
-  end
-
-  def load_balancer_pool_node_list_column_definitions(options)
+  def load_balancer_node_list_column_definitions(options)
     {
       "ID" => 'id',
       "Status" => 'status',
@@ -36,7 +28,7 @@ class Morpheus::Cli::LoadBalancerPoolNodes
     }
   end
 
-  def load_balancer_pool_node_column_definitions(options)
+  def load_balancer_node_column_definitions(options)
     {
       "ID" => 'id',
       "Name" => 'name',
@@ -87,6 +79,9 @@ class Morpheus::Cli::LoadBalancerPoolNodes
     load_balancer_type['nodeOptionTypes']
   end
 
+  def find_load_balancer_node_by_name_or_id(parent_id, val)
+    (@load_balancer_pool_nodes_interface.get(parent_id, val)['loadBalancerNode']) rescue nil
+  end
   ## using CliCommand's generic find_by methods
 
 end
