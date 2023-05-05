@@ -32,6 +32,7 @@ class Morpheus::Cli::LoadBalancerPools
       "Name" => 'name',
       #"Load Balancer" => lambda {|it| it['loadBalancer'] ? it['loadBalancer']['name'] : '' },
       "Balancer Mode" => lambda {|it| it['vipBalance'] },
+      "Status" => lambda {|it| format_load_balancer_pool_status(it) }
     }
   end
 
@@ -70,7 +71,7 @@ class Morpheus::Cli::LoadBalancerPools
     status_string = record['status']
     if status_string.nil? || status_string.empty? || status_string == "unknown"
       out << "#{white}UNKNOWN#{return_color}"
-    elsif status_string == 'ok'
+    elsif status_string == 'online' || status_string == 'ok'
       out << "#{green}#{status_string.upcase}#{return_color}"
     elsif status_string == 'syncing'
       out << "#{yellow}#{status_string.upcase}#{return_color}"
