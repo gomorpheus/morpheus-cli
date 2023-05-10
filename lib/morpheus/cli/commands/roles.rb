@@ -625,11 +625,11 @@ EOT
         options[:persona_permissions] ||= {}
         parse_access_csv(options[:persona_permissions], val, args, optparse)
       end
-      opts.on('--global-vdi-pool-access-access ACCESS', String, "Update the global VDI pool access: [none|full]" ) do  |val|
+      opts.on('--global-vdi-pool-access ACCESS', String, "Update the global VDI pool access: [none|full]" ) do  |val|
         params['globalVdiPoolAccess'] = val.to_s.downcase
       end
-      opts.add_hidden_option('--global-vdi-pool-access-access')
-      opts.on('--default-vdi-pool-access-access ACCESS', String, "Update the default VDI pool access: [none|full]" ) do  |val|
+      opts.add_hidden_option('--global-vdi-pool-access')
+      opts.on('--default-vdi-pool-access ACCESS', String, "Update the default VDI pool access: [none|full]" ) do  |val|
         params['globalVdiPoolAccess'] = val.to_s.downcase
       end
       opts.on('--vdi-pools ID=ACCESS', String, "Set VDI pool to a custom access by VDI pool id. Example: 1=full,2=none" ) do |val|
