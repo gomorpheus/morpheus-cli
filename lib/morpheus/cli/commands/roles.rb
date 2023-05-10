@@ -809,7 +809,11 @@ EOT
           options[:instance_type_permissions].each do |k,v|
             instance_type_code = k
             access_value = v.to_s.empty? ? "none" : v.to_s
-            perms_array << {"code" => instance_type_code, "access" => access_value}
+            if instance_type_code =~ /\A\d{1,}\Z/
+              perms_array << {"id" => instance_type_code.to_i, "access" => access_value}
+            else
+              perms_array << {"code" => instance_type_code, "access" => access_value}
+            end
           end
           params['instanceTypes'] = perms_array
         end
@@ -867,7 +871,11 @@ EOT
           options[:report_type_permissions].each do |k,v|
             report_type_code = k
             access_value = v.to_s.empty? ? "none" : v.to_s
-            perms_array << {"code" => report_type_code, "access" => access_value}
+            if report_type_code =~ /\A\d{1,}\Z/
+              perms_array << {"id" => report_type_code.to_i, "access" => access_value}
+            else
+              perms_array << {"code" => report_type_code, "access" => access_value}
+            end
           end
           params['reportTypes'] = perms_array
         end
@@ -1162,7 +1170,11 @@ EOT
           options[:instance_type_permissions].each do |k,v|
             instance_type_code = k
             access_value = v.to_s.empty? ? "none" : v.to_s
-            perms_array << {"code" => instance_type_code, "access" => access_value}
+            if instance_type_code =~ /\A\d{1,}\Z/
+              perms_array << {"id" => instance_type_code.to_i, "access" => access_value}
+            else
+              perms_array << {"code" => instance_type_code, "access" => access_value}
+            end
           end
           params['instanceTypes'] = perms_array
         end
@@ -1220,7 +1232,11 @@ EOT
           options[:report_type_permissions].each do |k,v|
             report_type_code = k
             access_value = v.to_s.empty? ? "none" : v.to_s
-            perms_array << {"code" => report_type_code, "access" => access_value}
+            if report_type_code =~ /\A\d{1,}\Z/
+              perms_array << {"id" => report_type_code.to_i, "access" => access_value}
+            else
+              perms_array << {"code" => report_type_code, "access" => access_value}
+            end
           end
           params['reportTypes'] = perms_array
         end
