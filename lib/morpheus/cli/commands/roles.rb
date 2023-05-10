@@ -892,7 +892,7 @@ EOT
               perms_array << {"name" => workflow_id, "access" => access_value}
             end
           end
-          params['workflows'] = perms_array
+          params['taskSets'] = perms_array
         end
         if options[:reset_permissions]
           params["resetPermissions"] = true
