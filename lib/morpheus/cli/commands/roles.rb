@@ -139,6 +139,9 @@ class Morpheus::Cli::Roles
       opts.on('-a','--all', "Display All Access Lists") do
         options[:include_all_access] = true
       end
+      opts.on(nil, '--include-default-access', "Include default access levels (returns all available resources)") do
+        options[:include_default_access] = true
+      end
       opts.on('--account-id ID', String, "Clarify Owner of Role") do |val|
         if has_complete_access
           options[:account_id] = val.to_s
@@ -166,7 +169,7 @@ EOT
     account_id = account ? account['id'] : nil
 
     params.merge!(parse_query_options(options))
-
+    params['includeDefaultAccess'] = true if options[:include_default_access]
     @roles_interface.setopts(options)
     if options[:dry_run]
       if args[0].to_s =~ /\A\d{1,}\Z/
@@ -181,13 +184,13 @@ EOT
     json_response = nil
     role = nil
     if args[0].to_s =~ /\A\d{1,}\Z/
-      json_response = @roles_interface.get(account_id, args[0].to_i)
+      json_response = @roles_interface.get(account_id, args[0].to_i, params)
       role = json_response['role']
     else
       role = find_role_by_name_or_id(account_id, args[0])
       exit 1 if role.nil?
       # refetch from show action, argh
-      json_response = @roles_interface.get(account_id, role['id'])
+      json_response = @roles_interface.get(account_id, role['id'], params)
       role = json_response['role']
     end
 
@@ -273,10 +276,10 @@ EOT
         print cyan
         #puts "Cloud Access: #{get_access_string(json_response['globalZoneAccess'])}"
         #print "\n"
-        if json_response['sites'].find{|it| !it['access'].nil?}
+        if json_response['sites'].find{|it| it['access'] && it['access'] != 'default'}
           print_h2 "Cloud Access", options
           if options[:include_cloud_access] || options[:include_all_access]
-            rows = json_response['zones'].select {|it| !it['access'].nil?}.collect do |it|
+            rows = json_response['zones'].collect do |it|
               {
                 name: it['name'],
                 access: format_access_string(it['access'], ["none","read","full"]),
@@ -311,7 +314,7 @@ EOT
           }
         end
         print as_pretty_table(rows, [:name, :access], options)
-      elsif instance_type_permissions.find {|it| !it['access'].nil?}
+      elsif instance_type_permissions.find {|it| it['access'] && it['access'] != 'default'}
         print_h2 "Instance Type Access", options
         print cyan,"Use -i, --instance-type-access to list custom access","\n"
       end
@@ -321,14 +324,14 @@ EOT
       print cyan
       if options[:include_blueprint_access] || options[:include_all_access]
         print_h2 "Blueprint Access", options
-        rows = blueprint_permissions.select {|it| !it['access'].nil?}.collect do |it|
+        rows = blueprint_permissions.collect do |it|
           {
             name: it['name'],
             access: format_access_string(it['access'], ["none","read","full"]),
           }
         end
         print as_pretty_table(rows, [:name, :access], options)
-      elsif blueprint_permissions.find {|it| !it['access'].nil?}
+      elsif blueprint_permissions.find {|it| it['access'] && it['access'] != 'default'}
         print_h2 "Blueprint Access", options
         print cyan,"Use -b, --blueprint-access to list custom access","\n"
       end
@@ -338,14 +341,14 @@ EOT
       print cyan
       if options[:include_catalog_item_type_access] || options[:include_all_access]
         print_h2 "Catalog Item Type Access", options
-        rows = catalog_item_type_permissions.select {|it| !it['access'].nil?}.collect do |it|
+        rows = catalog_item_type_permissions.collect do |it|
           {
             name: it['name'],
             access: format_access_string(it['access'], ["none","read","full"]),
           }
         end
         print as_pretty_table(rows, [:name, :access], options)
-      elsif catalog_item_type_permissions.find {|it| !it['access'].nil?}
+      elsif catalog_item_type_permissions.find {|it| it['access'] && it['access'] != 'default'}
         print_h2 "Catalog Item Type Access", options
         print cyan,"Use --catalog-item-type-access to list access","\n"
       end
@@ -362,7 +365,7 @@ EOT
           }
         end
         print as_pretty_table(rows, [:name, :access], options)
-      elsif persona_permissions.find {|it| !it['access'].nil?}
+      elsif persona_permissions.find {|it| it['access'] && it['access'] != 'default'}
         print_h2 "Persona Access", options
         print cyan,"Use --persona-access to list access","\n"
       end
@@ -372,14 +375,14 @@ EOT
       print cyan
       if options[:include_vdi_pool_access] || options[:include_all_access]
         print_h2 "VDI Pool Access", options
-        rows = vdi_pool_permissions.select {|it| !it['access'].nil?}.collect do |it|
+        rows = vdi_pool_permissions.collect do |it|
           {
             name: it['name'],
             access: format_access_string(it['access'], ["none","full"]),
           }
         end
         print as_pretty_table(rows, [:name, :access], options)
-      elsif vdi_pool_permissions.find {|it| !it['access'].nil?}
+      elsif vdi_pool_permissions.find {|it| it['access'] && it['access'] != 'default'}
         print_h2 "VDI Pool Access", options
         print cyan,"Use --vdi-pool-access to list custom access","\n"
       end
@@ -389,14 +392,14 @@ EOT
       print cyan
       if options[:include_report_type_access] || options[:include_all_access]
         print_h2 "Report Type Access", options
-        rows = report_type_permissions.select {|it| !it['access'].nil?}.collect do |it|
+        rows = report_type_permissions.collect do |it|
           {
             name: it['name'],
             access: format_access_string(it['access'], ["none","full"]),
           }
         end
         print as_pretty_table(rows, [:name, :access], options)
-      elsif report_type_permissions.find {|it| !it['access'].nil?}
+      elsif report_type_permissions.find {|it| it['access'] && it['access'] != 'default'}
         print_h2 "Report Type Access", options
         print cyan,"Use --report-type-access to list custom access","\n"
       end
@@ -406,14 +409,14 @@ EOT
       print cyan
       if options[:include_task_access] || options[:include_all_access]
         print_h2 "Task Access", options
-        rows = task_permissions.select {|it| !it['access'].nil?}.collect do |it|
+        rows = task_permissions.collect do |it|
           {
             name: it['name'],
             access: format_access_string(it['access'], ["none","full"]),
           }
         end
         print as_pretty_table(rows, [:name, :access], options)
-      elsif task_permissions.find {|it| !it['access'].nil?}
+      elsif task_permissions.find {|it| it['access'] && it['access'] != 'default'}
         print_h2 "Task Access", options
         print cyan,"Use --task-access to list custom access","\n"
       end
@@ -423,14 +426,14 @@ EOT
       print cyan
       if options[:include_workflow_access] || options[:include_all_access]
         print_h2 "Workflow", options
-        rows = workflow_permissions.select {|it| !it['access'].nil?}.collect do |it|
+        rows = workflow_permissions.collect do |it|
           {
             name: it['name'],
             access: format_access_string(it['access'], ["none","full"]),
           }
         end
         print as_pretty_table(rows, [:name, :access], options)
-      elsif workflow_permissions.find {|it| !it['access'].nil?}
+      elsif workflow_permissions.find {|it| it['access'] && it['access'] != 'default'}
         print_h2 "Workflow", options
         print cyan,"Use --workflow-access to list custom access","\n"
       end

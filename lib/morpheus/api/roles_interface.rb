@@ -2,10 +2,10 @@ require 'morpheus/api/api_client'
 
 class Morpheus::RolesInterface < Morpheus::APIClient
 
-  def get(account_id, id)
+  def get(account_id, id, params={})
     raise "#{self.class}.get() passed a blank id!" if id.to_s == ''
     url = build_url(account_id, id)
-    headers = { params: {}, authorization: "Bearer #{@access_token}" }
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
     execute(method: :get, url: url, headers: headers)
   end
 
