@@ -406,7 +406,7 @@ EOT
       print cyan
       if options[:include_task_access] || options[:include_all_access]
         print_h2 "Task Access", options
-        rows = task_permissions.collect do |it|
+        rows = task_permissions.select {|it| !it['access'].nil?}.collect do |it|
           {
             name: it['name'],
             access: format_access_string(it['access'], ["none","full"]),
