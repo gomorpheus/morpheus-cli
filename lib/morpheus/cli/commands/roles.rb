@@ -204,20 +204,20 @@ EOT
 
       print_h2 "Permissions", options
       print cyan
+      permissions = json_response['featurePermissions'] || role['permissions'] || []
       if options[:include_feature_access] || options[:include_all_access]
-        rows = json_response['featurePermissions'].collect do |it|
+        rows = permissions.collect do |it|
           {
             code: it['code'],
             name: it['name'],
-            subCategory: it['subCategory'],
+            category: it['subCategory'].to_s.titleize,
             access: format_access_string(it['access']),
           }
         end
-        if !options[:include_default_access]
-          rows = rows.select {|row| row[:access] && row[:access] != 'default '}
-        end
         if options[:sort]
           rows.sort! {|a,b| a[options[:sort]] <=> b[options[:sort]] }
+        else
+          rows.sort! {|a,b| [a[:category],a[:name],a[:code]] <=> [b[:category],b[:name],b[:code]] }
         end
         if options[:direction] == 'desc'
           rows.reverse!
@@ -226,7 +226,7 @@ EOT
           phrase_regexp = /#{Regexp.escape(options[:phrase])}/i
           rows = rows.select {|row| row[:code].to_s =~ phrase_regexp || row[:name].to_s =~ phrase_regexp }
         end
-        print as_pretty_table(rows, [:code, :name, :subCategory, :access], options)
+        print as_pretty_table(rows, [:category, :name, :code, :access], options)
         # print reset,"\n"
       else
         print cyan,"Use --feature-access to list feature access","\n"
@@ -554,11 +554,14 @@ EOT
           {
             code: it['code'],
             name: it['name'],
+            category: it['subCategory'].to_s.upcase.to_s.titleize,
             access: format_access_string(it['access']),
           }
         end
         if options[:sort]
           rows.sort! {|a,b| a[options[:sort]] <=> b[options[:sort]] }
+        else
+          rows.sort! {|a,b| [a[:category],a[:name],a[:code]] <=> [b[:category],b[:name],b[:code]] }
         end
         if options[:direction] == 'desc'
           rows.reverse!
@@ -567,7 +570,7 @@ EOT
           phrase_regexp = /#{Regexp.escape(options[:phrase])}/i
           rows = rows.select {|row| row[:code].to_s =~ phrase_regexp || row[:name].to_s =~ phrase_regexp }
         end
-        print as_pretty_table(rows, [:code, :name, :access], options)
+        print as_pretty_table(rows, [:category, :name, :code, :access], options)
       else
         puts "No permissions found"
       end
