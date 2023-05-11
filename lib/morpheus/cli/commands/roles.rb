@@ -2514,10 +2514,15 @@ Update default workflow access for a role.
     val.split(",").each do |value_pair|
       # split on '=' only because ':' is included in the permission name
       k,v = value_pair.include?("=") ? value_pair.strip.split("=") : [value_pair, ""]
-      k.strip!
-      v.strip!
-      if v == "" 
-        raise_command_error "permission '#{k}=#{v}' is invalid. The access code must be a value like [default|none|read|full]", args, optparse
+      next if k.to_s.empty?
+      k = k.to_s.strip
+      v = v.to_s.strip
+      if k.empty?
+        # ignore blank values, extra comma maybe?
+        next
+      end
+      if v == ""
+        raise_command_error "permission '#{k}=#{v}' is invalid. The access value is required eg. [default|none|read|full]"
       end
       output[k] = v
     end
