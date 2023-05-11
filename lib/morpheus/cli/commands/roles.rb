@@ -554,7 +554,7 @@ EOT
           {
             code: it['code'],
             name: it['name'],
-            category: it['subCategory'].to_s.upcase.to_s.titleize,
+            category: it['subCategory'].to_s.titleize,
             access: format_access_string(it['access']),
           }
         end
