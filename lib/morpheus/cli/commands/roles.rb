@@ -653,6 +653,13 @@ EOT
           params['roleType'] = 'user'
         end
 
+        if options[:cloud_permissions] && params['roleType'] == 'user'
+          raise_command_error "The --clouds option is only available for user roles, not account roles"
+        end
+        if options[:group_permissions] && params['roleType'] == 'account'
+          raise_command_error "The --groups option is only available for account roles, not user roles"
+        end
+
         v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'baseRole', 'fieldLabel' => 'Copy From Role', 'type' => 'select', 'selectOptions' => base_role_options(params), 'displayOrder' => 5}], options[:options])
         if v_prompt['baseRole'].to_s != ''
           base_role = find_role_by_name_or_id(account_id, v_prompt['baseRole'])
@@ -777,7 +784,12 @@ EOT
           prompt_option_types = prompt_option_types.reject {|it| ['multitenant','multitenantLocked'].include?(it['fieldName']) }
         end
         #params = Morpheus::Cli::OptionTypes.prompt(prompt_option_types, options[:options], @api_client, options[:params])
-        
+        if options[:cloud_permissions] && role['roleType'] == 'user'
+          raise_command_error "The --clouds option is only available for user roles, not account roles"
+        end
+        if options[:group_permissions] && role['roleType'] == 'account'
+          raise_command_error "The --groups option is only available for account roles, not user roles"
+        end
         # bulk role permissions
         parse_role_access_options(options, params)
 
@@ -2695,7 +2707,6 @@ Update default workflow access for a role.
         else
           perms_array << {"name" => zone_id, "access" => access_value}
         end
-        perms_array << {"id" => zone_id, "access" => access_value}
       end
       params['zones'] = perms_array
     end
