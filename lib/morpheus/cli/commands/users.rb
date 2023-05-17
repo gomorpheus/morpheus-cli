@@ -297,7 +297,29 @@ EOT
             if access.count > 0
               access.each {|it| it['access'] = format_access_string(it['access'], available_access_levels)}
 
-              if ['features', 'instance_types'].include?(field)
+              if ['features'].include?(field)
+                if access.find {|it| !it['subCategory'].to_s.empty? }
+                  rows = access.collect do |it|
+                    {
+                      code: it['code'],
+                      name: it['name'],
+                      category: it['subCategory'].to_s.titleize,
+                      access: format_access_string(it['access']),
+                    }
+                  end
+                  if options[:sort]
+                    rows.sort! {|a,b| a[options[:sort]] <=> b[options[:sort]] }
+                  else
+                    rows.sort! {|a,b| [a[:category],a[:name],a[:code]] <=> [b[:category],b[:name],b[:code]] }
+                  end
+                  if options[:direction] == 'desc'
+                    rows.reverse!
+                  end
+                  print as_pretty_table(rows, [:category, :name, :code, :access], options)
+                else
+                  print as_pretty_table(access, [:name, :code, :access], options)
+                end
+              elsif ['instance_types','report_types'].include?(field)
                 print as_pretty_table(access, [:name, :code, :access], options)
               else
                 print as_pretty_table(access, [:name, :access], options)
@@ -422,7 +444,29 @@ EOT
             if access.count > 0
               access.each {|it| it['access'] = format_access_string(it['access'], available_access_levels)}
 
-              if ['features', 'instance_types', 'report_types'].include?(field)
+              if ['features'].include?(field)
+                if access.find {|it| !it['subCategory'].to_s.empty? }
+                  rows = access.collect do |it|
+                    {
+                      code: it['code'],
+                      name: it['name'],
+                      category: it['subCategory'].to_s.titleize,
+                      access: format_access_string(it['access']),
+                    }
+                  end
+                  if options[:sort]
+                    rows.sort! {|a,b| a[options[:sort]] <=> b[options[:sort]] }
+                  else
+                    rows.sort! {|a,b| [a[:category],a[:name],a[:code]] <=> [b[:category],b[:name],b[:code]] }
+                  end
+                  if options[:direction] == 'desc'
+                    rows.reverse!
+                  end
+                  print as_pretty_table(rows, [:category, :name, :code, :access], options)
+                else
+                  print as_pretty_table(access, [:name, :code, :access], options)
+                end
+              elsif ['instance_types','report_types'].include?(field)
                 print as_pretty_table(access, [:name, :code, :access], options)
               else
                 print as_pretty_table(access, [:name, :access], options)

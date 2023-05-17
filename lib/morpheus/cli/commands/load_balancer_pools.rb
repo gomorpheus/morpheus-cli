@@ -8,11 +8,13 @@ class Morpheus::Cli::LoadBalancerPools
 
   set_command_description "View and manage load balancer pools."
   set_command_name :'load-balancer-pools'
-  register_subcommands :list, :get, :add, :update, :remove
-  register_interfaces :load_balancer_pools,
-                      :load_balancers, :load_balancer_types
 
+  set_rest_interface_name :load_balancer_pools_secondary
   set_rest_parent_name :load_balancers
+
+  register_subcommands :list, :get, :add, :update, :remove
+  register_interfaces :load_balancers, :load_balancer_types
+
 
   # set_rest_interface_name :load_balancer_pools
   # set_parent_rest_interface_name :load_balancers
@@ -30,6 +32,7 @@ class Morpheus::Cli::LoadBalancerPools
       "Name" => 'name',
       #"Load Balancer" => lambda {|it| it['loadBalancer'] ? it['loadBalancer']['name'] : '' },
       "Balancer Mode" => lambda {|it| it['vipBalance'] },
+      "Status" => lambda {|it| format_load_balancer_pool_status(it) }
     }
   end
 
@@ -68,7 +71,7 @@ class Morpheus::Cli::LoadBalancerPools
     status_string = record['status']
     if status_string.nil? || status_string.empty? || status_string == "unknown"
       out << "#{white}UNKNOWN#{return_color}"
-    elsif status_string == 'ok'
+    elsif status_string == 'online' || status_string == 'ok'
       out << "#{green}#{status_string.upcase}#{return_color}"
     elsif status_string == 'syncing'
       out << "#{yellow}#{status_string.upcase}#{return_color}"

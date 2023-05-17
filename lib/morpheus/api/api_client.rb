@@ -492,12 +492,20 @@ class Morpheus::APIClient
     Morpheus::LoadBalancerPoolsInterface.new(common_interface_options).setopts(@options)
   end
 
+  def load_balancer_pools_secondary
+    Morpheus::LoadBalancerPoolsSecondaryInterface.new(common_interface_options).setopts(@options)
+  end
+
   def load_balancer_profiles
     Morpheus::LoadBalancerProfilesInterface.new(common_interface_options).setopts(@options)
   end
 
   def load_balancer_monitors
     Morpheus::LoadBalancerMonitorsInterface.new(common_interface_options).setopts(@options)
+  end
+
+  def load_balancer_pool_nodes
+    Morpheus::LoadBalancerPoolNodesInterface.new(common_interface_options).setopts(@options)
   end
 
   def tasks

@@ -719,7 +719,7 @@ module Morpheus::Cli::ProvisioningHelper
     service_plan = nil
 
     prompt_service_plan = -> {
-      service_plans_json = instances_interface.service_plans({zoneId: cloud_id, layoutId: layout['id'], siteId: group_id}.merge(resource_pool.nil? ? {} : {'resourcePoolId' => resource_pool['id']}))
+      service_plans_json = instances_interface.service_plans({zoneId: cloud_id, layoutId: layout['id'], siteId: group_id}.merge(resource_pool.nil? ? {} : {'poolId' => resource_pool['id'], 'resourcePoolId' => resource_pool['id']}))
       service_plans = service_plans_json["plans"]
       if locked_fields.include?('plan.id')
         plan_id = options[:options]['plan']['id'] rescue nil
@@ -773,8 +773,8 @@ module Morpheus::Cli::ProvisioningHelper
         has_zone_pools = provision_type && provision_type["id"] && provision_type["hasZonePools"]
         if has_zone_pools
           # pluck out the resourcePoolId option type to prompt for
-          resource_pool_option_type = option_type_list.find {|opt| ['resourcePool','resourcePoolId','azureResourceGroupId'].include?(opt['fieldName']) }
-          option_type_list = option_type_list.reject {|opt| ['resourcePool','resourcePoolId','azureResourceGroupId'].include?(opt['fieldName']) }
+          resource_pool_option_type = option_type_list.find {|opt| ['poolId','resourcePool','resourcePoolId','azureResourceGroupId'].include?(opt['fieldName']) }
+          option_type_list = option_type_list.reject {|opt| ['poolId','resourcePool','resourcePoolId','azureResourceGroupId'].include?(opt['fieldName']) }
 
           resource_pool_options = options_interface.options_for_source('zonePools', {groupId: group_id, siteId: group_id, zoneId: cloud_id, cloudId: cloud_id, instanceTypeId: instance_type['id'], layoutId: layout["id"]}.merge(service_plan.nil? ? {} : {planId: service_plan["id"]}))['data']
           if options[:resource_pool]
@@ -836,7 +836,7 @@ module Morpheus::Cli::ProvisioningHelper
       # add selectable datastores for resource pool
       if options[:select_datastore]
         begin
-          selectable_datastores = datastores_interface.list({'zoneId' => cloud_id, 'siteId' => group_id, 'resourcePoolId' => resource_pool['id']})
+          selectable_datastores = datastores_interface.list({'zoneId' => cloud_id, 'siteId' => group_id, 'poolId' => resource_pool['id'], 'resourcePoolId' => resource_pool['id']})
           service_plan['datastores'] = {'clusters' => [], 'datastores' => []}
           ['clusters', 'datastores'].each do |type|
             service_plan['datastores'][type] ||= []
@@ -1538,7 +1538,7 @@ module Morpheus::Cli::ProvisioningHelper
             
             if datastore_options.empty? && storage_type['hasDatastore'] != false
               begin
-                datastore_res = datastores_interface.list({'resourcePoolId' => current_root_volume['resourcePoolId'], 'zoneId' => options['zoneId'], 'siteId' => options['siteId']})['datastores']
+                datastore_res = datastores_interface.list({'poolId' => current_root_volume['resourcePoolId'], 'resourcePoolId' => current_root_volume['resourcePoolId'], 'zoneId' => options['zoneId'], 'siteId' => options['siteId']})['datastores']
                 datastore_res.each do |opt|
                   datastore_options << {'name' => opt['name'], 'value' => opt['id']}
                 end
@@ -1578,7 +1578,7 @@ module Morpheus::Cli::ProvisioningHelper
     no_prompt = (options[:no_prompt] || (options[:options] && options[:options][:no_prompt]))
     network_interfaces = []
     api_params = {zoneId: zone_id, provisionTypeId: provision_type_id}.merge(options[:api_params] || {})
-    if pool_id.to_s =~ /\A\d{1,}\Z/
+    if pool_id
       api_params[:poolId] = pool_id 
     end
 

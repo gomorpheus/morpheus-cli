@@ -2,10 +2,10 @@ require 'morpheus/api/api_client'
 
 class Morpheus::RolesInterface < Morpheus::APIClient
 
-  def get(account_id, id)
+  def get(account_id, id, params={})
     raise "#{self.class}.get() passed a blank id!" if id.to_s == ''
     url = build_url(account_id, id)
-    headers = { params: {}, authorization: "Bearer #{@access_token}" }
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
     execute(method: :get, url: url, headers: headers)
   end
 
@@ -21,24 +21,24 @@ class Morpheus::RolesInterface < Morpheus::APIClient
     execute(method: :get, url: url, headers: headers)
   end
 
-  def create(account_id, options)
+  def create(account_id, options, params={})
     url = build_url(account_id)
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     payload = options
-    execute(method: :post, url: url, headers: headers, payload: payload.to_json)
+    execute(method: :post, url: url, headers: headers, payload: payload.to_json, params: params)
   end
 
-  def update(account_id, id, options)
+  def update(account_id, id, options, params={})
     url = build_url(account_id, id)
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     payload = options
-    execute(method: :put, url: url, headers: headers, payload: payload.to_json)
+    execute(method: :put, url: url, headers: headers, payload: payload.to_json, params: params)
   end
 
-  def destroy(account_id, id)
+  def destroy(account_id, id, params={})
     url = build_url(account_id, id)
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-    execute(method: :delete, url: url, headers: headers)
+    execute(method: :delete, url: url, headers: headers, params: params)
   end
 
   def update_permission(account_id, id, options)
