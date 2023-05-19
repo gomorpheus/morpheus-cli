@@ -599,6 +599,9 @@ class Morpheus::Cli::Instances
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[instance]")
       opts.on('--name VALUE', String, "Name") do |val|
+        params['name'] = val
+      end
+      opts.on('--displayName VALUE', String, "Name") do |val|
         params['displayName'] = val
       end
       opts.on('--description VALUE', String, "Description") do |val|
@@ -1400,6 +1403,7 @@ class Morpheus::Cli::Instances
       description_cols = {
         "ID" => 'id',
         "Name" => 'name',
+        "Display Name" => 'displayName',
         "Description" => 'description',
         "Group" => lambda {|it| it['group'] ? it['group']['name'] : '' },
         "Cloud" => lambda {|it| it['cloud'] ? it['cloud']['name'] : '' },
