@@ -5427,6 +5427,7 @@ private
   def add_instance_schedule_option_types()
     [
       {'code' => 'scheduleType', 'fieldName' => 'scheduleType', 'fieldLabel' => 'Schedule Type', 'type' => 'select', 'selectOptions' => [{'name'=>'Day Of Week', 'value'=>'dayOfWeek'},{'name'=>'Exact', 'value'=>'exact'}], 'description' => "Schedule type  can be recurring day of the week str or exact start and end timestamp", 'required' => true, 'defaultValue' => 'dayOfWeek'},
+      {'dependsOnCode' => 'scheduleType:dayOfWeek', 'fieldName' => 'scheduleTimezone', 'fieldLabel' => 'Timezone', 'type' => 'select', 'optionSource' => 'timezones' , 'description' => "The timezone", 'defaultValue' => "UTC", 'required' => false},
       {'dependsOnCode' => 'scheduleType:dayOfWeek', 'fieldName' => 'startDayOfWeek', 'fieldLabel' => 'Start Day Of Week', 'type' => 'select', 'selectOptions' => day_of_week_dropdown, 'description' => "Start day of the week Sunday-Saturday (1-7)", 'defaultValue' => "Sunday", 'required' => true},
       {'dependsOnCode' => 'scheduleType:dayOfWeek', 'fieldName' => 'startTime', 'fieldLabel' => 'Start Time (HH:MM)', 'type' => 'text', 'description' => "Start time in HH:MM 24-hour format", 'placeHolder' => 'HH:MM', 'defaultValue' => "01:00", 'required' => true},
       {'dependsOnCode' => 'scheduleType:dayOfWeek', 'fieldName' => 'endDayOfWeek', 'fieldLabel' => 'End Day Of Week', 'type' => 'select', 'selectOptions' => day_of_week_dropdown, 'description' => "End day of the week Sunday-Saturday (1-7)", 'defaultValue' => "Sunday", 'required' => true},
