@@ -13,7 +13,7 @@ class Morpheus::Cli::LoadBalancerPools
   set_rest_parent_name :load_balancers
 
   register_subcommands :list, :get, :add, :update, :remove
-  register_interfaces :load_balancers, :load_balancer_types
+  register_interfaces :load_balancer_pools_secondary, :load_balancers, :load_balancer_types
 
 
   # set_rest_interface_name :load_balancer_pools
@@ -89,5 +89,41 @@ class Morpheus::Cli::LoadBalancerPools
   end
 
   ## using CliCommand's generic find_by methods
+
+  def find_load_balancer_pool_by_name_or_id(load_balancer_pool_id, val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_load_balancer_pool_by_id(load_balancer_pool_id, val)
+    else
+      return find_load_balancer_pool_by_name(load_balancer_pool_id, val)
+    end
+  end
+
+  def find_load_balancer_pool_by_id(load_balancer_pool_id, id)
+    begin
+      json_response = @load_balancer_pools_secondary_interface.get(load_balancer_pool_id, id.to_i)
+      return json_response[load_balancer_pool_object_key]
+    rescue RestClient::Exception => e
+      if e.response && e.response.code == 404
+        print_red_alert "Load Balancer Pool not found by id #{id}"
+      else
+        raise e
+      end
+    end
+  end
+
+  def find_load_balancer_pool_by_name(load_balancer_pool_id, name)
+    lbs = @load_balancer_pools_secondary_interface.list(load_balancer_pool_id, {name: name.to_s})[load_balancer_pool_list_key]
+    if lbs.empty?
+      print_red_alert "Load Balancer Pool not found by name #{name}"
+      return nil
+    elsif lbs.size > 1
+      print_red_alert "#{lbs.size} load balancer pools found by name #{name}"
+      #print_lbs_table(lbs, {color: red})
+      print reset,"\n\n"
+      return nil
+    else
+      return lbs[0]
+    end
+  end
 
 end
