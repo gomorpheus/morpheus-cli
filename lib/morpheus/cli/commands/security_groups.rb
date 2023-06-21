@@ -210,6 +210,7 @@ class Morpheus::Cli::SecurityGroups
     params = {}
     options = {:options => {}}
     cloud_id = nil
+    resource_pool_id = nil
     tenants = nil
     group_access_all = nil
     group_access_list = nil
@@ -224,6 +225,9 @@ class Morpheus::Cli::SecurityGroups
       end
       opts.on( '-c', '--cloud CLOUD', "Scoped Cloud Name or ID" ) do |val|
         cloud_id = val
+      end
+      opts.on( '--resource-pool ID', String, "ID of the Resource Pool for Amazon VPC and Azure Resource Group" ) do |val|
+        resource_pool_id = val
       end
       opts.on('--group-access-all [on|off]', String, "Toggle Access for all groups.") do |val|
         group_access_all = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
@@ -321,17 +325,20 @@ class Morpheus::Cli::SecurityGroups
           if !v_prompt['zoneId'].to_s.empty? && v_prompt['zoneId'].to_s != 'all' && v_prompt['zoneId'].to_s != '-1'
             payload['securityGroup']['zoneId'] = v_prompt['zoneId']
 
-            zone = find_cloud_by_id(payload['securityGroup']['zoneId'])
-            # networkServer needed here too? err
-            if zone['securityServer']
-              sec_server = @network_security_servers.get(zone['securityServer']['id'])['networkSecurityServer']
+            cloud = find_cloud_by_id(payload['securityGroup']['zoneId'])
+            
+            # parse --resource-pool
+            # if resource_pool_id
+            #   resource_pool = find_resource_pool_by_name_or_id(cloud['id'], resource_pool_id)
+            #   return 1 if resource_pool.nil?
+            # end
 
-              if sec_server['type']
-                payload['securityGroup'].deep_merge!(Morpheus::Cli::OptionTypes.prompt(sec_server['type']['optionTypes'], options[:options], @api_client, {zoneId: zone['id']}))
-              end
-            end
+            # prompt for zone specific settings that go under "securityGroup.customOptions" for some reason
+            custom_options_values = prompt_security_group_custom_options(options, cloud, resource_pool_id)
+            payload['securityGroup'].deep_merge!(custom_options_values)
           end
         rescue => ex
+          # raise ex
           print yellow,"Failed to determine the available scoped clouds.",reset,"\n"
         end
 
@@ -626,34 +633,8 @@ class Morpheus::Cli::SecurityGroups
         #   return 1 if resource_pool.nil?
         # end
 
-        # Custom Options prompt
-        # securityServer is no longer used, it has been replaced by networkServer, 
-        # default to the cloud type code, since it's the same...
-        # no optionTypes returned here, so hard coded by type
-        network_server_type = cloud['networkServer'] ? cloud['networkServer']['type'] : (cloud['securityServer'] ? cloud['securityServer']['type'] : cloud["zoneType"]["code"])
-        custom_options_values = {}
-        if network_server_type == 'amazon'
-          if cloud['config'] && !cloud['config']['vpc'].to_s.empty?
-            custom_options_values.deep_merge!({'customOptions' => {'vpc' => cloud['config']['vpc']} })
-          else
-            options[:options].deep_merge!({'customOptions' => {'vpc' => resource_pool_id} }) if resource_pool_id
-            custom_options_values = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'customOptions', 'fieldName' => 'vpc', 'fieldLabel' => 'VPC', 'type' => 'select', 'optionSource' => 'zonePools', 'required' => true, 'config' => {'valueField' => 'externalId'}}], options[:options], @api_client, {zoneId: cloud['id'], ignoreDefaultPool: true})
-          end
-        elsif network_server_type == 'azure' || network_server_type == 'azurestack'
-          if cloud['config'] && !cloud['config']['resourceGroup'].to_s.empty?
-            custom_options_values.deep_merge!({'customOptions' => {'resourceGroup' => cloud['config']['resourceGroup']} })
-          else
-            options[:options].deep_merge!({'customOptions' => {'resourceGroup' => resource_pool_id} }) if resource_pool_id
-            custom_options_values = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'customOptions', 'fieldName' => 'resourceGroup', 'fieldLabel' => 'Resource Group', 'type' => 'select', 'optionSource' => 'zonePools', 'required' => true, 'config' => {'valueField' => 'externalId'}}], options[:options], @api_client, {zoneId: cloud['id'], ignoreDefaultPool: true})
-          end
-        elsif network_server_type == 'openstack' || network_server_type == 'opentelekom' || network_server_type == 'huawei'
-          if cloud['config'] && !cloud['config']['resourcePoolId'].to_s.empty?
-            custom_options_values.deep_merge!({'customOptions' => {'resourcePoolId' => cloud['config']['resourcePoolId']} })
-          else
-            options[:options].deep_merge!({'customOptions' => {'resourcePoolId' => resource_pool_id} }) if resource_pool_id
-            custom_options_values = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'customOptions', 'fieldName' => 'resourcePoolId', 'fieldLabel' => 'Resource Pool', 'type' => 'select', 'optionSource' => 'zonePools', 'required' => true}], options[:options], @api_client, {zoneId: cloud['id'], ignoreDefaultPool: true})
-          end
-        end
+        # prompt for zone specific settings that go under "securityGroup.customOptions" for some reason
+        custom_options_values = prompt_security_group_custom_options(options, cloud, resource_pool_id)
         payload['securityGroupLocation'].deep_merge!(custom_options_values)
       end
       @security_groups_interface.setopts(options)
@@ -1270,4 +1251,44 @@ class Morpheus::Cli::SecurityGroups
     end
   end
 
+  def prompt_security_group_custom_options(options, cloud, resource_pool_id=nil)
+    custom_options_values = {}
+    # Custom Options prompt
+    # securityServer is no longer used, it has been replaced by networkServer, 
+    # default to the cloud type code, since it's the same...
+    # no optionTypes returned here, so hard coded by type
+    # The API used to return securityServer which could be fetched to get its optionTypes
+    if cloud['securityServer']
+      sec_server = @network_security_servers.get(cloud['securityServer']['id'])['networkSecurityServer']
+      if sec_server['type']
+        v_prompt = Morpheus::Cli::OptionTypes.prompt(sec_server['type']['optionTypes'], options[:options], @api_client, {zoneId: cloud['id']})
+        custom_options_values.deep_merge!(v_prompt)
+      end
+    else
+      network_server_type = cloud['networkServer'] ? cloud['networkServer']['type'] : (cloud['securityServer'] ? cloud['securityServer']['type'] : cloud["zoneType"]["code"])
+      if network_server_type == 'amazon'
+        if cloud['config'] && !cloud['config']['vpc'].to_s.empty?
+          custom_options_values.deep_merge!({'customOptions' => {'vpc' => cloud['config']['vpc']} })
+        else
+          options[:options].deep_merge!({'customOptions' => {'vpc' => resource_pool_id} }) if resource_pool_id
+          custom_options_values = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'customOptions', 'fieldName' => 'vpc', 'fieldLabel' => 'VPC', 'type' => 'select', 'optionSource' => 'zonePools', 'required' => true, 'config' => {'valueField' => 'externalId'}}], options[:options], @api_client, {zoneId: cloud['id'], ignoreDefaultPool: true})
+        end
+      elsif network_server_type == 'azure' || network_server_type == 'azurestack'
+        if cloud['config'] && !cloud['config']['resourceGroup'].to_s.empty?
+          custom_options_values.deep_merge!({'customOptions' => {'resourceGroup' => cloud['config']['resourceGroup']} })
+        else
+          options[:options].deep_merge!({'customOptions' => {'resourceGroup' => resource_pool_id} }) if resource_pool_id
+          custom_options_values = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'customOptions', 'fieldName' => 'resourceGroup', 'fieldLabel' => 'Resource Group', 'type' => 'select', 'optionSource' => 'zonePools', 'required' => true, 'config' => {'valueField' => 'externalId'}}], options[:options], @api_client, {zoneId: cloud['id'], ignoreDefaultPool: true})
+        end
+      elsif network_server_type == 'openstack' || network_server_type == 'opentelekom' || network_server_type == 'huawei'
+        if cloud['config'] && !cloud['config']['resourcePoolId'].to_s.empty?
+          custom_options_values.deep_merge!({'customOptions' => {'resourcePoolId' => cloud['config']['resourcePoolId']} })
+        else
+          options[:options].deep_merge!({'customOptions' => {'resourcePoolId' => resource_pool_id} }) if resource_pool_id
+          custom_options_values = Morpheus::Cli::OptionTypes.prompt([{'fieldContext' => 'customOptions', 'fieldName' => 'resourcePoolId', 'fieldLabel' => 'Resource Pool', 'type' => 'select', 'optionSource' => 'zonePools', 'required' => true}], options[:options], @api_client, {zoneId: cloud['id'], ignoreDefaultPool: true})
+        end
+      end
+    end
+    return custom_options_values
+  end
 end
