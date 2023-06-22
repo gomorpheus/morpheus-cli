@@ -557,7 +557,7 @@ module Morpheus
           when :payloads
             # added under when :payloads... just need it here to avoid unknown key error
           when :list
-            opts.on( '-m', '--max MAX', "Max Results" ) do |val|
+            opts.on( '-m', '--max MAX', "Max Results (use -1 for all results)" ) do |val|
               # api supports max=-1 for all at the moment..
               if val.to_s == "all" || val.to_s == "-1"
                 options[:max] = "-1"
