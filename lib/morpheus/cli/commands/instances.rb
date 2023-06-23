@@ -258,7 +258,7 @@ class Morpheus::Cli::Instances
           end
           row = {
             id: instance['id'],
-            name: instance['name'],
+            name: instance['displayName'] ? instance['displayName'] : instance['name'],
             labels: format_list(instance['labels'], '', 3),
             connection: format_instance_connection_string(instance),
             environment: instance['instanceContext'],
