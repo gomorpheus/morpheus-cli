@@ -110,4 +110,62 @@ module Morpheus::Cli::BackupsHelper
       return backup_jobs[0]
     end
   end
+
+  ## Backup Results
+
+  def backup_result_list_column_definitions()
+    {
+      "ID" => 'id',
+      "Backup" => lambda {|it| it['backup']['name'] rescue '' },
+      "Status" => lambda {|it| format_backup_result_status(it) },
+      #"Duration" => lambda {|it| format_duration(it['startDate'], it['endDate']) },
+      "Duration" => lambda {|it| format_duration_milliseconds(it['durationMillis']) },
+      "Start Date" => lambda {|it| format_local_dt(it['startDate']) },
+      "End Date" => lambda {|it| format_local_dt(it['endDate']) },
+      "Size" => lambda {|it| format_bytes(it['sizeInMb'], 'MB') },
+    }
+  end
+
+  def backup_result_column_definitions()
+    backup_result_list_column_definitions()
+  end
+
+  def format_backup_result_status(backup_result, return_color=cyan)
+    out = ""
+    status_string = backup_result['status'].to_s.upcase
+    if status_string == 'SUCCEEDED' || status_string == 'SUCCESS'
+      out <<  "#{green}#{status_string.upcase}#{return_color}"
+    elsif status_string == 'FAILED'
+      out <<  "#{red}#{status_string.upcase}#{return_color}"
+    elsif status_string
+      out <<  "#{cyan}#{status_string.upcase}#{return_color}"
+    else
+      out <<  ""
+    end
+    out
+  end
+
+  ## Backup Restores
+
+  def backup_restore_list_column_definitions()
+    {
+      "ID" => 'id',
+      "Backup" => lambda {|it| it['backup']['name'] rescue '' },
+      "Backup Result ID" => lambda {|it| it['backupResultId'] rescue '' },
+      "Target" => lambda {|it| it['instance']['name'] rescue '' },
+      "Status" => lambda {|it| format_backup_result_status(it) },
+      #"Duration" => lambda {|it| format_duration(it['startDate'], it['endDate']) },
+      "Duration" => lambda {|it| format_duration_milliseconds(it['durationMillis']) },
+      "Start Date" => lambda {|it| format_local_dt(it['startDate']) },
+      "End Date" => lambda {|it| format_local_dt(it['endDate']) },
+    }
+  end
+
+  def backup_restore_column_definitions()
+    backup_restore_list_column_definitions()
+  end
+
+  def format_backup_restore_status(backup_restore, return_color=cyan)
+    format_backup_result_status(backup_restore, return_color)
+  end
 end

@@ -10,7 +10,7 @@ class Morpheus::Cli::BackupJobsCommand
 
   set_command_name :'backup-jobs'
 
-  register_subcommands :list, :get, :add, :update, :remove, :run
+  register_subcommands :list, :get, :add, :update, :remove, :execute
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
@@ -27,7 +27,7 @@ class Morpheus::Cli::BackupJobsCommand
     params = {}
     ref_ids = []
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[search]")
+      opts.banner = "Usage: #{prog_name} backups list-jobs [search]"
       build_standard_list_options(opts, options)
       opts.footer = "List backup jobs."
     end
@@ -62,7 +62,8 @@ class Morpheus::Cli::BackupJobsCommand
     params = {}
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[job]")
+      # opts.banner = subcommand_usage("[job]")
+      opts.banner = "Usage: #{prog_name} backups get-job [job]"
       build_standard_get_options(opts, options)
       opts.footer = <<-EOT
 Get details about a specific backup job.
@@ -99,9 +100,18 @@ EOT
     json_response = @backup_jobs_interface.get(id, params)
     backup_job = json_response['job']
     render_response(json_response, options, 'job') do
+      backup_job = json_response['job']
+      backups = backup_job['backups'] || []
       print_h1 "Backup Job Details", [], options
       print cyan
       print_description_list(backup_job_column_definitions, backup_job)
+      # print reset,"\n"
+      print_h2 "Backups", options
+      if backups.empty?
+        print yellow,"This job has no backups associated with it.",reset,"\n"
+      else
+        print as_pretty_table(backups, [:id, :name], options)
+      end
       print reset,"\n"
     end
     return 0, nil
@@ -111,7 +121,7 @@ EOT
     options = {}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name] [options]")
+      opts.banner = "Usage: #{prog_name} backups add-job [name]"
       build_option_type_options(opts, options, add_backup_job_option_types)
       build_option_type_options(opts, options, add_backup_job_advanced_option_types)
       build_standard_add_options(opts, options)
@@ -131,6 +141,9 @@ EOT
       payload.deep_merge!({'job' => parse_passed_options(options)})
       v_prompt = Morpheus::Cli::OptionTypes.prompt(add_backup_job_option_types(), options[:options], @api_client, options[:params])
       params.deep_merge!(v_prompt)
+      if params['scheduleId'] == 'manual' || params['scheduleId'] == ''
+        params['scheduleId'] = nil
+      end
       advanced_config = Morpheus::Cli::OptionTypes.no_prompt(add_backup_job_advanced_option_types, options[:options], @api_client, options[:params])
       advanced_config.deep_compact!
       params.deep_merge!(advanced_config)
@@ -155,7 +168,7 @@ EOT
     params = {}
     payload = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[job] [options]")
+      opts.banner = "Usage: #{prog_name} backups update-job [job]"
       build_option_type_options(opts, options, update_backup_job_option_types)
       build_option_type_options(opts, options, update_backup_job_advanced_option_types)
       build_standard_update_options(opts, options)
@@ -177,6 +190,9 @@ EOT
       payload.deep_merge!({'job' => parse_passed_options(options)})
       v_prompt = Morpheus::Cli::OptionTypes.no_prompt(update_backup_job_option_types, options[:options], @api_client, options[:params])
       v_prompt.deep_compact!
+      if params['scheduleId'] == 'manual' || params['scheduleId'] == ''
+        params['scheduleId'] = nil
+      end
       params.deep_merge!(v_prompt)
       advanced_config = Morpheus::Cli::OptionTypes.no_prompt(update_backup_job_advanced_option_types, options[:options], @api_client, options[:params])
       advanced_config.deep_compact!
@@ -204,7 +220,7 @@ EOT
     options = {}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[job] [options]")
+      opts.banner = "Usage: #{prog_name} backups remove-job [job]"
       build_standard_remove_options(opts, options)
       opts.footer = <<-EOT
 Delete a backup job.
@@ -216,19 +232,36 @@ EOT
     connect(options)
     backup_job = find_backup_job_by_name_or_id(args[0])
     return 1 if backup_job.nil?
-    @backup_jobs_interface.setopts(options)
-    if options[:dry_run]
-      print_dry_run @backup_jobs_interface.dry.destroy(backup_job['id'], params)
-      return
-    end
-    unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to delete the backup #{backup['name']}?")
-      return 9, "aborted command"
-    end
-    json_response = @backup_jobs_interface.destroy(backup_job['id'], params)
-    render_response(json_response, options) do
+    parse_options(options, params)
+    confirm!("Are you sure you want to delete the backup job #{backup_job['name']}?", options)
+    execute_api(@backup_jobs_interface, :destroy, [backup_job['id']], options) do |json_response|
       print_green_success "Removed backup job #{backup_job['name']}"
     end
-    return 0, nil
+  end
+
+  def execute(args)
+    options = {}
+    params = {}
+    payload = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = "Usage: #{prog_name} backups execute-job [job]"
+      build_standard_post_options(opts, options)
+      opts.footer = <<-EOT
+Execute a backup job to create a new backup result for all the backups in the job.
+[job] is required. This is the name or id of a backup job.
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    backup_job = find_backup_job_by_name_or_id(args[0])
+    return 1 if backup_job.nil?
+    parse_payload(options)
+    execute_api(@backup_jobs_interface, :execute_job, [backup_job['id']], options, 'job') do |json_response|
+      print_green_success "Executing backup job #{backup_job['name']}"
+      # should get the result maybe, or could even support refreshing until it is complete...
+      # return _get(backup_job["id"], {}, options)
+    end
   end
 
   private
@@ -248,7 +281,10 @@ EOT
       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
       #{'fieldName' => 'code', 'fieldLabel' => 'Code', 'type' => 'text', 'required' => false, 'displayOrder' => 2},
       {'fieldName' => 'retentionCount', 'fieldLabel' => 'Retention Count', 'type' => 'number', 'displayOrder' => 3},
-      {'fieldName' => 'scheduleId', 'fieldLabel' => 'Schedule', 'type' => 'select', 'optionSource' => 'executeSchedules', 'displayOrder' => 4}, # should use jobSchedules instead maybe? do we support manual schedules for backups?
+      {'fieldName' => 'scheduleId', 'fieldLabel' => 'Schedule', 'type' => 'select', 'optionSource' => lambda { |api_client, api_params| 
+        schedules = api_client.options.options_for_source('executeSchedules',{})['data']
+        [{"name" => "Manual", "value" => "manual"}] + schedules
+      }, 'displayOrder' => 4},
     ]
   end
 

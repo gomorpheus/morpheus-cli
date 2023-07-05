@@ -560,27 +560,17 @@ EOT
     # fetch current cart
     # cart = @service_catalog_interface.get_cart()['cart']
     update_cart_object_key = 'order'
-    payloads = parse_payloads(options, update_cart_object_key) do |payload|
+    parse_payload(options, update_cart_object_key) do |payload|
       payload.deep_merge!({update_cart_object_key => parse_passed_options(options)})
       if payload[update_cart_object_key].empty? # || options[:no_prompt]
         raise_command_error "Specify at least one option to update.\n#{optparse}"
       end
     end
-    process_payloads(payloads, options) do |payload|
-      @service_catalog_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @service_catalog_interface.dry.update_cart(payload)
-        next
-      end
-      json_response = @service_catalog_interface.update_cart(payload)
-      #cart = json_response['cart']
-      #cart = @service_catalog_interface.get_cart()['cart']
-      render_response(json_response, options, 'cart') do
-        print_green_success "Updated cart"
-        get_cart([] + (options[:remote] ? ["-r",options[:remote]] : []))
-      end
+    execute_api(@service_catalog_interface, :update_cart, [params], options, "cart") do |json_response|
+      #cart = json_response["cart"]
+      print_green_success "Updated cart"
+      get_cart([] + (options[:remote] ? ["-r",options[:remote]] : []))
     end
-    return 0, nil
   end
 
   def add(args)
@@ -600,6 +590,7 @@ EOT
       end
       opts.on('--validate','--validate', "Validate Only. Validates the configuration and skips adding the item.") do
         options[:validate_only] = true
+        params['validate'] = true
       end
       opts.on('--context [instance|server]', String, "Context Type for operational workflow types") do |val|
         workflow_context = val.to_s
@@ -608,7 +599,7 @@ EOT
         workflow_target = val.to_s
       end
       opts.add_hidden_option('--sigdig')
-      build_standard_update_options(opts, options, [:payloads, :sigdig])
+      build_standard_add_many_options(opts, options, [:sigdig])
       opts.footer = <<-EOT
 Add an item to your cart
 [type] is required, this is name or id of a catalog item type.
@@ -622,7 +613,7 @@ EOT
       type_id = args.join(" ")
     end
     add_item_object_key = 'item'
-    payloads = parse_payloads(options, add_item_object_key) do |payload|
+    parse_payload(options, add_item_object_key) do |payload|
       payload.deep_merge!({add_item_object_key => parse_passed_options(options)})
       # prompt for Type
       if type_id
@@ -712,46 +703,35 @@ EOT
         end
       end
     end
-    if options[:validate_only]
-      params['validate'] = true
-    end
-    process_payloads(payloads, options) do |payload|
-      @service_catalog_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @service_catalog_interface.dry.create_cart_item(payload, params)
-        next
-      end
-      json_response = @service_catalog_interface.create_cart_item(payload, params)
+    execute_api(@service_catalog_interface, :create_cart_item, [params], options, 'item') do |json_response|
       cart_item = json_response['item']
-      render_response(json_response, options) do
-        if options[:validate_only]
-          if json_response['success']
-            print_h2 "Validated Cart Item", [], options
-            cart_item_columns = {
-              "Type" => lambda {|it| it['type']['name'] rescue '' },
-              #"Qty" => lambda {|it| it['quantity'] },
-              "Price" => lambda {|it| it['price'] ? format_money(it['price'] , it['currency'], {sigdig:options[:sigdig] || default_sigdig}) : "No pricing configured" },
-              "Status" => lambda {|it| 
-                status_string = format_catalog_item_status(it)
-                if it['errorMessage'].to_s != ""
-                  status_string << " - #{it['errorMessage']}"
-                end
-                status_string
-              },
-              #"Config" => lambda {|it| truncate_string(format_name_values(it['config']), 50) }
-            }
-            print as_pretty_table([cart_item], cart_item_columns.upcase_keys!)
-            print reset, "\n"
-            print_green_success(json_response['msg'] || "Item is valid")
-            print reset, "\n"
-          else
-            # not needed because it will be http 400
-            print_rest_errors(json_response, options)
-          end
+      if options[:validate_only]
+        if json_response['success']
+          print_h2 "Validated Cart Item", [], options
+          cart_item_columns = {
+            "Type" => lambda {|it| it['type']['name'] rescue '' },
+            #"Qty" => lambda {|it| it['quantity'] },
+            "Price" => lambda {|it| it['price'] ? format_money(it['price'] , it['currency'], {sigdig:options[:sigdig] || default_sigdig}) : "No pricing configured" },
+            "Status" => lambda {|it| 
+              status_string = format_catalog_item_status(it)
+              if it['errorMessage'].to_s != ""
+                status_string << " - #{it['errorMessage']}"
+              end
+              status_string
+            },
+            #"Config" => lambda {|it| truncate_string(format_name_values(it['config']), 50) }
+          }
+          print as_pretty_table([cart_item], cart_item_columns.upcase_keys!)
+          print reset, "\n"
+          print_green_success(json_response['msg'] || "Item is valid")
+          print reset, "\n"
         else
-          print_green_success "Added item to cart"
-          get_cart([] + (options[:remote] ? ["-r",options[:remote]] : []))
+          # not needed because it will be http 400
+          print_rest_errors(json_response, options)
         end
+      else
+        print_green_success "Added item to cart"
+        get_cart([] + (options[:remote] ? ["-r",options[:remote]] : []))
       end
     end
   end
@@ -935,6 +915,7 @@ EOT
       end
       opts.on('--validate','--validate', "Validate Only. Validates the configuration and skips creating the order.") do
         options[:validate_only] = true
+        params['validate'] = true
       end
       opts.on('-a', '--details', "Display all details: item configuration." ) do
         options[:details] = true
@@ -962,7 +943,7 @@ EOT
     end
     payload = {}
     order_object_key = 'order'
-    payloads = parse_payloads(options, order_object_key) do |payload|
+    parse_payload(options, order_object_key) do |payload|
       payload.deep_merge!({order_object_key => {}})
       # Prompt for 1-N Types
       # still_prompting = options[:no_prompt] != true
@@ -1076,38 +1057,24 @@ EOT
           end
         end
 
-      end
-      
-      
+      end      
     end
-    if options[:validate_only]
-      params['validate'] = true
-      #payload['validate'] = true
-    end
-    process_payloads(payloads, options) do |payload|
-      @service_catalog_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @service_catalog_interface.dry.create_order(payload, params)
-        next
-      end
-      json_response = @service_catalog_interface.create_order(payload, params)
+    execute_api(@service_catalog_interface, :create_order, [params], options, "order") do |json_response|
       order = json_response['order'] || json_response['cart']
-      render_response(json_response, options) do
-        if options[:validate_only]
-          if json_response['success']
-            print_h2 "Review Order", [], options
-            print_order_details(order, options)
-            print_green_success(json_response['msg'] || "Order is valid")
-            print reset, "\n"
-          else
-            # not needed because it will be http 400
-            print_rest_errors(json_response, options)
-          end
-        else
-          print_green_success "Order placed"
-          print_h2 "Order Details", [], options
+      if options[:validate_only]
+        if json_response['success']
+          print_h2 "Review Order", [], options
           print_order_details(order, options)
+          print_green_success(json_response['msg'] || "Order is valid")
+          print reset, "\n"
+        else
+          # not needed because it will be http 400
+          print_rest_errors(json_response, options)
         end
+      else
+        print_green_success "Order placed"
+        print_h2 "Order Details", [], options
+        print_order_details(order, options)
       end
     end
   end

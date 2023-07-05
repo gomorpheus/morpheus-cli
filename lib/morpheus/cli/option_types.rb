@@ -48,6 +48,7 @@ module Morpheus
 
       # supresses prompting unless --prompt has been passed
       def self.no_prompt(option_types, options={}, api_client=nil,api_params={})
+        options[:edit_mode] = true # hack used for updates to avoid default values being used
         if options[:always_prompt]
           prompt(option_types, options, api_client, api_params)
         else
@@ -218,7 +219,7 @@ module Morpheus
 
           # credential type
           handle_credential_type = -> {
-            credential_type = select_prompt(option_type.merge({'defaultValue' => value}), api_client, option_params.merge({'credentialTypes' => option_type['config']['credentialTypes']}), !value.nil?, nil, paging_enabled, ignore_empty)
+            credential_type = select_prompt(option_type.merge({'defaultValue' => value}), api_client, option_params.merge({'credentialTypes' => option_type['config']['credentialTypes']}), !value.nil?, nil, paging_enabled, ignore_empty, options[:edit_mode])
             # continue prompting for local creds
             if credential_type == 'local'
               parent_context_map.reject! {|k,v| k == 'credential'}
@@ -247,14 +248,14 @@ module Morpheus
               end
             # these select prompts should just fall down through below, with the extra params no_prompt, use_value
             elsif option_type['type'] == 'select'
-              value = select_prompt(option_type.merge({'defaultValue' => value, 'defaultInputValue' => input_value}), api_client, option_params, true, nil, false, ignore_empty)
+              value = select_prompt(option_type.merge({'defaultValue' => value, 'defaultInputValue' => input_value}), api_client, option_params, true, nil, false, ignore_empty, options[:edit_mode])
             elsif option_type['type'] == 'multiSelect'
               # support value as csv like "thing1, thing2"
               value_list = value.is_a?(String) ? value.parse_csv.collect {|v| v ? v.to_s.strip : v } : [value].flatten
               input_value_list = input_value.is_a?(String) ? input_value.parse_csv.collect {|v| v ? v.to_s.strip : v } : [input_value].flatten
               select_value_list = []
               value_list.each_with_index do |v, i|
-                select_value_list << select_prompt(option_type.merge({'defaultValue' => v, 'defaultInputValue' => input_value_list[i]}), api_client, option_params, true, nil, false, ignore_empty)
+                select_value_list << select_prompt(option_type.merge({'defaultValue' => v, 'defaultInputValue' => input_value_list[i]}), api_client, option_params, true, nil, false, ignore_empty, options[:edit_mode])
               end
               value = select_value_list
             elsif option_type['type'] == 'typeahead'
@@ -302,7 +303,7 @@ module Morpheus
                   next
                 end
                 if ['select', 'multiSelect'].include?(option_type['type'])
-                  value = select_prompt(option_type, api_client, option_params, true, nil, false, ignore_empty)
+                  value = select_prompt(option_type, api_client, option_params, true, nil, false, ignore_empty, options[:edit_mode])
                   value_found = !!value
                 end
                 if ['typeahead', 'multiTypeahead'].include?(option_type['type'])
@@ -347,12 +348,12 @@ module Morpheus
               # I suppose the entered value should take precedence
               # api_params = api_params.merge(options) # this might be good enough
               # dup it
-              value = select_prompt(option_type, api_client, option_params, options[:no_prompt], nil, paging_enabled, ignore_empty)
+              value = select_prompt(option_type, api_client, option_params, options[:no_prompt], nil, paging_enabled, ignore_empty, options[:edit_mode])
               if value && option_type['type'] == 'multiSelect'
                 value = [value]
                 recommended_count = (option_type['config'] || {})['recommendedCount'] || 0
                 while self.confirm("Add another #{option_type['fieldLabel']}?", {:default => recommended_count > value.count}) do
-                  if addn_value = select_prompt(option_type, api_client, option_params, options[:no_prompt], nil, paging_enabled, ignore_empty)
+                  if addn_value = select_prompt(option_type, api_client, option_params, options[:no_prompt], nil, paging_enabled, ignore_empty, options[:edit_mode])
                     value << addn_value
                   else
                     break
@@ -476,7 +477,7 @@ module Morpheus
         Thread.current[:_last_select]
       end
 
-      def self.select_prompt(option_type, api_client, api_params={}, no_prompt=false, use_value=nil, paging_enabled=false, ignore_empty=false)
+      def self.select_prompt(option_type, api_client, api_params={}, no_prompt=false, use_value=nil, paging_enabled=false, ignore_empty=false, edit_mode=false)
         paging_enabled = false if Morpheus::Cli.windows?
         field_key = [option_type['fieldContext'], option_type['fieldName']].select {|it| it && it != '' }.join('.')
         help_field_key = option_type[:help_field_prefix] ? "#{option_type[:help_field_prefix]}.#{field_key}" : field_key
@@ -550,6 +551,8 @@ module Morpheus
             print "\n"
             exit 1
           end
+        elsif edit_mode
+          # do not use a default value for edit mode
         # skipSingleOption is no longer supported
         # elsif !select_options.nil? && select_options.count == 1 && option_type['skipSingleOption'] == true
         #   value_found = true

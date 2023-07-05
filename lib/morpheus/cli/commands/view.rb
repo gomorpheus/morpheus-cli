@@ -46,20 +46,22 @@ Examples:
 EOT
     end
     optparse.parse!(args)
-    # verify_args!(args:args, optparse:optparse, min: 0, max: 2)
+    verify_args!(args:args, optparse:optparse, min: 0, max: 2)
     connect(options)
     # todo: it would actually be cool to use the params and include them on the path..
     # params.merge!(parse_query_options(options))
-    path, *ids = args
+    # input, *ids = args
+    input = args[0]
+    id = args[1]
     # default to index page "/"
-    path = path || "/"
+    path = input || "/"
     if options[:absolute_path] != true
       if path.start_with?("/")
         # treat like absolute path, no lookup
       else
         # lookup best matching route from sitemap
         # lookup plural routes first, so 'app' finds apps and not approvals
-        found_route = Morpheus::Routes.lookup(path)
+        found_route = Morpheus::Routes.lookup(path, id)
         if found_route
           # Morpheus::Logging::DarkPrinter.puts "Found matching route: '#{path}' => '#{found_route}'" if Morpheus::Logging.debug?
           path = found_route
@@ -69,26 +71,24 @@ EOT
       end
       # always add a leading slash
       path = path.start_with?("/") ? path : "/#{path}"
-      # append id(s) to path if passed
-      if ids.size > 0
-        # convert names to ids
+      # append id to path if passed
+      if id
+        # convert name to id
         # assume the last part of path is the type and use generic finder
         # only lookup names, and allow any id
-        ids = ids.collect do |id|
-          if id.to_s !~ /\A\d{1,}\Z/
-            # assume the last part of path is the type
-            record_type = path.split("/").last
-            record_type.sub!('#!', '')
-            record = find_by_name(record_type, id)
-            if record.nil?
-              raise_command_error("[id] is invalid. No #{record_type} found for '#{id}'", args, optparse)
-            end
-            record['id'].to_s
-          else
-            id
+        if id.to_s !~ /\A\d{1,}\Z/
+          # record type is just args[0]
+          record_type = input
+          # assume the last part of path is the type
+          # record_type = path.split("/").last
+          # record_type.sub!('#!', '')
+          record = find_by_name(record_type, id)
+          if record.nil?
+            raise_command_error("[id] is invalid. No #{record_type} found for '#{id}'", args, optparse)
           end
+          id = record['id'].to_s
         end
-        path = "#{path}/" + ids.join("/")
+        path = "#{path}/#{id}"
       end
     end
     # build the link to use, either our path or oauth-redirect to that path
