@@ -190,8 +190,8 @@ EOT
       payload.deep_merge!({'job' => parse_passed_options(options)})
       v_prompt = Morpheus::Cli::OptionTypes.no_prompt(update_backup_job_option_types, options[:options], @api_client, options[:params])
       v_prompt.deep_compact!
-      if params['scheduleId'] == 'manual' || params['scheduleId'] == ''
-        params['scheduleId'] = nil
+      if v_prompt['scheduleId'] == 'manual' || v_prompt['scheduleId'] == ''
+        v_prompt['scheduleId'] = nil
       end
       params.deep_merge!(v_prompt)
       advanced_config = Morpheus::Cli::OptionTypes.no_prompt(update_backup_job_advanced_option_types, options[:options], @api_client, options[:params])
