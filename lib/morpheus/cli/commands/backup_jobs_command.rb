@@ -279,7 +279,7 @@ EOT
   def add_backup_job_option_types
     [
       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
-      #{'fieldName' => 'code', 'fieldLabel' => 'Code', 'type' => 'text', 'required' => false, 'displayOrder' => 2},
+      {'fieldName' => 'code', 'fieldLabel' => 'Code', 'type' => 'text', 'required' => false, 'displayOrder' => 2},
       {'fieldName' => 'retentionCount', 'fieldLabel' => 'Retention Count', 'type' => 'number', 'displayOrder' => 3},
       {'fieldName' => 'scheduleId', 'fieldLabel' => 'Schedule', 'type' => 'select', 'optionSource' => lambda { |api_client, api_params| 
         schedules = api_client.options.options_for_source('executeSchedules',{})['data']
