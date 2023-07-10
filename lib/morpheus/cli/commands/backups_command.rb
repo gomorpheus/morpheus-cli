@@ -73,6 +73,7 @@ EOT
     optparse.parse!(args)
     verify_args!(args:args, optparse:optparse, min:1)
     connect(options)
+    parse_options(options, params)
     id_list = parse_id_list(args)
     return run_command_for_each_arg(id_list) do |arg|
       _get(arg, params, options)
@@ -87,6 +88,8 @@ EOT
       end
       id = record['id']
     end
+    options[:params] = params # parse_options(options, params)
+    options.delete(:payload)
     execute_api(@backups_interface, :get, [id], options, 'backup') do |json_response|
       backup = json_response['backup']
       print_h1 "Backup Details", [], options
