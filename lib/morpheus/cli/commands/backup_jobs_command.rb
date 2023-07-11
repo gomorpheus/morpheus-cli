@@ -50,7 +50,7 @@ class Morpheus::Cli::BackupJobsCommand
       if backup_jobs.empty?
         print yellow,"No backup jobs found.",reset,"\n"
       else
-        print as_pretty_table(backup_jobs, backup_job_column_definitions.upcase_keys!, options)
+        print as_pretty_table(backup_jobs, backup_job_list_column_definitions.upcase_keys!, options)
         print_results_pagination(json_response)
       end
       print reset,"\n"
@@ -104,7 +104,10 @@ EOT
       backups = backup_job['backups'] || []
       print_h1 "Backup Job Details", [], options
       print cyan
-      print_description_list(backup_job_column_definitions, backup_job)
+      columns = backup_job_column_definitions
+      columns.delete("Provider") if backup_job['backupProvider'].nil?
+      columns.delete("Repository") if backup_job['backupRepository'].nil?
+      print_description_list(columns, backup_job)
       # print reset,"\n"
       print_h2 "Backups", options
       if backups.empty?
@@ -270,7 +273,25 @@ EOT
     {
       "ID" => 'id',
       "Name" => 'name',
+      "Code" => 'code',
       "Schedule" => lambda {|it| it['schedule']['name'] rescue '' },
+      "Next" => lambda {|it| format_local_dt(it['nextFire']) },
+      "Retention Count" => lambda {|it| it['retentionCount'] rescue '' },
+      "Provider" => lambda {|it| it['backupProvider']['name'] rescue '' },
+      "Repository" => lambda {|it| it['backupRepository']['name'] rescue '' },
+      "Source" => lambda {|it| it['source'] },
+      "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+      "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
+    }
+  end
+
+  def backup_job_list_column_definitions()
+    {
+      "ID" => 'id',
+      "Name" => 'name',
+      "Schedule" => lambda {|it| it['schedule']['name'] rescue '' },
+      "Next" => lambda {|it| format_local_dt(it['nextFire']) },
+      "Retention Count" => lambda {|it| it['retentionCount'] rescue '' },
       "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
       "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
     }
@@ -279,7 +300,7 @@ EOT
   def add_backup_job_option_types
     [
       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
-      #{'fieldName' => 'code', 'fieldLabel' => 'Code', 'type' => 'text', 'required' => false, 'displayOrder' => 2},
+      {'fieldName' => 'code', 'fieldLabel' => 'Code', 'type' => 'text', 'required' => false, 'displayOrder' => 2},
       {'fieldName' => 'retentionCount', 'fieldLabel' => 'Retention Count', 'type' => 'number', 'displayOrder' => 3},
       {'fieldName' => 'scheduleId', 'fieldLabel' => 'Schedule', 'type' => 'select', 'optionSource' => lambda { |api_client, api_params| 
         schedules = api_client.options.options_for_source('executeSchedules',{})['data']
