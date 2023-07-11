@@ -1500,11 +1500,19 @@ class Morpheus::Cli::Hosts
     params = {}
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name] [workflow] [options]")
-      opts.on("--phase PHASE", String, "Task Phase to execute, the default is provision") do |val|
+      opts.banner = subcommand_usage("[host] [workflow] [options]")
+      opts.on("--phase PHASE", String, "Task Phase to run for Provisioning workflows. The default is provision.") do |val|
         options[:phase] = val
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
+      opts.footer = <<-EOT
+Run workflow for a host.
+[host] is required. This is the name or id of a host
+[workflow] is required. This is the name or id of a workflow
+By default the provision phase is executed.
+Use the --phase option to execute a different phase.
+The available phases are start, stop, preProvision, provision, postProvision, preDeploy, deploy, reconfigure, teardown, startup and shutdown.
+EOT
     end
     optparse.parse!(args)
     if args.count != 2
