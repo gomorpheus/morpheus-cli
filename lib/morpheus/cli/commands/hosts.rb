@@ -1501,6 +1501,9 @@ class Morpheus::Cli::Hosts
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name] [workflow] [options]")
+      opts.on("--phase PHASE", String, "Task Phase to execute, the default is provision") do |val|
+        options[:phase] = val
+      end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :quiet, :remote])
     end
     optparse.parse!(args)
@@ -1555,7 +1558,9 @@ class Morpheus::Cli::Hosts
       payload['taskSet']["#{workflow['id']}"] ||= {}
       payload['taskSet']["#{workflow['id']}"].deep_merge!(params)
     end
-
+    if options[:phase]
+      payload['taskPhase'] = options[:phase]
+    end
     begin
       @servers_interface.setopts(options)
       if options[:dry_run]
