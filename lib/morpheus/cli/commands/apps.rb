@@ -790,7 +790,7 @@ class Morpheus::Cli::Apps
               if !instance['connectionInfo'].nil? && instance['connectionInfo'].empty? == false
                 connection_string = "#{instance['connectionInfo'][0]['ip']}:#{instance['connectionInfo'][0]['port']}"
               end
-              {id: instance['id'], name: instance['name'], connection: connection_string, environment: instance['instanceContext'], nodes: (instance['containers'] || []).count, status: format_instance_status(instance), type: instance['instanceType']['name'], group: !instance['group'].nil? ? instance['group']['name'] : nil, cloud: !instance['cloud'].nil? ? instance['cloud']['name'] : nil}
+              {id: instance['id'], name: instance['displayName'] ? instance['displayName'] : instance['name'], connection: connection_string, environment: instance['instanceContext'], nodes: (instance['containers'] || []).count, status: format_instance_status(instance), type: instance['instanceType']['name'], group: !instance['group'].nil? ? instance['group']['name'] : nil, cloud: !instance['cloud'].nil? ? instance['cloud']['name'] : nil}
             end
             instances_rows = instances_rows.sort {|x,y| x[:id] <=> y[:id] } #oldest to newest..
             print cyan

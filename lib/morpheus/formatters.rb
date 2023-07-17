@@ -134,7 +134,7 @@ end
 
 def format_duration_milliseconds(milliseconds, format="human", ms_threshold=1000)
   out = ""
-  milliseconds = milliseconds.abs.to_i
+  milliseconds = milliseconds.to_i.abs
   if ms_threshold && ms_threshold > milliseconds
     out = "#{milliseconds}ms"
   else

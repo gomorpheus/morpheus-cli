@@ -100,7 +100,13 @@ module Morpheus::Routes
       ],
     },
     backups: {
-
+      list: {},
+      show: {},
+      jobs: {},
+      history: [
+        "#!restores",
+      ],
+      services: {}
     },
     monitoring: {
       status: {},
@@ -162,9 +168,10 @@ module Morpheus::Routes
 
   # lookup a route in the morpheus UI
   # @param path [String] The input to lookup a route for eg. "dashboard"
+  # @param id [String] ID indicates the show route is needed for a resource for  cases where it varies ie. backups
   # @return full path like "/operations/dashboard"
-  def self.lookup(input)
-    path = input.to_s
+  def self.lookup(path, id=nil)
+    path = path.to_s
     if path.start_with?("/")
       # absolute path is being looked up
       return path
@@ -174,6 +181,14 @@ module Morpheus::Routes
 
       # map well known aliases
       case(path.dasherize.pluralize)
+      when "backups"
+        path = id ? "/backups/show" : "/backups/list"
+      when "backup-jobs"
+        path = "/backups/jobs"
+      when "backup-results"
+        path = "/backups/history"
+      when "backup-restores", "restores"
+        path = "/backups/history/#!restores"
       when "servers","hosts","vms","virtual-machines"
         # actually should be "/infrastructure/inventory" unless id is passed, show route uses /servers though
         path = "/infrastructure/servers"

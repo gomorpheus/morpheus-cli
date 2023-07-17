@@ -258,7 +258,7 @@ class Morpheus::Cli::Instances
           end
           row = {
             id: instance['id'],
-            name: instance['name'],
+            name: instance['displayName'] ? instance['displayName'] : instance['name'],
             labels: format_list(instance['labels'], '', 3),
             connection: format_instance_connection_string(instance),
             environment: instance['instanceContext'],
@@ -3357,7 +3357,18 @@ EOT
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[instance] [workflow] [options]")
+      opts.on("--phase PHASE", String, "Task Phase to run for Provisioning workflows. The default is provision.") do |val|
+        options[:phase] = val
+      end
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
+      opts.footer = <<-EOT
+Run workflow for an instance.
+[instance] is required. This is the name or id of an instance
+[workflow] is required. This is the name or id of a workflow
+By default the provision phase is executed.
+Use the --phase option to execute a different phase.
+The available phases are start, stop, preProvision, provision, postProvision, preDeploy, deploy, reconfigure, teardown, startup and shutdown.
+EOT
     end
     optparse.parse!(args)
     if args.count != 2
@@ -3391,6 +3402,9 @@ EOT
     # end
 
     workflow_payload = {taskSet: {"#{workflow['id']}" => params }}
+    if options[:phase]
+      workflow_payload['taskPhase'] = options[:phase]
+    end
     begin
       @instances_interface.setopts(options)
       if options[:dry_run]
@@ -5298,6 +5312,7 @@ private
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
         print_red_alert "Workflow not found by id #{id}"
+        exit 1
       else
         raise e
       end
@@ -5308,12 +5323,12 @@ private
     workflows = @task_sets_interface.list({name: name.to_s})['taskSets']
     if workflows.empty?
       print_red_alert "Workflow not found by name #{name}"
-      return nil
+      exit 1
     elsif workflows.size > 1
       print_red_alert "#{workflows.size} workflows by name #{name}"
       print_workflows_table(workflows, {color: red})
       print reset,"\n\n"
-      return nil
+      exit 1
     else
       return workflows[0]
     end

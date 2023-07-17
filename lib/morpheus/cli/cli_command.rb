@@ -267,6 +267,11 @@ module Morpheus
         build_standard_post_options(opts, options, includes, excludes)
       end
 
+      # todo: this can go away once every command is using execute_api()
+      def build_standard_add_many_options(opts, options, includes=[], excludes=[])
+        build_standard_post_options(opts, options, includes + [:payloads], excludes)
+      end
+
       def build_standard_update_options(opts, options, includes=[], excludes=[])
         build_standard_put_options(opts, options, includes, excludes)
       end
@@ -551,13 +556,14 @@ module Morpheus
                 end
               end
             end if all_option_keys.include?(:payloads)
-            opts.on('--payloads-ignore-error', "Continue processing payloads if an error occurs. The default behavior is to stop processing when an error occurs.") do
-              options[:payloads_ignore_error] = true
+            opts.on('--ignore-payload-errors', "Continue processing any remaining payloads if an error occurs. The default behavior is to stop processing when an error occurs.") do
+              options[:ignore_payload_errors] = true
             end if all_option_keys.include?(:payloads)
           when :payloads
-            # added under when :payloads... just need it here to avoid unknown key error
+            # added with :payload too... just need it here to avoid unknown key error
+            # todo: remove this when every command supporting :payload is updated to use parse_payload(options) and execute_api(options)
           when :list
-            opts.on( '-m', '--max MAX', "Max Results" ) do |val|
+            opts.on( '-m', '--max MAX', "Max Results (use -1 for all results)" ) do |val|
               # api supports max=-1 for all at the moment..
               if val.to_s == "all" || val.to_s == "-1"
                 options[:max] = "-1"
@@ -1365,6 +1371,11 @@ module Morpheus
           # params['phrase'] =  = args.join(" ")
         end
         params.merge!(parse_list_options(options))
+        # query parameters are stored in :params
+        # preserve anything already set in :params by the OptionParser or command specific logic..
+        options[:params] ||= {}
+        options[:params].deep_merge!(params)
+        return options
       end
 
       # The default way to build options for the list command
@@ -1490,50 +1501,118 @@ module Morpheus
         return subtitles
       end
 
-      def parse_payload(options={}, object_key=nil)
-        payload = nil
-        if options[:payload]
-          payload = options[:payload]
-          # support -O OPTION switch on top of --payload
-          apply_options(payload, options, object_key)
-        end
-        payload
+      # Construct the request query parameters from the standard command options
+      # This populates :params with a map of parameters.
+      # This should replace the use of parse_query_options, parse_list_options and parse_list_options! and parse_get_options
+      # which are used everywhere eg. params.merge!(parse_query_options(options))
+      def parse_options(options, params={})
+        params = params ? params.dup : {}
+        # parse_list_options!(args, options, params)
+        # merge in options set with -Q max=3, --query max=3&sort=id
+        params.deep_merge!(options[:query_filters]) if options[:query_filters]
+        # query parameters are stored in :params
+        # preserve anything already set in :params by the OptionParser or command specific logic..
+        options[:params] ||= {}
+        options[:params].deep_merge!(params)
+        # (JSON) body parameters (JSON) are stored in :payload
+        # if options[:payload]
+        # end
+        # ok now call execute_request(@api_client.whoami, :get, nil, options)
+        return options
       end
 
-      def parse_payloads(options={}, object_key=nil, &block)
+      # Parse payload(s) from the standard command options or else invoke the given block. 
+      # First looks for --payload or --payload options and  if they are nil then the block is executed to establish the payload
+      # By default this also merges all the values passed with -O, --options foo="bar" into payload under the object_key context.
+      # and they are merged under the object_key context (if passed). This can be disabled with apply_options: false
+      #
+      # @param options [Hash] standard command options
+      # @option options [Hash] :payload is a Hash of objects to serialize as the payload
+      # @option options [Hash] :payloads is an array of payload objects@yield [street_name] Invokes the block with a street name for eac
+      #                        This is silly and should go away, instead you should iterate in the terminal environment
+      # @option options [Boolean] :apply_options can be set to false to skip -O options merge
+      # @param object_key [String] The name of the object being constructed, -O --options will be merged under this context.
+      # @return array of payloads
+      # @yield [payload] Invokes the block to establish :payload (only when --payload(s) is not used)
+      def parse_payload(options, object_key=nil, &block)
+        # populate options[:params] here too
+        parse_options(options)
         payloads = []
+        # todo: only need to support a a single payload here, :payloads is silly and is going away
         if options[:payload]
           # --payload option was used
           payload = options[:payload]
           # support -O OPTION switch on top of --payload
-          apply_options(payload, options, object_key)
+          apply_options(payload, options, object_key) unless options[:apply_options] == false
           payloads << payload
         elsif options[:payloads]
           # --payloads option was used
           payloads = options[:payloads]
-          # payloads.each { |it| apply_options(it, options, object_key) }
+          # support -O OPTION switch on top of --payloads
+          payloads.each do |payload|
+            apply_options(payload, options, object_key) unless options[:apply_options] == false
+          end
         else
-          # default is to construct one using the block
+          # yield to block to construct the payload, 
+          # this is typically where prompting for inputs with optionTypes happens
           payload = {}
-          apply_options(payload, options, object_key)
+          apply_options(payload, options, object_key) unless options[:apply_options] == false
           if block_given?
-            result = yield payload
-            #payload = result if result
+            yield payload
           end
           payloads << payload
+          options[:payload] = payload
         end
-        return payloads
+        return payloads.first
       end
 
-      def process_payloads(payloads, options, &block)
+      # support -O OPTION switch
+      def apply_options(payload, options, object_key=nil)
+        payload ||= {}
+        if options[:options]
+          # allow options[:object_key] to be used
+          object_key = object_key ? object_key : options[:object_key]
+          # could use parse_passed_options() here to support exclusion of certain options
+          #passed_options = parse_passed_options(options, options[:apply_options] || {})
+          passed_options = options[:options].reject {|k,v| k.is_a?(Symbol)}
+          if object_key
+            payload.deep_merge!({object_key => passed_options})
+          else
+            payload.deep_merge!(passed_options)
+          end
+        end
+        payload
+      end
+
+      # Executes the block with each payload (:payload or :payloads as parsed from --payload FILE and --payloads --PATH)
+      # This is a wrapper to support execution on 1-N payloads 
+      # It also looks for --ignore-payload-errors behavior to continue processing
+      # It is up to the block to actually make the api request
+      # @param options [Hash] standard command options
+      # @raise [Error] if there is no :payload or :payloads defined.
+      # @yield [payload] Yields each payload to the block
+      # @return parsed command result of the last return value of the block ie. [0, nil]
+      def handle_each_payload(options, &block)
+        payloads = []
+        if options[:payloads]
+          payloads = options[:payloads]
+        elsif options[:payload]
+          payloads << options[:payload]
+        else
+          raise "handle_each_payload() requires :payload or :payloads"
+        end
         if !payloads.is_a?(Array) || payloads.compact.empty?
-          raise "process_payloads() requires an Array of at least one payload and instead got: (#{payloads.class}) #{payloads.inspect}"
+          raise "handle_each_payload() requires a payload"
+        end
+        if !block_given?
+          raise "handle_each_payload() requires a block to process the payload(s) with"
         end
         results = []
         payloads.each do |payload|
           begin
             result = yield payload
-            results << [0, nil]
+            results << Morpheus::Cli::CliRegistry.parse_command_result(result)
+            #results << [0, nil]
           rescue => e
             if options[:payloads_ignore_error]
               # results << [1, e.message]
@@ -1548,16 +1627,67 @@ module Morpheus
         return results.last
       end
 
-      def build_payload(options, object_key=nil)
-        payload = {}
-        if options[:payload]
-          parse_payload(options, object_key)
+      # Standard handler for all commands that execute an api request.
+      # This looks for a payload that can be set with --payload or --payloads or the default prompting
+      # It is up to the block to handle the rendering behavior
+      # @param api_interface [APIClient] An APIClient instance
+      # @param api_method [String or Symbol] api method to invoke eg. :get, :create, :update, :destroy
+      # @param args [Array] Array of arguments to be passed to the api method, usually just the [payload] or [payload, query_params]
+      # @param options [Hash] options
+      # @param object_key [String or Symbol] name of object being constructed, used by default rendering eg. --fields id,name
+      # @yield [json_response] Invokes the block with the json response to handle rendering.
+      # @return parsed command result of the last block.call(json_response)
+      #
+      # @example Fetch first 100 backups
+      #   execute_api(@api_client.backups, :list, [{"max" => 100}], options) do |json_response|
+      #     print_green_success "Fetched first #{json_response['backups'].size} of #{json_response['meta']['total']} backups"
+      #   end
+      #
+      # @example Create a backup, uses POST with options[:payload] as the body
+      #   @options[:payload] = {"backup" => { }}
+      #   execute_api(@api_client.backups, :create, nil, options, 'backup') do |json_response|
+      #     print_green_success "Added backup #{json_response['backup']['name']}"
+      #   end
+      #
+      def execute_api(api_interface, api_method, args, options, object_key=nil, &block)
+        args = args.is_a?(Array) ? args : [args].compact
+        if options[:payload] || options[:payloads]
+          execute_api_payload(api_interface, api_method, args, options, object_key, &block)
         else
-          apply_options(payload, options, object_key)
+          execute_api_request(api_interface, api_method, args, options, object_key, &block)
         end
-        return payload
       end
 
+      # Standard handler for all POST commands that send a request for a payload
+      # This supports the --payloads option for 1-N payloads, that is silly and will probably go away
+      def execute_api_payload(api_interface, api_method, args, options, object_key=nil, &block)
+        handle_each_payload(options) do |payload|
+          execute_api_request(api_interface, api_method, (args || []) + [payload], options, object_key, &block)
+        end
+      end
+
+      # Standard handler for executing any API request
+      # Supports the --dry-run option and standard rendering options --json, --yaml, --fields, --select, etc.
+      def execute_api_request(api_interface, api_method, args, options, object_key=nil, &block)
+        args = args.is_a?(Array) ? args : [args].compact # allow caller to pass [payload] or payload
+        api_interface.setopts(options) # this is needed to support --timeout and --headers
+        # this assumes the interface parameter order is: [payload, params] and not vice versa
+        if options[:params] && !options[:params].empty?
+          args << options[:params]
+        end
+        if options[:dry_run]
+          # this is a dry run
+          dry_response = api_interface.dry.send(api_method, *args)
+          print_dry_run(dry_response, options)
+          return 0, nil
+        else
+          # execute the request and render the result
+          json_response = api_interface.send(api_method, *args)
+          return render_response(json_response, options, object_key, &block)
+        end
+      end
+
+      # Parse an array from a string (csv)
       def parse_array(val, opts={})
         opts = {strip:true, allow_blank:false}.merge(opts)
         values = []
@@ -1578,19 +1708,6 @@ module Morpheus
 
       def parse_labels(val)
         parse_array(val, {strip:true, allow_blank:false})
-      end
-
-      # support -O OPTION switch
-      def apply_options(payload, options, object_key=nil)
-        payload ||= {}
-        if options[:options]
-          if object_key
-            payload.deep_merge!({object_key => options[:options].reject {|k,v| k.is_a?(Symbol)}})
-          else
-            payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol)})
-          end
-        end
-        payload
       end
 
       def validate_outfile(outfile, options)
@@ -1619,6 +1736,8 @@ module Morpheus
       # basic rendering for options :json, :yml, :csv, :quiet, and :outfile
       # returns the string rendered, or nil if nothing was rendered.
       def render_response(json_response, options, object_key=nil, &block)
+        # allow options[:object_key] to be used
+        object_key = object_key ? object_key : options[:object_key]
         output = nil
         if options[:select_fields]
           # support foos get --raw-select foo.x,foo.y,foo.z
@@ -1676,7 +1795,7 @@ module Morpheus
           else
             # no render happened, so calling the block if given
             if block_given?
-              result = yield
+              result = yield json_response
               if result
                 return result
               else
@@ -1903,6 +2022,14 @@ module Morpheus
         # add aliases here as needed
         if key == "cloud"
           key = "zone"
+        elsif key == "site"
+          key = "group"
+        elsif key == "backupJob"
+          key = "job"
+        elsif key == "backupResult"
+          key = "result"
+        elsif key == "backupRestore"
+          key = "restore"
         end
         return key
       end
