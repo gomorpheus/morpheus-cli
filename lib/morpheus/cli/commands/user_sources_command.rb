@@ -158,7 +158,8 @@ EOT
         "Login URL" => lambda {|it| it['loginURL'] },
         "Default Role" => lambda {|it| it['defaultAccountRole'] ? it['defaultAccountRole']['authority'] : '' },
         "External Login" => lambda {|it| format_boolean it['externalLogin'] },
-        "Allow Custom Mappings" => lambda {|it| format_boolean it['allowCustomMappings'] },
+        "Enable Role Mapping Permission" => lambda {|it| format_boolean it['allowCustomMappings'] },
+        "Manual Role Assignment" => lambda {|it| it['manualRoleAssignment'].nil? ? '' : format_boolean(it['manualRoleAssignment']) },
         "Active" => lambda {|it| format_boolean it['active'] },
       }
       print_description_list(description_cols, user_source)
@@ -235,13 +236,27 @@ EOT
       opts.on('--description VALUE', String, "Description") do |val|
         params['description'] = val
       end
-      opts.on("--allow-custom-mappings [on|off]", ['on','off'], "Allow Custom Mappings, Enable Role Mapping Permissions") do |val|
+      opts.on("--allow-custom-mappings [on|off]", ['on','off'], "Enable Role Mapping Permissions") do |val|
         params['allowCustomMappings'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
-      opts.on("--allowCustomMappings [on|off]", ['on','off'], "Allow Custom Mappings, Enable Role Mapping Permissions") do |val|
+      opts.on("--allowCustomMappings [on|off]", ['on','off'], "Enable Role Mapping Permissions") do |val|
         params['allowCustomMappings'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
       opts.add_hidden_option('--allowCustomMappings')
+      opts.on("--manual-role-assignment [on|off]", ['on','off'], "Manual Role Assignment") do |val|
+        params['manualRoleAssignment'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
+      end
+      opts.on("--manualRoleAssignment [on|off]", ['on','off'], "Manual Role Assignment") do |val|
+        params['manualRoleAssignment'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
+      end
+      opts.add_hidden_option('--manualRoleAssignment')
+      opts.on("--manual-role-assignment [on|off]", ['on','off'], "Manual Role Assignment") do |val|
+        params['manualRoleAssignment'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
+      end
+      opts.on("--manualRoleAssignment [on|off]", ['on','off'], "Manual Role Assignment") do |val|
+        params['manualRoleAssignment'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
+      end
+      opts.add_hidden_option('--manualRoleAssignment')
       opts.on('--role-mappings MAPPINGS', String, "Role Mappings FQN in the format id1:FQN1,id2:FQN2") do |val|
         role_mappings = {}
         val.split(',').collect {|it| it.strip.split(':') }.each do |pair|
@@ -386,12 +401,20 @@ EOT
         end
         payload['userSource']['defaultAccountRole'] = {'id' => default_role_id }
 
-        # Allow Custom Mappings
+        # Enable Role Mapping Permissions
         if !params['allowCustomMappings'].nil?
           payload['userSource']['allowCustomMappings'] = ["on","true"].include?(params['allowCustomMappings'].to_s)
         else
-          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'allowCustomMappings', 'type' => 'checkbox', 'fieldLabel' => 'Allow Custom Mappings', 'defaultValue' => false}], options[:options])
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'allowCustomMappings', 'type' => 'checkbox', 'fieldLabel' => 'Enable Role Mapping Permissions', 'defaultValue' => false}], options[:options])
           payload['userSource']['allowCustomMappings'] = ["on","true"].include?(v_prompt['allowCustomMappings'].to_s)
+        end
+
+        # Manual Role Assignment
+        if !params['manualRoleAssignment'].nil?
+          payload['userSource']['manualRoleAssignment'] = ["on","true"].include?(params['allowCustomMappings'].to_s)
+        else
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'manualRoleAssignment', 'type' => 'checkbox', 'fieldLabel' => 'Manual Role Assignment', 'defaultValue' => false}], options[:options])
+          payload['userSource']['manualRoleAssignment'] = ["on","true"].include?(v_prompt['manualRoleAssignment'].to_s)
         end
 
         if role_mappings
@@ -435,10 +458,10 @@ EOT
       opts.on('--description VALUE', String, "Description") do |val|
         params['description'] = val
       end
-      opts.on("--allow-custom-mappings [on|off]", ['on','off'], "Allow Custom Mappings, Enable Role Mapping Permissions") do |val|
+      opts.on("--allow-custom-mappings [on|off]", ['on','off'], "Enable Role Mapping Permissions") do |val|
         params['allowCustomMappings'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
-      opts.on("--allowCustomMappings [on|off]", ['on','off'], "Allow Custom Mappings, Enable Role Mapping Permissions") do |val|
+      opts.on("--allowCustomMappings [on|off]", ['on','off'], "Enable Role Mapping Permissions") do |val|
         params['allowCustomMappings'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
       opts.add_hidden_option('--allowCustomMappings')
@@ -493,9 +516,14 @@ EOT
           payload['userSource']['description'] = params['description']
         end
         
-        # Allow Custom Mappings
+        # Enable Role Mapping Permissions
         if !params['allowCustomMappings'].nil?
           payload['userSource']['allowCustomMappings'] = params['allowCustomMappings']
+        end
+
+        # Manual Role Assignment
+        if !params['manualRoleAssignment'].nil?
+          payload['userSource']['manualRoleAssignment'] = params['manualRoleAssignment']
         end
 
         if role_mappings
