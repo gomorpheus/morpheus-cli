@@ -1206,7 +1206,7 @@ EOT
       role = find_role_by_name_or_id(account_id, name)
       exit 1 if role.nil?
 
-      role_json = @roles_interface.get(account_id, role['id'])
+      role_json = @roles_interface.get(account_id, role['id'], {'includeDefaultAccess' => true})
 
       cloud = nil
       if !do_all
@@ -1355,7 +1355,7 @@ EOT
       role = find_role_by_name_or_id(account_id, name)
       return 1 if role.nil?
 
-      role_json = @roles_interface.get(account_id, role['id'])
+      role_json = @roles_interface.get(account_id, role['id'], {'includeDefaultAccess' => true})
       instance_type = nil
       if !do_all
         instance_type = find_instance_type_by_name(instance_type_name)
@@ -1504,7 +1504,7 @@ EOT
       role = find_role_by_name_or_id(account_id, name)
       return 1 if role.nil?
 
-      role_json = @roles_interface.get(account_id, role['id'])
+      role_json = @roles_interface.get(account_id, role['id'], {'includeDefaultAccess' => true})
       blueprint_global_access = role_json['globalAppTemplateAccess'] || role_json['globalBlueprintAccess']
       blueprint_permissions = role_json['appTemplatePermissions'] || role_json['blueprintPermissions'] || []
 
@@ -1666,7 +1666,7 @@ EOT
       role = find_role_by_name_or_id(account_id, name)
       return 1 if role.nil?
 
-      role_json = @roles_interface.get(account_id, role['id'])
+      role_json = @roles_interface.get(account_id, role['id'], {'includeDefaultAccess' => true})
       catalog_item_type_global_access = role_json['globalCatalogItemTypeAccess']
       catalog_item_type_permissions = role_json['catalogItemTypePermissions'] || role_json['catalogItemTypes'] []
 
@@ -1821,7 +1821,7 @@ Update default persona access for a role.
       role = find_role_by_name_or_id(account_id, name)
       return 1 if role.nil?
 
-      role_json = @roles_interface.get(account_id, role['id'])
+      role_json = @roles_interface.get(account_id, role['id'], {'includeDefaultAccess' => true})
       
       # no lookup right now, pass the code serviceCatalog|standard
       persona_code = persona_id
@@ -1963,7 +1963,7 @@ EOT
       role = find_role_by_name_or_id(account_id, name)
       return 1 if role.nil?
 
-      role_json = @roles_interface.get(account_id, role['id'])
+      role_json = @roles_interface.get(account_id, role['id'], {'includeDefaultAccess' => true})
       vdi_pool_global_access = role_json['globalVdiPoolAccess']
       vdi_pool_permissions = role_json['vdiPoolPermissions'] || role_json['vdiPools'] || []
 
@@ -2119,7 +2119,7 @@ EOT
       role = find_role_by_name_or_id(account_id, name)
       return 1 if role.nil?
 
-      role_json = @roles_interface.get(account_id, role['id'])
+      role_json = @roles_interface.get(account_id, role['id'], {'includeDefaultAccess' => true})
       report_type_global_access = role_json['globalReportTypeAccess']
       report_type_permissions = role_json['reportTypePermissions'] || role_json['reportTypes'] || []
 
@@ -2273,7 +2273,7 @@ Update default task access for a role.
       role = find_role_by_name_or_id(account_id, name)
       return 1 if role.nil?
 
-      role_json = @roles_interface.get(account_id, role['id'])
+      role_json = @roles_interface.get(account_id, role['id'], {'includeDefaultAccess' => true})
       task_permissions = role_json['taskPermissions'] || role_json['tasks'] || []
 
       # hacky, but support name or code lookup via the list returned in the show payload
@@ -2425,7 +2425,7 @@ Update default workflow access for a role.
       role = find_role_by_name_or_id(account_id, name)
       return 1 if role.nil?
 
-      role_json = @roles_interface.get(account_id, role['id'])
+      role_json = @roles_interface.get(account_id, role['id'], {'includeDefaultAccess' => true})
       workflow_permissions = role_json['taskSetPermissions'] || role_json['taskSets'] || []
 
       # hacky, but support name or code lookup via the list returned in the show payload
