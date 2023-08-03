@@ -259,7 +259,8 @@ EOT
     connect(options)
     backup_job = find_backup_job_by_name_or_id(args[0])
     return 1 if backup_job.nil?
-    parse_payload(options)
+    parse_payload(options) do |payload|
+    end
     execute_api(@backup_jobs_interface, :execute_job, [backup_job['id']], options, 'job') do |json_response|
       print_green_success "Executing backup job #{backup_job['name']}"
       # should get the result maybe, or could even support refreshing until it is complete...

@@ -65,7 +65,8 @@ EOT
     verify_args!(args:args, optparse:optparse, count:0)
     connect(options)
     params.merge!(parse_query_options(options))
-    payload = parse_payload(options)
+    payload = parse_payload(options) do |data|
+    end
     @plugins_interface.setopts(options)
     if options[:dry_run]
       print_dry_run @plugins_interface.dry.check_updates(payload, params)
