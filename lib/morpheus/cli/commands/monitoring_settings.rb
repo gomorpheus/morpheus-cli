@@ -39,7 +39,6 @@ class Morpheus::Cli::MonitoringSettings
     render_response(json_response, options, 'monitoringSettings') do
       monitoring_settings = json_response['monitoringSettings']
       service_now_settings = monitoring_settings['serviceNow']
-      new_relic_settings = monitoring_settings['newRelic']
       print_h1 "Monitoring Settings"
       print cyan
       description_cols = {
@@ -61,13 +60,6 @@ class Morpheus::Cli::MonitoringSettings
           "Critical Mapping" => lambda {|it| format_service_now_mapping(it['criticalMapping']) },
         }
         print_description_list(description_cols, service_now_settings)
-
-        print_h2 "New Relic Settings", options.merge(:border_style => :thin)
-        description_cols = {
-          "Enabled" => lambda {|it| format_boolean(it['enabled']) },
-          "License Key" => lambda {|it| it['licenseKey'] },
-        }
-        print_description_list(description_cols, new_relic_settings, options)
       
       print reset, "\n"
     end
@@ -138,14 +130,6 @@ class Morpheus::Cli::MonitoringSettings
         # end
         params['serviceNow'] ||= {}
         params['serviceNow']['criticalMapping'] = val
-      end
-      opts.on('--new-relic-enabled [on|off]', String, "New Relic: Enabled (on) or disabled (off)") do |val|
-        params['newRelic'] ||= {}
-        params['newRelic']['enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
-      end
-      opts.on("--new-relic-license-key [VALUE]", String, "New Relic: License Key") do |val|
-        params['newRelic'] ||= {}
-        params['newRelic']['licenseKey'] = val
       end
       build_standard_update_options(opts, options)
       opts.footer = "Update monitoring settings."
