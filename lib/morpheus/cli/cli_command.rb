@@ -1552,7 +1552,10 @@ module Morpheus
           payloads.each do |payload|
             apply_options(payload, options, object_key) unless options[:apply_options] == false
           end
-        else
+        #else
+        # should always do this, but a lot of methods rely on this returning nil right now, not {}
+        # so for now only do it if block is given
+        elsif block_given?
           # yield to block to construct the payload, 
           # this is typically where prompting for inputs with optionTypes happens
           payload = {}

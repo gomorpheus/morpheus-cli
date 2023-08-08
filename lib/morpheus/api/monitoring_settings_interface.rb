@@ -18,8 +18,4 @@ class Morpheus::MonitoringSettingsInterface < Morpheus::APIClient
     execute(method: :put, url: "#{base_path}/service-now", payload: payload, params: params, headers: headers)
   end
 
-  def update_new_relic(payload, params={}, headers={})
-    execute(method: :put, url: "#{base_path}/new-relic", payload: payload, params: params, headers: headers)
-  end
-
 end
