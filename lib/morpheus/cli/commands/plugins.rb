@@ -6,7 +6,7 @@ class Morpheus::Cli::PluginsCommand
 
   set_command_name :plugins
   set_command_description "View and manage plugins."
-  register_subcommands :list, :get, :upload, :update, :remove, :'check-updates'
+  register_subcommands :list, :get, :upload, :update, :remove #, :'check-updates'
 
   # RestCommand settings
   register_interfaces :plugins
