@@ -34,7 +34,7 @@ View the remote appliance in a web browser.
 [id] is optional. This is the resource name or id to be append to the path to load details of a specific object.
 The [path] is matched against the #{prog_name} UI site map to find the best matching route.
 Route matching is skipped if the path begins with a "/" or --absolute is used.
-By default no authentication is not done and the existing web browser session used.
+By default no authentication is done and the existing web browser session used.
 The --login option will authenticate via the CLI access token and create a new browser session.
 
 Examples:
