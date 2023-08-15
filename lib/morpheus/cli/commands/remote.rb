@@ -759,7 +759,7 @@ EOT
       end
       build_common_options(opts, options, [:quiet])
       opts.footer = <<-EOT
-Clone remote appliance configuratio, including any existing credentials.
+Clone remote appliance configuration, including any existing credentials.
 [remote] is required. This is the name of an existing remote.
 [name] is optional. This is the name of the new remote that will be created.
 EOT
