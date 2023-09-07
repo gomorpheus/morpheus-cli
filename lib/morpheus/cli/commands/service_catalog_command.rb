@@ -871,7 +871,7 @@ EOT
     
     @service_catalog_interface.setopts(options)
     if options[:dry_run]
-      print_dry_run @service_catalog_interface.dry.checkout(payload)
+      print_dry_run @service_catalog_interface.dry.checkout(params, payload)
       return
     end
 
@@ -889,7 +889,7 @@ EOT
     unless options[:yes] || Morpheus::Cli::OptionTypes.confirm("Are you sure you want to checkout and place an order?")
       return 9, "aborted command"
     end
-    json_response = @service_catalog_interface.checkout(payload, params)
+    json_response = @service_catalog_interface.checkout(params, payload)
     render_response(json_response, options) do
       print_green_success "Order placed"
       # ok so this is delayed because list does not return all statuses right now..
