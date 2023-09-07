@@ -93,7 +93,7 @@ class Morpheus::Cli::CatalogItemTypesCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[type]")
-      opts.on( '-c', '--config', "Display raw config only. Default is YAML. Combine with -j for JSON instead." ) do
+      opts.on( '-c', '--config', "Display raw config only." ) do
         options[:show_config] = true
       end
       # opts.on('--no-config', "Do not display Config YAML." ) do
@@ -136,13 +136,17 @@ EOT
       json_response = @catalog_item_types_interface.get(id, params)
     end
     catalog_item_type = json_response[catalog_item_type_object_key]
-    config = catalog_item_type['config'] || {}
     # export just the config as json or yaml (default)
     if options[:show_config]
-      unless options[:json] || options[:yaml] || options[:csv]
-        options[:yaml] = true
+      if catalog_item_type['instanceSpec']
+        puts catalog_item_type['instanceSpec']
+        # print reset
+        return 0, nil
       end
-      return render_with_format(config, options)
+      unless options[:json] || options[:yaml] || options[:csv]
+        options[:json] = true
+      end
+      return render_with_format(catalog_item_type['config'] || {}, options)
     end
     render_response(json_response, options, catalog_item_type_object_key) do
       print_h1 "Catalog Item Type Details", [], options
@@ -172,11 +176,11 @@ EOT
       item_type_code = catalog_item_type['type'].to_s.downcase
       if options[:no_config] != true
         if item_type_code == 'instance'
-          print_h2 "Config YAML"
-          if config
+          print_h2 "Config JSON"
+          
             #print reset,(JSON.pretty_generate(config) rescue config),"\n",reset
             #print reset,(as_yaml(config, options) rescue config),"\n",reset
-            config_string = as_yaml(config, options) rescue config
+            config_string = catalog_item_type['instanceSpec'] || (as_json(catalog_item_type['config'], options) rescue "")
             config_lines = config_string.split("\n")
             config_line_count = config_lines.size
             max_lines = 10
@@ -191,9 +195,7 @@ EOT
               config_string = config_string[4..-1]
             end
             print reset,config_string.chomp("\n"),"\n",reset
-          else
-            print reset,"(blank)","\n",reset
-          end
+          
         elsif item_type_code == 'blueprint' || item_type_code == 'apptemplate' || item_type_code == 'app'
           print_h2 "App Spec"
           if catalog_item_type['appSpec']
