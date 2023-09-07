@@ -46,22 +46,22 @@ class Morpheus::ServiceCatalogInterface < Morpheus::APIClient
   end
 
   # update cart (set cart name)
-  def update_cart(payload, params={})
+  def update_cart(params, payload)
     execute(method: :put, url: "#{base_path}/cart", params: params, payload: payload.to_json)
   end
 
   # validate a new item, can be used before before adding it
-  def validate_cart_item(payload, params={})
+  def validate_cart_item(params, payload)
     execute(method: :post, url: "#{base_path}/cart/items/validate", params: params, payload: payload.to_json)
   end
 
   # add item to cart
-  def create_cart_item(payload, params={})
+  def create_cart_item(params, payload)
     execute(method: :post, url: "#{base_path}/cart/items", params: params, payload: payload.to_json)
   end
 
   # update item in the cart
-  def update_cart_item(id, payload, params={})
+  def update_cart_item(id, params, payload)
     validate_id!(id)
     execute(method: :put, url: "#{base_path}/cart/items/#{id}", params: params, payload: payload.to_json)
   end
@@ -73,7 +73,7 @@ class Morpheus::ServiceCatalogInterface < Morpheus::APIClient
   end
 
   # place order with cart
-  def checkout(payload, params={})
+  def checkout(params, payload)
     execute(method: :post, url: "#{base_path}/checkout", params: params, payload: payload.to_json)
   end
 
@@ -83,7 +83,7 @@ class Morpheus::ServiceCatalogInterface < Morpheus::APIClient
   end
 
   # create an order from scratch, without using a cart
-  def create_order(payload, params={})
+  def create_order(params, payload)
     execute(method: :post, url: "#{base_path}/orders", params: params, payload: payload.to_json)
   end
 end
