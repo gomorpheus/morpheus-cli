@@ -728,6 +728,14 @@ class Morpheus::Cli::Clusters
         server_payload['networkDomain'] = options[:domain] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'networkDomain', 'fieldLabel' => 'Network Domain', 'type' => 'select', 'required' => false, 'optionSource' => 'networkDomains'}], options[:options], @api_client, api_params)['networkDomain']
         server_payload['hostname'] = options[:hostname] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'hostname', 'fieldLabel' => 'Hostname', 'type' => 'text', 'required' => true, 'description' => 'Hostname', 'defaultValue' => resourceName}], options[:options], @api_client, api_params)['hostname']
 
+        # Kube Default Repo
+        if cluster_payload['type'] == 'kubernetes-cluster' && layout['clusterVersion'] == '1.28.x'
+          default_repo = options[:default_repo] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'defaultRepoAccount', 'fieldLabel' => 'Cluster Repo Account', 'type' => 'select', 'required' => false, 'optionSource' => 'dockerHubRegistries'}], options[:options], @api_client, api_params)['defaultRepoAccount']
+          if default_repo != ""
+            server_payload['config']['defaultRepoAccount'] = default_repo
+          end
+        end
+
         # Workflow / Automation
         if provision_type['code'] != 'manual' && controller_type && controller_type['hasAutomation']
           task_set_id = options[:taskSetId] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'taskSet', 'fieldLabel' => 'Workflow', 'type' => 'select', 'required' => false, 'optionSource' => 'taskSets'}], options[:options], @api_client, api_params.merge({'phase' => 'postProvision'}))['taskSet']
