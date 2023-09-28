@@ -24,6 +24,7 @@ class Morpheus::Cli::Clusters
   register_subcommands :api_config, :view_api_token, :view_kube_config
   register_subcommands :wiki, :update_wiki
   register_subcommands :apply_template
+  register_subcommands :refresh
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
@@ -727,6 +728,15 @@ class Morpheus::Cli::Clusters
         # Host / Domain
         server_payload['networkDomain'] = options[:domain] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'networkDomain', 'fieldLabel' => 'Network Domain', 'type' => 'select', 'required' => false, 'optionSource' => 'networkDomains'}], options[:options], @api_client, api_params)['networkDomain']
         server_payload['hostname'] = options[:hostname] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'hostname', 'fieldLabel' => 'Hostname', 'type' => 'text', 'required' => true, 'description' => 'Hostname', 'defaultValue' => resourceName}], options[:options], @api_client, api_params)['hostname']
+
+        # Kube Default Repo
+        if cluster_payload['type'] == 'kubernetes-cluster' && (layout['clusterVersion'] == '1.28.x' || layout['clusterVersion'] == '1.27.x')
+          default_repo = options[:default_repo] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'defaultRepoAccount', 'fieldLabel' => 'Cluster Repo Account', 'type' => 'select', 'required' => false, 'optionSource' => 'dockerHubRegistries'}], options[:options], @api_client, api_params)['defaultRepoAccount']
+          if default_repo != ""
+            server_payload['config']['defaultRepoAccount'] = default_repo
+          end
+        end
+
 
         # Workflow / Automation
         if provision_type['code'] != 'manual' && controller_type && controller_type['hasAutomation']
@@ -4406,5 +4416,39 @@ class Morpheus::Cli::Clusters
       out << "#{cyan}#{status_str.upcase}#{return_color}"
     end
     out
+  end
+
+  def refresh(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[id]")
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+      opts.footer = "Refresh cluster."
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      return 1 if cluster.nil?
+      json_response = nil
+
+      if options[:dry_run]
+          print_dry_run @clusters_interface.dry.refresh(args[0].to_i)
+        return
+      end
+      json_response = @clusters_interface.refresh(cluster['id'])
+      if options[:json]
+        puts as_json(json_response, options)
+      else
+        print_green_success "Refreshing cluster #{cluster['name']}..."
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
   end
 end
