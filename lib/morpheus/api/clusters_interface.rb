@@ -313,4 +313,11 @@ class Morpheus::ClustersInterface < Morpheus::APIClient
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     execute(method: :post, url: url, headers: headers, payload: payload.to_json)
   end
+
+  def refresh(id)
+    url = "#{@base_url}/api/clusters/#{id}/refresh"
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :get, url: url, headers: headers}
+    execute(opts)
+  end
 end
