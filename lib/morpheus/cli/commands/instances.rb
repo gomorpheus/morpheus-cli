@@ -466,6 +466,7 @@ class Morpheus::Cli::Instances
     optparse.parse!(args)
     connect(options)
 
+
     if args.count > 1
       print_error Morpheus::Terminal.angry_prompt
       puts_error  "#{command_name} add has just 1 (optional) argument: [name].  Got #{args.count} arguments: #{args.join(' ')}\n#{optparse}"
