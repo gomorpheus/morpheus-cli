@@ -924,7 +924,7 @@ module Morpheus::Cli::ProvisioningHelper
       # ok.. seed data has changed and serverTypes do not have this optionType anymore...
       if sg_option_type.nil?
         if provision_type && (provision_type["code"] == 'amazon')
-          sg_option_type = {'fieldContext' => 'config', 'fieldName' => 'securityId', 'type' => 'select', 'fieldLabel' => 'Security Group', 'optionSource' => 'amazonSecurityGroup', 'required' => true, 'description' => 'Select security group.', 'defaultValue' => options[:default_security_group]}
+            sg_option_type = {'fieldContext' => 'config', 'fieldName' => 'securityId', 'type' => 'select', 'fieldLabel' => 'Security Group', 'optionSource' => 'amazonSecurityGroup', 'optionSourceType' => 'amazon', 'required' => true, 'description' => 'Select security group.', 'defaultValue' => options[:default_security_group]}
         end
       end
       sg_api_params = {zoneId: cloud_id, poolId: pool_id}
