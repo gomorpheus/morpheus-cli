@@ -674,8 +674,16 @@ class Morpheus::APIClient
     Morpheus::NetworkServicesInterface.new(common_interface_options).setopts(@options)
   end
 
+  # def network_service_types
+  #   Morpheus::NetworkServiceTypesInterface.new(common_interface_options).setopts(@options)
+  # end
+
   def network_security_servers
     Morpheus::NetworkSecurityServersInterface.new(common_interface_options).setopts(@options)
+  end
+
+  def network_security_server_types
+    Morpheus::NetworkSecurityServerTypesInterface.new(common_interface_options).setopts(@options)
   end
 
   def network_pool_servers
@@ -916,6 +924,10 @@ class Morpheus::APIClient
 
   def network_servers
     Morpheus::NetworkServersInterface.new(common_interface_options).setopts(@options)
+  end
+
+  def network_server_types
+    Morpheus::NetworkServerTypesInterface.new(common_interface_options).setopts(@options)
   end
 
   def network_server_groups

@@ -1542,7 +1542,7 @@ class Morpheus::Cli::NetworksCommand
       description_cols = {
         "ID" => 'id',
         "Name" => 'name',
-        "Code" => 'name',
+        "Code" => 'code',
         "Description" => 'description',
         # lots more here
         "Createable" => lambda {|it| format_boolean(it['creatable']) },

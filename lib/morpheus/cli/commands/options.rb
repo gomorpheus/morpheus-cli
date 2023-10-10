@@ -15,9 +15,22 @@ class Morpheus::Cli::Options
   end
   
   def handle(args)
-    list(args)
+    # todo: probably just make these proper subcommands
+    # handle_subcommand(args)
+    # handle some special cases that do not conform to name, value
+    # This also provides some help on their by documenting the required parameters.
+    source_name = args[0]
+    if source_name == "networkServices"
+      network_services(args[1..-1])
+    elsif source_name == "zoneNetworkOptions"
+      zone_network_options(args[1..-1])
+    else
+      list(args)
+    end
   end
 
+  # This is the default handler for the options command.
+  # It shows the NAME and VALUE for the list of "data" returned.
   def list(args)
     options = {}
     params = {}
@@ -67,6 +80,9 @@ EOT
     begin
       json_response = @options_interface.options_for_source(source_name, params)
     rescue RestClient::Exception => e
+      if Morpheus::Logging.debug? # or options[:debug]
+        raise e
+      end
       if e.response && e.response.code == 404
         raise_command_error("Options source not found by name '#{source_name}'", args, optparse)
       elsif e.response && e.response.code == 500
@@ -88,8 +104,125 @@ EOT
         print cyan,"No options found.",reset,"\n"
       else
         print as_pretty_table(records, [:name, :value], options)
-        print_results_pagination(json_response)
+        print_results_pagination({size: records.size, total: records.size})
       end
+      print reset,"\n"
+    end
+    return 0, nil
+  end
+
+  # handle some well option sources by name
+
+  def network_services(args)
+    options = {}
+    params = {}
+    source_name = "networkServices"
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = "Usage: morpheus #{command_name} #{source_name} #{args[0]}"
+      # build_standard_list_options(opts, options)
+      build_standard_get_options(opts, options)
+      opts.footer = <<-EOT
+View list of options for source '#{source_name}'.
+This is the list of network service types (network server types) that can be added.
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count: 0)
+    connect(options)
+    params.merge!(parse_list_options(options))
+    @options_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @options_interface.dry.options_for_source(source_name, params)
+      return
+    end
+    json_response = @options_interface.options_for_source(source_name, params)
+    render_response(json_response, options, "data") do
+      records = json_response["data"].collect {|r| r['services']}.compact.flatten
+      print_h1 "Morpheus Options", ["Source: #{source_name}"] + parse_list_subtitles(options), options, ""
+      if records.nil? || records.empty?
+        print cyan,"No options found.",reset,"\n"
+      else
+        json_response["data"].each do |data_row|
+          if data_row['services'] && !data_row['services'].empty?
+            services = []
+            data_row['services'].each do |service_row|
+              services << {name: service_row['name'], code: service_row['code'] , id: service_row['id'], value: service_row['id']}
+            end
+            # print_h2 "#{data_row['name']} Options", [], options
+            print_h2 "#{data_row['name']}", [], options
+            print as_pretty_table(services, [:id, :name, :code], options)
+          end
+        end
+      end
+      print_results_pagination({size: records.size, total: records.size})
+      print reset,"\n"
+    end
+    return 0, nil
+  end
+  
+#  # this is a really slow one right now, need to look into that.
+#   def networks(args)
+#   end
+
+  def zone_network_options(args)
+    options = {}
+    params = {}
+    source_name = "zoneNetworkOptions"
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = "Usage: morpheus #{command_name} #{source_name} #{args[0]}"
+      # build_standard_list_options(opts, options)
+      build_standard_get_options(opts, options)
+      opts.footer = <<-EOT
+View list of options for source '#{source_name}'.
+This is the list of networks available when provisioning to a particular cloud and layout.
+
+Required Parameters:
+    Cloud ID (zoneId)
+    Layout ID (layoutId)
+
+Examples: 
+    options #{source_name} -Q zoneId=40&layoutId=1954
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count: 0)
+    connect(options)
+    params.merge!(parse_list_options(options))
+    @options_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @options_interface.dry.options_for_source(source_name, params)
+      return
+    end
+    # This requires Cloud and Layout -Q zoneId=40&layoutId=1954
+    # todo: prompt
+    json_response = @options_interface.options_for_source(source_name, params)
+    render_response(json_response, options, "data") do
+      # This is different, data is a Hash, not an Array...
+      networks = json_response["data"]["networks"]
+      network_groups = json_response["data"]["networkGroups"]
+      network_subnets = json_response["data"]["networkSubnets"]
+      records = [networks, network_groups, network_subnets].compact.flatten
+      print_h1 "Morpheus Options", ["Source: #{source_name}"] + parse_list_subtitles(options), options, ""
+      if records.nil? || records.empty?
+        print cyan,"No options found.",reset,"\n"
+      else
+        if networks && !networks.empty?
+          print_h2 "Networks", [], options
+          rows = networks.collect {|row| {name: row['name'], value: row['id']} }
+          print as_pretty_table(rows, [:name, :value], options)
+        end
+        if network_groups && !network_groups.empty?
+          print_h2 "Network Groups", [], options
+          rows = network_groups.collect {|row| {name: row['name'], value: row['id']} }
+          print as_pretty_table(rows, [:name, :value], options)
+        end
+        if network_subnets && !network_subnets.empty?
+          print_h2 "Subnets", [], options
+          rows = network_subnets.collect {|row| {name: row['name'], value: row['id']} }
+          print as_pretty_table(rows, [:name, :value], options)
+        end
+      end
+      print_results_pagination({size: records.size, total: records.size})
       print reset,"\n"
     end
     return 0, nil

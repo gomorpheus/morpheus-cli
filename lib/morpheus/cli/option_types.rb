@@ -673,9 +673,9 @@ module Morpheus
           if input.empty? && default_value
             input = default_value.to_s
           end
-          matched_option = select_options.find{|it| (!it['value'].nil? && it['value'].to_s == input) || (!it[value_field].nil? && it[value_field].to_s == input) || (it[value_field].nil? && input.empty?)}
+          matched_option = (select_options || []).find{|it| (!it['value'].nil? && it['value'].to_s == input) || (!it[value_field].nil? && it[value_field].to_s == input) || (it[value_field].nil? && input.empty?)}
           if matched_option.nil?
-            matched_options = select_options.select {|it| it['name'] == input } # should probably be case insensitive 
+            matched_options = (select_options || []).select {|it| it['name'] == input } # should probably be case insensitive 
             if matched_options.size > 1
               print Term::ANSIColor.red, "\nInvalid Option #{option_type['fieldLabel']}: [#{input}]\n\n", Term::ANSIColor.reset
               print Term::ANSIColor.red, "  * #{option_type['fieldLabel']} [-O #{option_type['fieldContext'] ? (option_type['fieldContext']+'.') : ''}#{option_type['fieldName']}=] - #{option_type['description']}\n", Term::ANSIColor.reset
@@ -699,7 +699,7 @@ module Morpheus
           
           if input == '?'
             help_prompt(option_type)
-            display_select_options(option_type, select_options, paging)
+            display_select_options(option_type, (select_options || []), paging)
             if paging
               paging[:cur_page] = (paging[:cur_page] + 1) * paging[:page_size] < paging[:total] ? paging[:cur_page] + 1 : 0
             end

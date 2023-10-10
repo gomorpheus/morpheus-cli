@@ -137,6 +137,7 @@ module Morpheus::Cli::InfrastructureHelper
       return cloud_type_for_name(val)
     end
   end
+
   def cloud_type_for_id(id)
     return get_available_cloud_types().find { |z| z['id'].to_i == id.to_i}
   end
@@ -633,7 +634,6 @@ module Morpheus::Cli::InfrastructureHelper
       "Name" => lambda {|it| it['name'] },
       "Type" => lambda {|it| it['type'] ? it['type']['name'] : '' },
       "URL" => lambda {|it| it['serviceUrl'] },
-      #"Pools" => lambda {|it| it['pools'] ? anded_list(it['pools'].collect {|p| p['name'] }, 3) : '' },
       "Enabled" => lambda {|it| format_boolean(it['enabled']) },
       "Status" => lambda {|it| format_network_pool_server_status(it) },
       "Date Created" => lambda {|it| format_local_dt(it['dateCreated']) },
@@ -661,7 +661,6 @@ module Morpheus::Cli::InfrastructureHelper
       "Extra Attributes" => lambda {|it| it['config'] ? it['config']['extraAttributes'] : nil },
       "Enabled" => lambda {|it| format_boolean(it['enabled']) },
       "Status" => lambda {|it| format_network_pool_server_status(it) },
-      #"Pools" => lambda {|it| it['pools'] ? anded_list(it['pools'].collect {|p| p['name'] }, 3) : '' },
       "Date Created" => lambda {|it| format_local_dt(it['dateCreated']) },
       "Last Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
     }
@@ -703,6 +702,108 @@ module Morpheus::Cli::InfrastructureHelper
       "Selectable" => lambda {|it| format_boolean(it['selectable']) },
       "Plugin" => lambda {|it| format_boolean(it['isPlugin']) },
       "Embedded" => lambda {|it| format_boolean(it['isEmbedded']) },
+    }
+  end
+
+  def find_network_server_type_by_name_or_id(val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_network_server_type_by_id(val)
+    else
+      # always find by code too
+      #return find_network_server_type_by_name(val)
+      return find_network_server_type_by_name_or_code(val)
+    end
+  end
+
+  def find_network_server_type_by_id(id)
+    begin
+      json_response = @network_server_types_interface.get(id.to_i)
+      return json_response['networkServerType']
+    rescue RestClient::Exception => e
+      if e.response && e.response.code == 404
+        print_red_alert "Network Server Type not found by id #{id}"
+        return nil
+      else
+        raise e
+      end
+    end
+  end
+
+  def find_network_server_type_by_name(name)
+    json_response = @network_server_types_interface.list({name: name.to_s})
+    network_server_types = json_response['networkServerTypes']
+    if network_server_types.empty?
+      print_red_alert "Network Server Type not found by name #{name}"
+      return nil
+    elsif network_server_types.size > 1
+      print_red_alert "#{network_server_types.size} network server types found by name #{name}"
+      # print_networks_table(networks, {color: red})
+      rows = network_server_types.collect do |it|
+        {id: it['id'], name: it['name']}
+      end
+      puts as_pretty_table(rows, [:id, :code, :name], {color:red})
+      return nil
+    else
+      return network_server_types[0]
+    end
+  end
+
+  def find_network_server_type_by_name_or_code(name)
+    json_response = @network_server_types_interface.list({phrase: name.to_s, max: 100})
+    downcase_name = name.to_s.downcase
+    network_server_types = json_response['networkServerTypes'].select { |it| 
+        it['code'].to_s.downcase == downcase_name || it['name'].to_s.downcase == downcase_name 
+    }
+    if network_server_types.empty?
+      print_red_alert "Network Server Type not found by name or code '#{name}'"
+      return nil
+    elsif network_server_types.size > 1
+      print_red_alert "#{network_server_types.size} network server types found with name or code '#{name}'"
+      # print_networks_table(networks, {color: red})
+      rows = network_server_types.collect do |it|
+        {id: it['id'], name: it['name']}
+      end
+      puts as_pretty_table(rows, [:id, :code, :name], {color:red})
+      return nil
+    else
+      return network_server_types[0]
+    end
+  end
+
+  def network_server_type_list_column_definitions(options)
+    {
+      "ID" => 'id',
+      "Name" => 'name',
+      "Code" => 'code',
+      "Description" => 'description',
+      "Enabled" => lambda {|it| format_boolean(it['enabled']) }
+    }
+  end
+
+  def network_server_type_column_definitions(options)
+    {
+      "ID" => 'id',
+      "Name" => 'name',
+      "Code" => 'code',
+      "Description" => 'description',
+      "Enabled" => lambda {|it| format_boolean(it['enabled']) },
+      "Selectable" => lambda {|it| format_boolean(it['selectable']) },
+      "Creatable" => lambda {|it| format_boolean(it['creatable']) },
+      "Plugin" => lambda {|it| format_boolean(it['isPlugin']) },
+      "Embedded" => lambda {|it| format_boolean(it['isEmbedded']) },
+      #"Integration Code" => lambda {|it| it['integrationCode'] },
+      "Networks" => lambda {|it| format_boolean(it['hasNetworks']) },
+      "Gateways" => lambda {|it| format_boolean(it['hasGateways']) },
+      "DHCP Servers" => lambda {|it| format_boolean(it['hasDhcpServers']) },
+      "DHCP Relays" => lambda {|it| format_boolean(it['hasDhcpRelays']) },
+      # "Route Tables" => lambda {|it| format_boolean(it['hasRouteTables']) },
+      "Routers" => lambda {|it| format_boolean(it['hasRouters']) },
+      "Switches" => lambda {|it| format_boolean(it['hasSwitches']) },
+      "Firewall" => lambda {|it| format_boolean(it['hasFirewall']) },
+      "Security Groups" => lambda {|it| format_boolean(it['hasSecurityGroups']) },
+      "Load Balancers" => lambda {|it| format_boolean(it['hasLoadBalancers']) },
+      # "Security Code" => lambda {|it| it['securityCode'] },
+      # "User Visible" => lambda {|it| format_boolean(it['userVisible']) },
     }
   end
 

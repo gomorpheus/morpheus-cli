@@ -10,11 +10,13 @@ class Morpheus::Cli::NetworkPoolServersCommand
 
   register_subcommands :list, :get, :add, :update, :remove
   register_subcommands :list_types, :get_type
+  alias_subcommand :types, :'list-types'
+  alias_subcommand :type, :'get-type'
   
   # RestCommand settings
   register_interfaces :network_pool_servers, :network_pool_server_types, :clouds, :options
   set_rest_has_type true
-  # set_rest_type :network_pool_server_types
+  set_rest_type :network_pool_server_types
 
   def handle(args)
     handle_subcommand(args)
