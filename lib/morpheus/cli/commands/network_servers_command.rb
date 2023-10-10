@@ -8,7 +8,7 @@ class Morpheus::Cli::NetworkServersCommand
   set_command_description "View and manage network servers"
   set_command_name :'network-servers'
 
-  register_subcommands :list, :get, :add, :update, :remove
+  register_subcommands :list, :get, :add, :update, :remove, :refresh
   register_subcommands :list_types, :get_type
   alias_subcommand :types, :'list-types'
   alias_subcommand :type, :'get-type'
@@ -136,10 +136,10 @@ EOT
         params['enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s.empty?
       end
       # ['name', 'serviceUsername', 'servicePassword', 'servicePort', 'serviceHost', 'serviceUrl', 'serviceMode', 'networkFilter', 'tenantMatch']
-            build_standard_update_options(opts, options)
+      build_standard_update_options(opts, options)
       opts.footer = <<-EOT
 Update a network server.
-"[server] is required. This is the name or id of a network server."
+[network server] is required. This is the name or id of a network server.
 Configuration options vary by network server type.
 EOT
     end
@@ -172,6 +172,47 @@ EOT
       network_server = json_response['networkServer']
       print_green_success "Updated network server #{network_server['name']}"
       _get(network_server['id'], {}, options)
+    end
+  end
+
+  def refresh(args)
+    options = {}
+    params = {}
+    ip_range_list = nil
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[network server]")
+      # ['name', 'serviceUsername', 'servicePassword', 'servicePort', 'serviceHost', 'serviceUrl', 'serviceMode', 'networkFilter', 'tenantMatch']
+            build_standard_update_options(opts, options, [:query])
+      opts.footer = <<-EOT
+Refresh a network server.
+[network server] is required. This is the name or id of a network server.
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count: 1)
+    connect(options)
+    # find network server to be updated
+    network_server = find_network_server_by_name_or_id(args[0])
+    return 1 if network_server.nil?
+    # construct query parameters
+    params.merge!(parse_query_options(options))
+    # construct payload
+    payload = nil
+    if options[:payload]
+      payload = options[:payload]
+    else
+      payload = options[:options].reject {|k,v| k.is_a?(Symbol) }
+    end
+    @network_servers_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @network_servers_interface.dry.refresh(network_server["id"], params, payload)
+      return
+    end
+    json_response = @network_servers_interface.refresh(network_server["id"], params, payload)
+    render_response(json_response, options, 'networkServer') do
+      #network_server = json_response['networkServer']
+      print_green_success "Refreshing network server #{network_server['name']}"
+      #_get(network_server['id'], {}, options)
     end
   end
 

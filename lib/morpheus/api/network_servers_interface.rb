@@ -6,6 +6,10 @@ class Morpheus::NetworkServersInterface < Morpheus::RestInterface
     "/api/networks/servers"
   end
 
+  def refresh(id, params={}, payload={}, headers={})
+    execute(method: :post, url: "#{base_path}/#{id}/refresh", params: params, payload: payload, headers: headers)
+  end
+
   def list_scopes(server_id, params={}, headers={})
     validate_id!(server_id)
     execute(method: :get, url: "#{base_path}/#{server_id}/scopes", params: params, headers: headers)
