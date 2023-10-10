@@ -5,7 +5,10 @@ class Morpheus::Cli::Clouds
   include Morpheus::Cli::InfrastructureHelper
   include Morpheus::Cli::ProvisioningHelper
 
-  register_subcommands :list, :count, :get, :add, :update, :remove, :refresh, :security_groups, :apply_security_groups, :types => :list_cloud_types
+  register_subcommands :list, :count, :get, :add, :update, :remove, :refresh, :security_groups, :apply_security_groups
+  register_subcommands :types, :type
+  alias_subcommand :'list-types', :types
+  alias_subcommand :'get-type', :type
   register_subcommands :wiki, :update_wiki
   register_subcommands({:'update-logo' => :update_logo,:'update-dark-logo' => :update_dark_logo})
   #register_subcommands :firewall_disable, :firewall_enable
@@ -182,10 +185,12 @@ class Morpheus::Cli::Clouds
         #"Owner" => lambda {|it| it['owner'].instance_of?(Hash) ? it['owner']['name'] : it['ownerId'] },
         "Tenant" => lambda {|it| it['account'].instance_of?(Hash) ? it['account']['name'] : it['accountId'] },
         "Enabled" => lambda {|it| format_boolean(it['enabled']) },
-        "Status" => lambda {|it| format_cloud_status(it) }
+        "Last Sync" => lambda {|it| format_local_dt(it['lastSync']) },
+        "Sync Duration" => lambda {|it| format_duration_milliseconds(it['lastSyncDuration']).to_s },
+        "Status" => lambda {|it| format_cloud_status(it) },
       }
       print_description_list(description_cols, cloud)
-      
+
       print_h2 "Cloud Servers"
       print cyan
       if server_counts
@@ -722,36 +727,35 @@ class Morpheus::Cli::Clouds
     end
   end
 
-  def list_cloud_types(args)
+  def types(args)
     options={}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.banner = subcommand_usage("[search]")
+      build_standard_list_options(opts, options)
+      opts.footer = <<-EOT
+List cloud types.
+EOT
     end
     optparse.parse!(args)
     connect(options)
-    begin
-      params.merge!(parse_list_options(options))
-      @clouds_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @clouds_interface.dry.cloud_types({})
-        return 0
-      end
-      json_response = @clouds_interface.cloud_types(params)
+
+    if args.count > 0
+      options[:phrase] = args.join(" ")
+    end
+    params.merge!(parse_list_options(options))
+    @clouds_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @clouds_interface.dry.cloud_types({})
+      return 0
+    end
+    json_response = @clouds_interface.cloud_types(params)
       
-      render_result = render_with_format(json_response, options, 'zoneTypes')
-      return 0 if render_result
-
-      #cloud_types = get_available_cloud_types()
+    render_response(json_response, options, 'zoneTypes') do
       cloud_types = json_response['zoneTypes']
-
-      title = "Morpheus Cloud Types"
-      subtitles = []
-        
+      subtitles = []        
       subtitles += parse_list_subtitles(options)
-      print_h1 title, subtitles
-
+      print_h1 "Morpheus Cloud Types", subtitles, options
       if cloud_types.empty?
         print cyan,"No cloud types found.",reset,"\n"
       else
@@ -767,10 +771,79 @@ class Morpheus::Cli::Clouds
         print_results_pagination(json_response)
         print reset,"\n"
       end
+    end
+  end
+
+  def type(args)
+    options={}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[type]")
+      build_standard_get_options(opts, options)
+            opts.footer = <<-EOT
+Get details about a cloud type.
+[type] is required. This is the name or id of cloud type.
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    # construct request
+    params.merge!(parse_query_options(options))
+    id = args[0]
+    cloud_type = nil
+    if id.to_s !~ /\A\d{1,}\Z/
+      cloud_type = cloud_type_for_name_or_id(id)
+      if cloud_type.nil?
+        raise_command_error "cloud type not found for name or code '#{id}'"
+      end
+      id = cloud_type['id']
+    end
+    # execute request
+    @clouds_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @clouds_interface.dry.cloud_type(id.to_i)
       return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
+    end
+    json_response = @clouds_interface.cloud_type(id.to_i)
+    # render response
+    render_response(json_response, options, 'zoneType') do
+      cloud_type = json_response['zoneType']
+      print_h1 "Cloud Type", [], options
+      print cyan
+      #columns = rest_type_column_definitions(options)
+      columns = {
+        "ID" => 'id',
+        "Name" => 'name',
+        "Code" => 'code',
+        "Enabled" => lambda {|it| format_boolean it['enabled'] },
+        "Provision" => lambda {|it| format_boolean it['provision'] },
+        "Auto Capacity" => lambda {|it| format_boolean it['autoCapacity'] },
+        # "Migration Target" => lambda {|it| format_boolean it['migrationTarget'] },
+        "Datastores" => lambda {|it| format_boolean it['hasDatastores'] },
+        "Networks" => lambda {|it| format_boolean it['hasNetworks'] },
+        "Resource Pools" => lambda {|it| format_boolean it['hasResourcePools'] },
+        "Security Groups" => lambda {|it| format_boolean it['hasSecurityGroups'] },
+        "Containers" => lambda {|it| format_boolean it['hasContainers'] },
+        "Bare Metal" => lambda {|it| format_boolean it['hasBareMetal'] },
+        "Services" => lambda {|it| format_boolean it['hasServices'] },
+        "Functions" => lambda {|it| format_boolean it['hasFunctions'] },
+        "Jobs" => lambda {|it| format_boolean it['hasJobs'] },
+        "Discovery" => lambda {|it| format_boolean it['hasDiscovery'] },
+        "Cloud Init" => lambda {|it| format_boolean it['hasCloudInit'] },
+        "Folders" => lambda {|it| format_boolean it['hasFolders'] },
+        "Floating Ips" => lambda {|it| format_boolean it['hasFloatingIps'] },
+        # "Marketplace" => lambda {|it| format_boolean it['hasMarketplace'] },
+        "Public Cloud" => lambda {|it| format_boolean(it['cloud'] == 'public') },
+      }
+      print_description_list(columns, cloud_type, options)
+      # Option Types
+      option_types = cloud_type['optionTypes']
+      if option_types && option_types.size > 0
+        print_h2 "Option Types", options
+        print format_option_types_table(option_types, options, "zone")
+      end
+      print reset,"\n"
     end
   end
 
@@ -1136,7 +1209,7 @@ EOT
       out << "#{white}UNKNOWN#{return_color}"
     elsif status_string == 'ok'
       out << "#{green}#{status_string.upcase}#{return_color}"
-    elsif status_string == 'syncing'
+    elsif status_string == 'syncing' || status_string == 'initializing' || status_string == 'removing'
       out << "#{yellow}#{status_string.upcase}#{return_color}"
     else
       out << "#{red}#{status_string ? status_string.upcase : 'N/A'}#{cloud['statusMessage'] ? "#{return_color} - #{cloud['statusMessage']}" : ''}#{return_color}"
