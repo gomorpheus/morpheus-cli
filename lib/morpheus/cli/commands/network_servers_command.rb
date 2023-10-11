@@ -34,9 +34,9 @@ class Morpheus::Cli::NetworkServersCommand
       opts.on('--type VALUE', String, "Network Server Type code") do |val|
         params['type'] = val
       end
-      opts.on('--enabled [on|off]', String, "Can be used to disable the network server") do |val|
-        params['enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s.empty?
-      end
+      # opts.on('--enabled [on|off]', String, "Can be used to disable the network server") do |val|
+      #   params['enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s.empty?
+      # end
       # ['name', 'serviceUsername', 'servicePassword', 'servicePort', 'serviceHost', 'serviceUrl', 'serviceMode', 'networkFilter', 'tenantMatch']
       build_standard_add_options(opts, options)
       opts.footer = <<-EOT
@@ -132,9 +132,9 @@ EOT
       opts.on('--name VALUE', String, "Name for this network server") do |val|
         params['name'] = val
       end
-      opts.on('--enabled [on|off]', String, "Can be used to enable or disable the network server") do |val|
-        params['enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s.empty?
-      end
+      # opts.on('--enabled [on|off]', String, "Can be used to enable or disable the network server") do |val|
+      #   params['enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s.empty?
+      # end
       # ['name', 'serviceUsername', 'servicePassword', 'servicePort', 'serviceHost', 'serviceUrl', 'serviceMode', 'networkFilter', 'tenantMatch']
       build_standard_update_options(opts, options)
       opts.footer = <<-EOT
