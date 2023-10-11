@@ -941,6 +941,7 @@ module Morpheus::Cli::ProvisioningHelper
         # though we should should be able to skip the prompt_security_groups and use multiSelect instead
         sg_option_type['type'] = 'select' if sg_option_type['type'] == 'multiSelect'
         sg_option_type['type'] = 'typeahead' if sg_option_type['type'] == 'multiTypeahead'
+        sg_option_type['fieldLabel'] = 'Security Group' if sg_option_type['fieldLabel'] == 'Security Groups'
       end
       has_security_groups = !!sg_option_type
       if options[:security_groups]
