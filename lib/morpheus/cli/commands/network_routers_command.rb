@@ -301,7 +301,10 @@ class Morpheus::Cli::NetworkRoutersCommand
 
         if router_type['hasNetworkServer']
           if options[:network_server]
-            server = find_network_server(options[:network_server])
+            # This is using network_services instead of network_servers though, hrmm
+            # server = find_network_server(options[:network_server])
+            services = @network_services_interface.list()['networkServices']
+            server = (options[:network_server].to_s =~ /\A\d{1,}\Z/) ? services.find {|it| it['id'].to_i == options[:network_server].to_i} : services.find {|it| it['name'] == options[:network_server]}
             if server.nil?
               print_red_alert "Network server #{options[:network_server]} not found"
               exit 1
@@ -2550,11 +2553,6 @@ class Morpheus::Cli::NetworkRoutersCommand
 
   def available_groups()
     @network_routers_interface.groups
-  end
-
-  def find_network_server(val)
-    services = @network_services_interface.list()['networkServices']
-    (val.to_s =~ /\A\d{1,}\Z/) ? services.find {|it| it['id'].to_i == val.to_i} : services.find {|it| it['name'] == val}
   end
 
   def find_firewall_rule(router, rule_id)

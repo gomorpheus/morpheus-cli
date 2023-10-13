@@ -58,7 +58,7 @@ module Morpheus::Cli::PrintHelper
   # title - subtitle1, subtitle2
   # ==================
   #
-  def print_h1(title, subtitles=nil, options=nil)
+  def print_h1(title, subtitles=nil, options=nil, suffix_content="\n")
     # ok, support all these formats for now:
     # print_h1(title, options={})
     # print_h1(title, subtitles, options={})
@@ -89,14 +89,18 @@ module Morpheus::Cli::PrintHelper
     end
     out << "\n"
     if options[:border_style] == :thin
-      out << "\n"
+
     else
-      out << "#{color}#{bold}==================#{reset}\n\n"
+      out << "#{color}#{bold}==================#{reset}\n"
+    end
+    # Default suffix_content is typically one extra newline
+    if !suffix_content.to_s.empty?
+      out << suffix_content.to_s
     end
     print out
   end
 
-  def print_h2(title, subtitles=nil, options=nil)
+  def print_h2(title, subtitles=nil, options=nil, suffix_content="\n")
     # ok, support all these formats for now:
     # print_h2(title={})
     # print_h2(title, options={})
@@ -117,9 +121,13 @@ module Morpheus::Cli::PrintHelper
     end
     out << "\n"
     if options[:border_style] == :thin
-      out << "\n"
+
     else
-      out << "#{color}---------------------#{reset}\n\n"
+      out << "#{color}---------------------#{reset}\n"
+    end
+    # Default suffix_content is typically one extra newline
+    if !suffix_content.to_s.empty?
+      out << suffix_content.to_s
     end
     print out
   end
@@ -1505,8 +1513,21 @@ module Morpheus::Cli::PrintHelper
   def format_option_types_table(option_types, options={}, domain_name=nil)
     columns = [
       {"FIELD LABEL" => lambda {|it| it['fieldLabel'] } },
-      {"FIELD NAME" => lambda {|it| [it['fieldContext'] == domain_name ? nil : it['fieldContext'], it['fieldName']].select {|it| !it.to_s.empty? }.join('.') } },
+      {"FIELD NAME" => lambda {|it| 
+        if it['fieldContext'] && it['fieldContext'] != domain_name && it['fieldContext'] != 'domain'
+          "#{it['fieldContext']}.#{it['fieldName']}"
+        else
+          "#{it['fieldName']}"
+        end
+      } },
       {"TYPE" => lambda {|it| it['type'] } },
+      {"OPTION SOURCE" => lambda {|it| 
+        if it['optionSourceType']
+          "#{it['optionSourceType']}/#{it['optionSource']}"
+        else
+          "#{it['optionSource']}"
+        end
+      } },
       {"DEFAULT" => lambda {|it| it['defaultValue'] } },
       {"REQUIRED" => lambda {|it| format_boolean it['required'] } },
     ]

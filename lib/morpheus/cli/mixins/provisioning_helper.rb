@@ -915,8 +915,8 @@ module Morpheus::Cli::ProvisioningHelper
 
     # Security Groups
     # look for securityGroups option type... this is old and goofy
-    sg_option_type = option_type_list.find {|opt| ((opt['code'] == 'provisionType.amazon.securityId') || (opt['name'] == 'securityId')) }
-    option_type_list = option_type_list.reject {|opt| ((opt['code'] == 'provisionType.amazon.securityId') || (opt['name'] == 'securityId')) }
+    sg_option_type = option_type_list.find {|opt| ((opt['code'] == 'provisionType.amazon.securityId') || (opt['fieldName'] == 'securityId' || opt['name'] == 'securityId')) }
+    option_type_list = option_type_list.reject {|opt| ((opt['code'] == 'provisionType.amazon.securityId') || (opt['fieldName'] == 'securityId' || opt['name'] == 'securityId')) }
     if locked_fields.include?('securityGroups')
       # payload['securityGroups'] = options[:options]['securityGroups'] if options[:options]['securityGroups']
     else
@@ -928,15 +928,31 @@ module Morpheus::Cli::ProvisioningHelper
         end
       end
       sg_api_params = {zoneId: cloud_id, poolId: pool_id}
-      has_security_groups = !!sg_option_type
-      available_security_groups = []
-      if sg_option_type && sg_option_type['type'] == 'select' && sg_option_type['optionSource']
-        sg_option_results = options_interface.options_for_source(sg_option_type['optionSource'], sg_api_params, sg_option_type['optionSourceType'])
-        available_security_groups = sg_option_results['data'].collect do |it|
-          {"id" => it["value"] || it["id"], "name" => it["name"], "value" => it["value"] || it["id"]}
+      # The amazon plugin uses a new optionSource options/amazon/awsPluginEc2SecurityGroup 
+      # which expects parameter config.resourcePoolId=pool-ID
+      if sg_option_type
+        if sg_option_type['optionSource'] == 'awsPluginEc2SecurityGroup'
+          if pool_id
+            sg_api_params[:config] ||= {}
+            sg_api_params[:config][:resourcePoolId] = pool_id
+          end
+          # convert multiSelect to select to make prompt_security_groups() work
+          # though we should should be able to skip the prompt_security_groups and use multiSelect instead
+          sg_option_type['type'] = 'select' if sg_option_type['type'] == 'multiSelect'
+          sg_option_type['type'] = 'typeahead' if sg_option_type['type'] == 'multiTypeahead'
+          sg_option_type['fieldLabel'] = 'Security Group' if sg_option_type['fieldLabel'] == 'Security Groups'
+          sg_option_type['required'] = true
         end
       end
+      has_security_groups = !!sg_option_type
       if options[:security_groups]
+        available_security_groups = []
+        if sg_option_type && sg_option_type['optionSource']
+          sg_option_results = options_interface.options_for_source(sg_option_type['optionSource'], sg_api_params, sg_option_type['optionSourceType'])
+          available_security_groups = sg_option_results['data'].collect do |it|
+            {"id" => it["value"] || it["id"], "name" => it["name"], "value" => it["value"] || it["id"]}
+          end
+        end
         # work with id or names, API expects ids though.
         payload['securityGroups'] = options[:security_groups].collect {|sg_id| 
           found_sg = available_security_groups.find {|it| sg_id && (sg_id.to_s == it['id'].to_s || sg_id.to_s == it['name'].to_s) }

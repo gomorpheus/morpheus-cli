@@ -19,6 +19,7 @@ module Morpheus
 
       def self.included(base)
         base.send :include, Morpheus::Cli::PrintHelper
+        base.send :include, Morpheus::Cli::PromptHelper
         base.send :include, Morpheus::Benchmarking::HasBenchmarking
         base.extend ClassMethods
         Morpheus::Cli::CliRegistry.add(base, base.command_name)

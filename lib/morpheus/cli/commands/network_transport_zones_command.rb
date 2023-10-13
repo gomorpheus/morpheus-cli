@@ -2,6 +2,7 @@ require 'morpheus/cli/cli_command'
 
 class Morpheus::Cli::NetworkTransportZonesCommand
   include Morpheus::Cli::CliCommand
+  include Morpheus::Cli::NetworksHelper
   include Morpheus::Cli::ProvisioningHelper
   include Morpheus::Cli::WhoamiHelper
 
@@ -356,47 +357,6 @@ class Morpheus::Cli::NetworkTransportZonesCommand
       puts as_pretty_table(rows, cols)
     else
       println "No transport zones\n"
-    end
-  end
-
-  def find_network_server(val)
-    if val.to_s =~ /\A\d{1,}\Z/
-      return find_network_server_by_id(val)
-    else
-      if server = find_network_server_by_name(val)
-        return find_network_server_by_id(server['id'])
-      end
-    end
-  end
-
-  def find_network_server_by_id(id)
-    begin
-      json_response = @network_servers_interface.get(id.to_i)
-      return json_response['networkServer']
-    rescue RestClient::Exception => e
-      if e.response && e.response.code == 404
-        print_red_alert "Network Server not found by id #{id}"
-        return nil
-      else
-        raise e
-      end
-    end
-  end
-
-  def find_network_server_by_name(name)
-    servers = search_network_servers(name)
-    if servers.empty?
-      print_red_alert "Network Server not found by name #{name}"
-      return nil
-    elsif servers.size > 1
-      print_red_alert "#{servers.size} network servers found by name #{name}"
-      rows = servers.collect do |it|
-        {id: it['id'], name: it['name']}
-      end
-      puts as_pretty_table(rows, [:id, :name], {color:red})
-      return nil
-    else
-      return servers[0]
     end
   end
 
