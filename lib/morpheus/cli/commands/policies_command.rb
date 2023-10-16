@@ -763,61 +763,49 @@ class Morpheus::Cli::PoliciesCommand
     params = {}
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage()
-      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.banner = subcommand_usage("[search]")
+      build_standard_list_options(opts, options, [], [:search])
+      opts.footer = <<-EOT
+Get details about a policy type.
+[policy-type] is required. This is Name or ID of a policy type.
+EOT
       opts.footer = "List policy types."
     end
     optparse.parse!(args)
-
-    if args.count != 0
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error  "wrong number of arguments, expected 0 and got #{args.count}\n#{optparse}"
-      return 1
-    end
-
+    verify_args!(args:args, optparse:optparse, count:0)
+    # if args.count > 0
+    #   options[:phrase] = args.join(" ")
+    # end
+    params.merge!(parse_list_options(options))
     connect(options)
-    begin
-      @policies_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @policies_interface.dry.list_policy_types(params)
-        return 0
-      end
-      json_response = @policies_interface.list_policy_types()
-      policy_types = json_response['policyTypes']
-      if options[:json]
-        puts as_json(json_response, options, "policyTypes")
-        return 0
-      elsif options[:yaml]
-        puts as_yaml(json_response, options, "policyTypes")
-        return 0
-      elsif options[:csv]
-        puts records_as_csv(policy_types, options)
-        return 0
-      else
-        print_h1 "Morpheus Policy Types"
-        rows = policy_types.collect {|policy_type| 
-          row = {
-            id: policy_type['id'],
-            name: policy_type['name'],
-            code: policy_type['code'],
-            description: policy_type['description']
-          }
-          row
-        }
-        columns = [:id, :name]
-        if options[:include_fields]
-          columns = options[:include_fields]
-        end
-        print cyan
-        print as_pretty_table(rows, columns, options)
-        print_results_pagination(json_response, {:label => "policy type", :n_label => "policy types"})
-        print reset, "\n"
-      end
+    @policies_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @policies_interface.dry.list_policy_types(params)
       return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      return 1
     end
+    json_response = @policies_interface.list_policy_types(params)
+    render_response(json_response, options, 'policyTypes') do
+      policy_types = json_response['policyTypes']
+      print_h1 "Morpheus Policy Types"
+      rows = policy_types.collect {|policy_type| 
+        row = {
+          id: policy_type['id'],
+          name: policy_type['name'],
+          code: policy_type['code'],
+          description: policy_type['description']
+        }
+        row
+      }
+      columns = [:id, :name]
+      if options[:include_fields]
+        columns = options[:include_fields]
+      end
+      print cyan
+      print as_pretty_table(rows, columns, options)
+      print_results_pagination(json_response)
+      print reset, "\n"
+    end
+    return 0
   end
 
   def get_type(args)
@@ -825,91 +813,51 @@ class Morpheus::Cli::PoliciesCommand
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[policy-type]")
-      build_common_options(opts, options, [:json, :dry_run, :remote])
-      opts.footer = "Get details about a policy type." + "\n" +
-                    "[policy-type] is required. This is ID of a policy type."
+      build_standard_get_options(opts, options)
+      opts.footer = <<-EOT
+Get details about a policy type.
+[policy-type] is required. This is Name or ID of a policy type.
+EOT
     end
     optparse.parse!(args)
-
-    if args.count != 1
-      print_error Morpheus::Terminal.angry_prompt
-      puts_error  "wrong number of arguments, expected 1 and got #{args.count}\n#{optparse}"
-      return 1
-    end
-
+    verify_args!(args:args, optparse:optparse, count: 1)
     connect(options)
-    begin
-      policy_type_id = args[0].to_s
-      @policies_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @policies_interface.dry.get_policy_type(policy_type_id, params)
-        return 0
-      end
-      json_response = @policies_interface.get_policy_type(policy_type_id, params)
-      policy_type = json_response['policyType']
-      if options[:json]
-        puts as_json(json_response)
-      else
-        print_h1 "Policy Type Details"
-        print cyan
-        description_cols = {
-          "ID" => 'id',
-          "Name" => 'name',
-          # "Description" => 'description',
-          "Code" => 'code',
-          "Category" => 'category',
-          # "Load Method" => 'loadMethod',
-          # "Enforce Method" => 'enforceMethod',
-          # "Prepare Method" => 'prepareMethod',
-          # "Validate Method" => 'validateMethod',
-          "Provision Enforced" => lambda {|it| it['enforceOnProvision'] ? 'Yes' : 'No'  },
-          "Managed Enforced" => lambda {|it| it['enforceOnManaged'] ? 'Yes' : 'No'  },
-        }
-        print_description_list(description_cols, policy_type)
-        print reset,"\n"
-
-        # show option types
-        print_h2 "Policy Type Options"
-        policy_type_option_types = policy_type['optionTypes']
-        if !policy_type_option_types || policy_type_option_types.size() == 0
-          puts "No options found for policy type"
-        else
-          rows = policy_type_option_types.collect {|option_type|
-            field_str = option_type['fieldName'].to_s
-            if !option_type['fieldContext'].to_s.empty?
-              field_str = option_type['fieldContext'] + "." + field_str
-            end
-            description_str = option_type['description'].to_s
-            if option_type['helpBlock']
-              if description_str.empty?
-                description_str = option_type['helpBlock']
-              else
-                description_str += " " + option_type['helpBlock']
-              end
-            end
-            row = {
-              #code: option_type['code'],
-              field: field_str,
-              type: option_type['type'],
-              description: description_str,
-              default: option_type['defaultValue'],
-              required: option_type['required'] ? 'Yes' : 'No'
-            }
-            row
-          }
-          columns = [:field, :type, :description, :default, :required]
-          print cyan
-          print as_pretty_table(rows, columns)
-          print reset,"\n"
-        end
-        return 0
-      end
+    params.merge!(parse_query_options(options))
+    policy_type = find_policy_type_by_name_or_id(args[0])
+    return [1, "Policy Type not found for #{args[0]}"] if policy_type.nil?
+    policy_type_id = policy_type['id']
+    @policies_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @policies_interface.dry.get_policy_type(policy_type_id, params)
       return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      return 1
     end
-    @policies_interface.list_policy_types
+    json_response = @policies_interface.get_policy_type(policy_type_id, params)
+    render_response(json_response, options, 'policyType') do
+      policy_type = json_response['policyType']
+      print_h1 "Policy Type Details"
+      print cyan
+      description_cols = {
+        "ID" => 'id',
+        "Name" => 'name',
+        # "Description" => 'description',
+        "Code" => 'code',
+        "Category" => 'category',
+        # "Load Method" => 'loadMethod',
+        # "Enforce Method" => 'enforceMethod',
+        # "Prepare Method" => 'prepareMethod',
+        # "Validate Method" => 'validateMethod',
+        "Provision Enforced" => lambda {|it| it['enforceOnProvision'] ? 'Yes' : 'No'  },
+        "Managed Enforced" => lambda {|it| it['enforceOnManaged'] ? 'Yes' : 'No'  },
+      }
+      print_description_list(description_cols, policy_type)
+      print reset,"\n"
+
+      # show option types
+      print_h2 "Policy Type Options"
+      print format_option_types_table(policy_type['optionTypes'], options, 'policy')
+      print reset,"\n"
+    end
+    return 0
   end
 
   private
@@ -975,6 +923,39 @@ class Morpheus::Cli::PoliciesCommand
         policy['tenants'] = json_response['tenants'][policy['id']]
       end
       return policy
+    end
+  end
+
+  def find_policy_type_by_name_or_id(val)
+    if val.to_s =~ /\A\d{1,}\Z/
+      return find_policy_type_by_id(val)
+    else
+      return find_policy_type_by_name(val)
+    end
+  end
+
+  def find_policy_type_by_name(name)
+    json_response = nil
+    
+    # json_response = @policies_interface.list_policy_types({name: name.to_s})
+    json_response = @policies_interface.list_policy_types({max: 10000})
+    policy_types = json_response['policyTypes']
+    match_value = name.to_s.downcase
+    policy_types = policy_types.select {|it| it['name'].to_s.downcase == match_value || it['code'].to_s.downcase == match_value }
+    if policy_types.empty?
+      print_red_alert "Policy not found by name #{name}"
+      return nil
+    elsif policy_types.size > 1
+      print_red_alert "#{policy_types.size} policy types found by name or code #{name}"
+      # print_policies_table(policy_types, {color: red})
+      rows = policy_types.collect do |it|
+        {id: it['id'], name: it['name'], code: it['code']}
+      end
+      puts as_pretty_table(rows, [:id, :name], {color:red})
+      return nil
+    else
+      policy_type = policy_types[0]
+      return policy_type
     end
   end
 
