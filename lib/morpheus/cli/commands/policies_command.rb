@@ -823,9 +823,12 @@ EOT
     verify_args!(args:args, optparse:optparse, count: 1)
     connect(options)
     params.merge!(parse_query_options(options))
-    policy_type = find_policy_type_by_name_or_id(args[0])
-    return [1, "Policy Type not found for #{args[0]}"] if policy_type.nil?
-    policy_type_id = policy_type['id']
+    policy_type_id = args[0]
+    if policy_type_id.to_s !~ /\A\d{1,}\Z/
+      policy_type = find_policy_type_by_name_or_id(args[0])
+      return [1, "Policy Type not found for #{args[0]}"] if policy_type.nil?
+      policy_type_id = policy_type['id']
+    end
     @policies_interface.setopts(options)
     if options[:dry_run]
       print_dry_run @policies_interface.dry.get_policy_type(policy_type_id, params)
@@ -961,7 +964,7 @@ EOT
 
   def find_policy_type_by_id(id)
     begin
-      json_response = @policies_interface.get_type(id.to_s)
+      json_response = @policies_interface.get_policy_type(id.to_s)
       return json_response['policyType']
     rescue RestClient::Exception => e
       if e.response && e.response.code == 404
