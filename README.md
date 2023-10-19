@@ -58,6 +58,12 @@ While developing, you can quickly reload your code changes in a morpheus shell w
 morpheus shell
 ```
 
+or 
+
+```shell
+bundle exec morpheus shell —debug
+```
+
 Then to reload changes without restarting the morpheus shell (and the ruby process), use:
 
 ```shell

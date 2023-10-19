@@ -131,6 +131,7 @@ module Morpheus::Cli::AccountsHelper
       "ID" => 'id',
       "Name" => 'authority',
       "Description" => 'description',
+      "Landing URL" => 'landingUrl',
       #"Scope" => lambda {|it| it['scope'] },
       "Type" => lambda {|it| format_role_type(it) },
       "Multitenant" => lambda {|it| 
@@ -149,6 +150,7 @@ module Morpheus::Cli::AccountsHelper
       "ID" => 'id',
       "Name" => 'authority',
       "Description" => 'description',
+      "Landing URL" => 'landingUrl',
       "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
       "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
     }

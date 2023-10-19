@@ -631,6 +631,8 @@ EOT
         params['authority'] = v_prompt['authority']
         v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'displayOrder' => 2}], options[:options])
         params['description'] = v_prompt['description']
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'landingUrl', 'fieldLabel' => 'landingUrl', 'type' => 'text', 'displayOrder' => 3, 'description' => 'An optional override for the default landing page after login for a user. If a user belongs to multiple roles, the first assigned role will take precedence.'}], options[:options])
+        params['landingUrl'] = v_prompt['landingUrl']
 
         if params['owner']
           if @is_master_account && has_complete_access
