@@ -631,7 +631,7 @@ EOT
         params['authority'] = v_prompt['authority']
         v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'displayOrder' => 2}], options[:options])
         params['description'] = v_prompt['description']
-        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'landingUrl', 'fieldLabel' => 'landingUrl', 'type' => 'text', 'displayOrder' => 3, 'description' => 'An optional override for the default landing page after login for a user. If a user belongs to multiple roles, the first assigned role will take precedence.'}], options[:options])
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'landingUrl', 'fieldLabel' => 'landingUrl', 'type' => 'text', 'displayOrder' => 3, 'description' => 'An optional override for the default landing page after login for a user.'}], options[:options])
         params['landingUrl'] = v_prompt['landingUrl']
 
         if params['owner']
@@ -2481,7 +2481,7 @@ Update default workflow access for a role.
     [
       {'fieldName' => 'authority', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true},
       {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text'},
-      {'fieldName' => 'landingUrl', 'fieldLabel' => 'Landing URL', 'type' => 'text', 'description' => 'An optional override for the default landing page after login for a user. If a user belongs to multiple roles, the first assigned role will take precedence.'},
+      {'fieldName' => 'landingUrl', 'fieldLabel' => 'Landing URL', 'type' => 'text', 'description' => 'An optional override for the default landing page after login for a user.'},
       {'fieldName' => 'roleType', 'fieldLabel' => 'Role Type', 'type' => 'select', 'selectOptions' => [{'name' => 'User Role', 'value' => 'user'}, {'name' => 'Account Role', 'value' => 'account'}], 'defaultValue' => 'user'},
       {'fieldName' => 'baseRole', 'fieldLabel' => 'Copy From Role', 'type' => 'text'},
       {'fieldName' => 'multitenant', 'fieldLabel' => 'Multitenant', 'type' => 'checkbox', 'defaultValue' => 'off', 'description' => 'A Multitenant role is automatically copied into all existing subaccounts as well as placed into a subaccount when created. Useful for providing a set of predefined roles a Customer can use'},
