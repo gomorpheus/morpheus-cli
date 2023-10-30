@@ -730,7 +730,7 @@ class Morpheus::Cli::Clusters
         server_payload['hostname'] = options[:hostname] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'hostname', 'fieldLabel' => 'Hostname', 'type' => 'text', 'required' => true, 'description' => 'Hostname', 'defaultValue' => resourceName}], options[:options], @api_client, api_params)['hostname']
 
         # Kube Default Repo
-        if cluster_payload['type'] == 'kubernetes-cluster' && (layout['clusterVersion'] == '1.28.x' || layout['clusterVersion'] == '1.27.x')
+        if cluster_payload['type'] == 'kubernetes-cluster'
           default_repo = options[:default_repo] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'defaultRepoAccount', 'fieldLabel' => 'Cluster Repo Account', 'type' => 'select', 'required' => false, 'optionSource' => 'dockerHubRegistries'}], options[:options], @api_client, api_params)['defaultRepoAccount']
           if default_repo != ""
             server_payload['config']['defaultRepoAccount'] = default_repo
