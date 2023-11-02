@@ -55,12 +55,6 @@ New CLI commands get added under the library directory: `lib/morpheus/cli/comman
 While developing, you can quickly reload your code changes in a morpheus shell while developing:
 
 ```shell
-morpheus shell
-```
-
-or 
-
-```shell
 bundle exec morpheus shell —debug
 ```
 
@@ -71,6 +65,9 @@ reload
 ```
 
 Don't forget to add unit tests for your new commands under the directory: `test/`.
+
+
+
 
 ## Testing
 

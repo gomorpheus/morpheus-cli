@@ -766,6 +766,10 @@ class Morpheus::APIClient
     Morpheus::LibraryClusterLayoutsInterface.new(common_interface_options).setopts(@options)
   end
 
+  def library_cluster_packages
+    Morpheus::LibraryClusterPackagesInterface.new(common_interface_options).setopts(@options)
+  end
+
   def library_spec_templates
     Morpheus::LibrarySpecTemplatesInterface.new(common_interface_options).setopts(@options)
   end

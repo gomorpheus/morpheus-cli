@@ -50,6 +50,7 @@ module Morpheus::Routes
         "#!app-templates", # App Blueprints (blueprints)
         "#!catalog-items",
         "#!compute-type-layouts", # Cluster Layouts
+        "#!compute-type-packages", # Cluster Packages
       ],
       :'virtual-images' => {},
       options: [
