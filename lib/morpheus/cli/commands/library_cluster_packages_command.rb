@@ -182,8 +182,8 @@ class Morpheus::Cli::LibraryClusterPackagesCommand
       opts.on('-c', '--code VALUE', String, "Code") do |val|
         params['code'] = val
       end
-      opts.on('-e', '--enabled VALUE', Boolean, "Enabled") do |val|
-        params['enabled'] = val
+      opts.on('-e', '--enabled [on|off]', String, "Can be used to enable / disable package. Default is on") do |val|
+        params['enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
       opts.on('-t', '--type VALUE', String, "Type") do |val|
         params['type'] = val
