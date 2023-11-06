@@ -185,6 +185,9 @@ class Morpheus::Cli::LibraryClusterPackagesCommand
       opts.on('-e', '--enabled [on|off]', String, "Can be used to enable / disable package. Default is on") do |val|
         params['enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
+      opts.on('-r', '--repeatInstall [on|off]', String, "Can be used to retry install package if initial fails") do |val|
+        params['repeatInstall'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
+      end
       opts.on('-t', '--type VALUE', String, "Type") do |val|
         params['type'] = val
       end
@@ -240,9 +243,14 @@ class Morpheus::Cli::LibraryClusterPackagesCommand
           params['enabled'] = Morpheus::Cli::OptionTypes.confirm("Enabled?", {:default => true}) == true
         end
 
+        # enabled
+        if params['repeatInstall'].nil?
+          params['repeatInstall'] = Morpheus::Cli::OptionTypes.confirm("Repeat Install?", {:default => true}) == true
+        end
+
         # type
         if params['type'].nil?
-          params['type'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'type' => 'text', 'fieldLabel' => 'Type', 'required' => true}], options[:options], @api_client,{})['type']
+          params['type'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'type' => 'select', 'fieldLabel' => 'Type', 'required' => true, 'optionSource' => 'clusterPackageTypes'}], options[:options], @api_client,{})['type']
         end
 
         # packageType
@@ -300,6 +308,9 @@ class Morpheus::Cli::LibraryClusterPackagesCommand
       end
       opts.on('-e', '--enabled [on|off]', String, "Can be used to enable / disable package. Default is on") do |val|
         params['enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
+      end
+      opts.on('-r', '--repeatInstall [on|off]', String, "Can be used to retry install package if initial fails") do |val|
+        params['repeatInstall'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
       opts.on('-t', '--type VALUE', String, "Type") do |val|
         params['type'] = val
