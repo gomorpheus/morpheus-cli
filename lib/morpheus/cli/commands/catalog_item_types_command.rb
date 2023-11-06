@@ -392,8 +392,11 @@ EOT
       print_dry_run @catalog_item_types_interface.dry.create(payload)
       return 0, nil
     end
+    puts "the payload"
+    puts payload
     json_response = @catalog_item_types_interface.create(payload)
     if json_response['success']
+      puts logo_file
       if logo_file || dark_logo_file
         begin
           @catalog_item_types_interface.update_logo(json_response['catalogItemType']['id'], logo_file, dark_logo_file)
@@ -548,6 +551,8 @@ EOT
       print_dry_run @catalog_item_types_interface.dry.update(catalog_item_type['id'], payload)
       return
     end
+    puts "the logo file"
+    puts logo_file
     json_response = @catalog_item_types_interface.update(catalog_item_type['id'], payload)
     if json_response['success']
       if logo_file || dark_logo_file

@@ -7,6 +7,7 @@ class Morpheus::Cli::LibraryClusterPackagesCommand
   set_command_name :'library-cluster-packages'
 
   register_subcommands :list, :get, :add, :update, :remove
+  register_subcommands({:'update-logo' => :update_logo, :'update-dark-logo' => :update_dark_logo})
 
   def initialize()
   end
@@ -86,10 +87,10 @@ class Morpheus::Cli::LibraryClusterPackagesCommand
   def get(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[clusterPackage]")
+      opts.banner = subcommand_usage("[id]")
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "Display cluster package details." + "\n" +
-                    "[clusterPackage] is required. This is the name or id of a cluster package."
+                    "[id] is required. This is the id of a cluster package."
     end
     optparse.parse!(args)
     if args.count < 1
@@ -171,6 +172,9 @@ class Morpheus::Cli::LibraryClusterPackagesCommand
   def add(args)
     options = {}
     params = {}
+    logo_file = nil
+    dark_logo_file = nil
+    icon_path = nil
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name] [options]")
       opts.on('-n', '--name VALUE', String, "Name for this cluster package") do |val|
@@ -199,7 +203,32 @@ class Morpheus::Cli::LibraryClusterPackagesCommand
           params['specTemplates'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
       end
-
+      opts.on('--logo FILE', String, "Upload a custom logo icon") do |val|
+        filename = val
+        logo_file = nil
+        if filename == 'null'
+          logo_file = 'null' # clear it
+        else
+          filename = File.expand_path(filename)
+          if !File.exist?(filename)
+            raise_command_error "File not found: #{filename}"
+          end
+          logo_file = File.new(filename, 'rb')
+        end
+      end
+      opts.on('--dark-logo FILE', String, "Upload a custom dark logo icon") do |val|
+        filename = val
+        dark_logo_file = nil
+        if filename == 'null'
+          dark_logo_file = 'null' # clear it
+        else
+          filename = File.expand_path(filename)
+          if !File.exist?(filename)
+            raise_command_error "File not found: #{filename}"
+          end
+          dark_logo_file = File.new(filename, 'rb')
+        end
+      end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Create a cluster package."
     end
@@ -261,6 +290,11 @@ class Morpheus::Cli::LibraryClusterPackagesCommand
 
           params['specTemplates'] = spec_templates
         end
+        icon_path = Morpheus::Cli::OptionTypes.prompt(add_cluster_packages_option_types(), options[:options], @api_client, options[:params])
+        if icon_path
+          params['iconPath'] = icon_path['iconPath']
+          params['darkIconPath'] = icon_path['iconPath']
+        end
         payload = {'clusterPackage' => params}
       end
 
@@ -271,6 +305,16 @@ class Morpheus::Cli::LibraryClusterPackagesCommand
       end
 
       json_response = @library_cluster_packages_interface.create(payload)
+      if json_response['success']
+        if logo_file || dark_logo_file
+          begin
+            @library_cluster_packages_interface.update_logo(json_response['id'], icon_path, logo_file, dark_logo_file)
+          rescue RestClient::Exception => e
+            print_red_alert "Failed to save logo!"
+            print_rest_exception(e, options)
+          end
+        end
+      end
 
       if options[:json]
         print JSON.pretty_generate(json_response), "\n"
@@ -288,7 +332,7 @@ class Morpheus::Cli::LibraryClusterPackagesCommand
     options = {}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name] [options]")
+      opts.banner = subcommand_usage("[id] [options]")
       opts.on('-n', '--name VALUE', String, "Name for this cluster package") do |val|
         params['name'] = val
       end
@@ -315,10 +359,35 @@ class Morpheus::Cli::LibraryClusterPackagesCommand
           params['specTemplates'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
       end
-
+      opts.on('--logo FILE', String, "Upload a custom logo icon") do |val|
+        filename = val
+        logo_file = nil
+        if filename == 'null'
+          logo_file = 'null' # clear it
+        else
+          filename = File.expand_path(filename)
+          if !File.exist?(filename)
+            raise_command_error "File not found: #{filename}"
+          end
+          logo_file = File.new(filename, 'rb')
+        end
+      end
+      opts.on('--dark-logo FILE', String, "Upload a custom dark logo icon") do |val|
+        filename = val
+        dark_logo_file = nil
+        if filename == 'null'
+          dark_logo_file = 'null' # clear it
+        else
+          filename = File.expand_path(filename)
+          if !File.exist?(filename)
+            raise_command_error "File not found: #{filename}"
+          end
+          dark_logo_file = File.new(filename, 'rb')
+        end
+      end
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
       opts.footer = "Update a cluster package." + "\n" +
-                    "[name] is required. This is the name or id of a cluster package."
+                    "[id] is required. This is the id of a cluster package."
     end
 
     optparse.parse!(args)
@@ -372,7 +441,7 @@ class Morpheus::Cli::LibraryClusterPackagesCommand
       opts.banner = subcommand_usage("[clusterPackage]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
       opts.footer = "Delete a cluster package." + "\n" +
-                    "[clusterPackage] is required. This is the name or id of a cluster package."
+                    "[clusterPackage] is required. This is the id of a cluster package."
     end
     optparse.parse!(args)
 
@@ -470,5 +539,11 @@ class Morpheus::Cli::LibraryClusterPackagesCommand
       columns = opts[:include_fields]
     end
     print as_pretty_table(packages, columns, opts)
+  end
+
+  def add_cluster_packages_option_types
+    [
+      {'fieldName' => 'iconPath', 'fieldLabel' => 'Logo', 'type' => 'select', 'optionSource' => 'iconList', 'displayOrder' => 1}
+    ]
   end
 end
