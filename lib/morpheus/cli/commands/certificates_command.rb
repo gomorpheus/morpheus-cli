@@ -175,7 +175,7 @@ EOT
         end
         # reject hardcoded optionTypes
         config_option_types = config_option_types.reject {|it| it['fieldName'] == 'name' || it['fieldName'] == 'description' || it['fieldName'] == 'domainName' }
-        config_prompt = Morpheus::Cli::OptionTypes.prompt(config_option_types, options[:options], @api_client, options[:params])
+        config_prompt = Morpheus::Cli::OptionTypes.prompt(config_option_types, options[:options], @api_client, {certType: certificate_type['id']})
         config_prompt.deep_compact!
         params.deep_merge!(config_prompt)
       end
