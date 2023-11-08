@@ -667,7 +667,7 @@ EOT
           raise_command_error "No form found for catalog item type '#{catalog_item_type['name']}'"
         end
         # use the new PromptHelper method prompt_form()
-        config_prompt = prompt_form(catalog_item_type['form'], options.merge({:context_map => {'config.customOptions' => 'config'}, :api_params => construct_catalog_api_params(catalog_item_type)}))
+        config_prompt = prompt_form(catalog_item_type['form'], options.merge({:context_map => {'config.customOptions' => 'config'}, :api_params => construct_catalog_api_params(catalog_item_type)}))['config']
         payload[add_item_object_key].deep_merge!({'config' => config_prompt})
       else
         # prompt for optionTypes
@@ -1020,7 +1020,7 @@ EOT
             raise_command_error "No form found for catalog item type '#{catalog_item_type['name']}'"
           end
           # use the new PromptHelper method prompt_form()
-          config_prompt = prompt_form(catalog_item_type['form'], options.merge({:context_map => {'config.customOptions' => 'config'}, :api_params => construct_catalog_api_params(catalog_item_type)}))
+          config_prompt = prompt_form(catalog_item_type['form'], options.merge({:context_map => {'config.customOptions' => 'config'}, :api_params => construct_catalog_api_params(catalog_item_type)}))['config']
           item_payload.deep_merge!({'config' => config_prompt})
         else
           # prompt for optionTypes
