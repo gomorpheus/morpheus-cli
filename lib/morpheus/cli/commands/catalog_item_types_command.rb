@@ -1,16 +1,15 @@
 require 'morpheus/cli/cli_command'
 
-# CLI command self service
-# UI is Tools: Self Service - Catalog
-# API is /catalog-item-types and returns catalogItemTypes
+# CLI command Catalog Item Types
+# UI is Library > Blueprints > Catalog Items
+# API is /api/catalog-item-types and returns catalogItemTypes
 class Morpheus::Cli::CatalogItemTypesCommand
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::LibraryHelper
   include Morpheus::Cli::OptionSourceHelper
 
-  # set_command_name :'catalog-types'
-  set_command_name :'self-service'
-  set_command_description "Self Service: View and manage catalog item types"
+  set_command_name :'catalog-item-types'
+  set_command_description "View and manage catalog item types"
 
   register_subcommands :list, :get, :add, :update, :remove
   register_subcommands({:'update-logo' => :update_logo, :'update-dark-logo' => :update_dark_logo})
@@ -152,13 +151,28 @@ EOT
       print_h1 "Catalog Item Type Details", [], options
       print cyan
       show_columns = catalog_item_type_column_definitions
+      show_columns.delete("Form") unless catalog_item_type['form']
       show_columns.delete("Blueprint") unless catalog_item_type['blueprint']
       show_columns.delete("Workflow") unless catalog_item_type['workflow']
       show_columns.delete("Context") unless catalog_item_type['context'] # workflow context
       print_description_list(show_columns, catalog_item_type)
 
+      option_type_form = catalog_item_type['form']
+      if option_type_form
+        print_h2 "Form Inputs"
+        form_inputs = (option_type_form['options'] || [])
+        if option_type_form['fieldGroups']
+          option_type_form['fieldGroups'].each { |field_group| form_inputs += (field_group['options'] || []) }
+        end
+        # print format_simple_option_types_table(form_inputs, options)
+        print format_option_types_table(form_inputs, options, 'config.customOptions')
+        print reset,"\n"
+      else
+        # print cyan,"No form inputs found for this catalog item.","\n",reset
+      end
+
       if catalog_item_type['optionTypes'] && catalog_item_type['optionTypes'].size > 0
-        print_h2 "Option Types"
+        print_h2 "Inputs"
         opt_columns = [
           {"ID" => lambda {|it| it['id'] } },
           {"NAME" => lambda {|it| it['name'] } },
@@ -313,7 +327,13 @@ EOT
           options[:options]['config'] = params['config'] # or file_content
         end
       end
-      opts.on('--option-types [x,y,z]', Array, "List of Option Type IDs") do |list|
+      opts.on('--form-type form|optionTypes', String, "Form Type determines if input comes from a Form or list of Option Types") do |val|
+        params['formType'] = val
+      end
+      opts.on('--form FORM', String, "Form Name or ID") do |val|
+        params['form'] = val
+      end
+      opts.on('--option-types [x,y,z]', Array, "List of Option Type IDs") do |val|
         if list.nil?
           params['optionTypes'] = []
         else
@@ -379,11 +399,24 @@ EOT
       # massage association params a bit
       params['workflow'] = {'id' => params['workflow']}  if params['workflow'] && !params['workflow'].is_a?(Hash)
       params['blueprint'] = {'id' => params['blueprint']}  if params['blueprint'] && !params['blueprint'].is_a?(Hash)
-      prompt_results = prompt_for_option_types(params, options, @api_client)
-      if prompt_results[:success]
-        params['optionTypes'] = prompt_results[:data] unless prompt_results[:data].nil?
+      if params['formType'].to_s.empty?
+        params['formType'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'formType', 'fieldLabel' => 'Form Type', 'type' => 'select', 'selectOptions' => [{'name' => 'Form', 'value' => 'form'}, {'name' => 'Inputs', 'value' => 'optionTypes'}], 'defaultValue' => 'optionTypes', 'required' => true}], options[:options], @api_client, options[:params])['formType']
+      end
+      if params['formType'] == 'form'
+        # using formType = 'form'
+        # prompt for Form
+        options[:options]['form'] = params['form'] if params['form']
+        form_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'form', 'fieldLabel' => 'Form', 'type' => 'select', 'optionSource' => 'forms', 'required' => true}], options[:options], @api_client, options[:params])['form']
+        params['form'] = {'id' => form_id}
       else
-        return 1, "failed to parse optionTypes"
+        # using formType = 'optionTypes'
+        # prompt for Option Types
+        prompt_results = prompt_for_option_types(params, options, @api_client)
+        if prompt_results[:success]
+          params['optionTypes'] = prompt_results[:data] unless prompt_results[:data].nil?
+        else
+          return 1, "failed to parse optionTypes"
+        end
       end
       payload[catalog_item_type_object_key].deep_merge!(params)
     end
@@ -469,6 +502,12 @@ EOT
           params['config'] = config_map
           options[:options]['config'] = params['config'] # or file_content
         end
+      end
+      opts.on('--form-type form|optionTypes', String, "Form Type determines if input comes from a Form or list of Option Types") do |val|
+        params['formType'] = val
+      end
+      opts.on('--form FORM', String, "Form Name or ID") do |val|
+        params['form'] = val
       end
       opts.on('--option-types [x,y,z]', Array, "List of Option Type IDs") do |list|
         if list.nil?
@@ -693,6 +732,7 @@ EOT
       "Workflow" => lambda {|it| it['workflow'] ? it['workflow']['name'] : nil },
       "Context" => lambda {|it| it['context'] },
       # "Content" => lambda {|it| it['content'] },
+      "Form Type" => lambda {|it| it['formType'] == 'form' ? "Form" : "Inputs" },
       "Enabled" => lambda {|it| format_boolean(it['enabled']) },
       "Featured" => lambda {|it| format_boolean(it['featured']) },
       #"Config" => lambda {|it| it['config'] },
@@ -716,6 +756,8 @@ EOT
       "Workflow" => lambda {|it| it['workflow'] ? it['workflow']['name'] : nil },
       "Context" => lambda {|it| it['context'] },
       # "Content" => lambda {|it| it['content'] },
+      "Form Type" => lambda {|it| it['formType'] == 'form' ? "Form" : "Inputs" },
+      "Form" => lambda {|it| it['form'] ? it['form']['name'] : nil }, 
       "Enabled" => lambda {|it| format_boolean(it['enabled']) },
       "Featured" => lambda {|it| format_boolean(it['featured']) },
       "Allow Quantity" => lambda {|it| format_boolean(it['allowQuantity']) },

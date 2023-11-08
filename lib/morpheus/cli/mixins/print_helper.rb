@@ -1511,6 +1511,8 @@ module Morpheus::Cli::PrintHelper
   end
 
   def format_option_types_table(option_types, options={}, domain_name=nil)
+    show_option_source = option_types.find {|it| !it['optionList'].to_s.empty? || !it['optionSource'].to_s.empty? }
+    show_default = option_types.find {|it| !it['defaultValue'].nil? }
     columns = [
       {"FIELD LABEL" => lambda {|it| it['fieldLabel'] } },
       {"FIELD NAME" => lambda {|it| 
@@ -1521,17 +1523,29 @@ module Morpheus::Cli::PrintHelper
         end
       } },
       {"TYPE" => lambda {|it| it['type'] } },
-      {"OPTION SOURCE" => lambda {|it| 
-        if it['optionSourceType']
+      {"REQUIRED" => lambda {|it| format_boolean it['required'] } },
+      show_option_source ? {"OPTION SOURCE" => lambda {|it| 
+        if it['optionList']
+          it['optionList']['name']
+        elsif it['optionSourceType']
           "#{it['optionSourceType']}/#{it['optionSource']}"
         else
           "#{it['optionSource']}"
         end
-      } },
-      {"DEFAULT" => lambda {|it| it['defaultValue'] } },
-      {"REQUIRED" => lambda {|it| format_boolean it['required'] } },
-    ]
+      } } : nil,
+      show_default ? {"DEFAULT" => lambda {|it| it['defaultValue'] } } : nil,
+    ].compact
     as_pretty_table(option_types, columns, options)
+  end
+
+  def format_simple_option_types_table(option_types, options={})
+    as_pretty_table(option_types, {
+      "LABEL" => lambda {|it| it['fieldLabel'] },
+      "NAME" => lambda {|it| it['fieldName'] },
+      "TYPE" => lambda {|it| it['type'] },
+      "REQUIRED" => lambda {|it| format_boolean it['required'] },
+      "DEFAULT" => lambda {|it| it['defaultValue'] },
+    }, options)
   end
   
 end

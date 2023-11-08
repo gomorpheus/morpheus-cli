@@ -23,8 +23,8 @@ class Morpheus::Cli::NetworkServersCommand
   end
 
   def add(args)
-    options = {}
-    params = {}
+    options = {params: {}}
+    params = options[:params]
     ip_range_list = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[name]")
@@ -55,18 +55,20 @@ EOT
     end
 
     # merge -O options into normally parsed options
-    params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+    #params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
 
     # construct payload
     payload = nil
     if options[:payload]
       payload = options[:payload]
+      payload.deep_merge!({rest_object_key => parse_passed_options(options)})
+      payload.deep_merge!({rest_object_key => params})
     else
-      # prompt for network server options
-      
+      payload = {}
+      payload.deep_merge!({rest_object_key => parse_passed_options(options)})
       # Name
       if !params['name']
-        params['name'] = prompt_value({'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Name for this network server.'}, params, options[:no_prompt])
+        params['name'] = prompt_value({'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Name for this network server.'}, options)
         # params['name'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Name for this network server.'}], params, @api_client, {}, options[:no_prompt])['name']
       end
 
@@ -93,7 +95,7 @@ EOT
         end
         network_type_code = selected_type['code']
       else
-        network_type_code = prompt_value({'fieldName' => 'type', 'fieldLabel' => 'Network Server Type', 'type' => 'select', 'selectOptions' => network_server_type_options, 'required' => true, 'description' => 'Choose a network server type.'}, params, options[:no_prompt])
+        network_type_code = prompt_value({'fieldName' => 'type', 'fieldLabel' => 'Network Server Type', 'type' => 'select', 'selectOptions' => network_server_type_options, 'required' => true, 'description' => 'Choose a network server type.'}, options.merge(params))
         #network_type_code = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'type', 'fieldLabel' => 'Network Server Type', 'type' => 'select', 'selectOptions' => network_server_type_options, 'required' => true, 'description' => 'Choose a network server type.'}], options, @api_client, {}, options[:no_prompt])['type']
         selected_type = network_server_type_options.find {|it| it['code'] == network_type_code }
         if selected_type.nil?
@@ -106,9 +108,9 @@ EOT
       # prompt options by type
       network_server_type = @network_server_types_interface.get(network_type_id.to_i)['networkServerType']
       # params['type'] = network_server_type['code']
-      option_result = Morpheus::Cli::OptionTypes.prompt(network_server_type['optionTypes'], params.merge({:context_map => {'networkServer' => ''}}), @api_client, {}, options[:no_prompt], true)
+      option_result = prompt(network_server_type['optionTypes'], options.merge({:context_map => {'networkServer' => ''}}))
       params.deep_merge!(option_result)
-      payload = {'networkServer' => params}
+      payload.deep_merge!({rest_object_key => params})
     end
     @network_servers_interface.setopts(options)
     if options[:dry_run]
@@ -217,6 +219,14 @@ EOT
   end
 
   private
+
+  def network_server_list_key
+    'networkServers'
+  end
+
+  def network_server_object_key
+    'networkServer'
+  end
 
   # def render_response_for_get(json_response, options)
   #   # load the type and show fields dynamically based on optionTypes

@@ -216,9 +216,11 @@ class Morpheus::Cli::ErrorHandler
             @stderr.puts response['msg']
           end
           if response['errors']
-            response['errors'].each do |key, value|
-              @stderr.print "* #{key}: #{value}\n"
-            end
+            # response['errors'].each do |key, value|
+            #   @stderr.print "* #{key}: #{value}\n"
+            # end
+            # puts as_yaml(response['errors'])
+            @stderr.print format_rest_errors(response['errors'])
           end
           @stderr.print reset
         else
@@ -229,6 +231,19 @@ class Morpheus::Cli::ErrorHandler
     ensure
       @stderr.print reset
     end
+  end
+
+  def format_rest_errors(errors, context=nil)
+    out = ""
+    Hash(errors).each do |key, value|
+      if value.is_a?(Hash)
+        out << format_rest_errors(value, context ? "#{context}.#{key}" : key)
+      else
+        prefix = context ? (context + '.') : ''
+        out << "* #{prefix}#{key}: #{value}\n"
+      end
+    end
+    out
   end
 
   def print_rest_request(req)

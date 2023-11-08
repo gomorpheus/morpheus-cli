@@ -308,7 +308,7 @@ EOT
     catalog_item_type = json_response[catalog_item_type_object_key]
     # need to load by id to get optionTypes
     # maybe do ?name=foo&includeOptionTypes=true 
-    if catalog_item_type['optionTypes'].nil?
+    if catalog_item_type['optionTypes'].nil? && catalog_item_type['form'].nil?
       catalog_item_type = find_catalog_item_type_by_id(catalog_item_type['id'])
       return [1, "catalog item type not found"] if catalog_item_type.nil?
     end
@@ -318,14 +318,25 @@ EOT
       show_columns = catalog_item_type_column_definitions
       print_description_list(show_columns, catalog_item_type)
 
+      form = catalog_item_type['form']
+      if form
+        # print_h2 "Configuration Options (Form: #{form['name']})"
+        print_h2 "Configuration Options"
+        form_inputs = (form['options'] || [])
+        if form['fieldGroups']
+          form['fieldGroups'].each { |field_group| form_inputs += (field_group['options'] || []) }
+        end
+        #print format_simple_option_types_table(form_inputs, options)
+        print format_option_types_table(form_inputs, options, 'config.customOptions')
+        # print reset,"\n"
+      else
+        # print cyan,"No form inputs found for this catalog item.","\n",reset
+      end
+
       if catalog_item_type['optionTypes'] && catalog_item_type['optionTypes'].size > 0
         print_h2 "Configuration Options"
-        print as_pretty_table(catalog_item_type['optionTypes'], {
-          "LABEL" => lambda {|it| it['fieldLabel'] },
-          "NAME" => lambda {|it| it['fieldName'] },
-          "TYPE" => lambda {|it| it['type'] },
-          "REQUIRED" => lambda {|it| format_boolean it['required'] },
-        })
+        #print format_simple_option_types_table(catalog_item_type['optionTypes'], options)
+        print format_option_types_table(catalog_item_type['optionTypes'], options, 'config.customOptions')
       else
         # print cyan,"No option types found for this catalog item.","\n",reset
       end
@@ -645,21 +656,38 @@ EOT
 
       # this is silly, need to load by id to get optionTypes
       # maybe do ?name=foo&includeOptionTypes=true 
-      if catalog_item_type['optionTypes'].nil?
+      if catalog_item_type['optionTypes'].nil? && catalog_item_type['form'].nil?
         catalog_item_type = find_catalog_item_type_by_id(catalog_item_type['id'])
         return [1, "catalog item type not found"] if catalog_item_type.nil?
       end
-      catalog_option_types = catalog_item_type['optionTypes']
-      # instead of config.customOptions just use config...
-      catalog_option_types = catalog_option_types.collect {|it|
-        it['fieldContext'] = 'config'
-        it
-      }
-      if catalog_option_types && !catalog_option_types.empty?
-        api_params = construct_catalog_api_params(catalog_item_type)
-        config_prompt = Morpheus::Cli::OptionTypes.prompt(catalog_option_types, options[:options], @api_client, api_params, options[:no_prompt], false, false, true)['config']
+      
+      if catalog_item_type['formType'] == 'form'
+        # prompt for form options
+        if catalog_item_type['form'].nil?
+          raise_command_error "No form found for catalog item type '#{catalog_item_type['name']}'"
+        end
+        # use the new PromptHelper method prompt_form()
+        config_prompt = prompt_form(catalog_item_type['form'], options.merge({:context_map => {'config.customOptions' => 'config'}}), @api_client, construct_catalog_api_params(catalog_item_type))
         payload[add_item_object_key].deep_merge!({'config' => config_prompt})
+      else
+        # prompt for optionTypes
+        catalog_option_types = catalog_item_type['optionTypes']
+        if catalog_option_types.nil?
+          #raise_command_error "No options found for catalog item type '#{catalog_item_type['name']}'"
+          catalog_option_types = []
+        end
+        # instead of config.customOptions just use config...
+        catalog_option_types = catalog_option_types.collect {|it|
+          it['fieldContext'] = 'config'
+          it
+        }
+        if catalog_option_types && !catalog_option_types.empty?
+          api_params = construct_catalog_api_params(catalog_item_type)
+          config_prompt = Morpheus::Cli::OptionTypes.prompt(catalog_option_types, options[:options], @api_client, api_params, options[:no_prompt], false, false, true)['config']
+          payload[add_item_object_key].deep_merge!({'config' => config_prompt})
+        end
       end
+
       if workflow_context
         payload[add_item_object_key]['context'] = workflow_context
       else
@@ -673,7 +701,7 @@ EOT
         elsif !catalog_item_type['context'].nil?
           workflow_context = catalog_item_type['context']
         end
-        payload[add_item_object_key]['context'] = workflow_context
+        payload[add_item_object_key]['context'] = workflow_context  if workflow_context
       end
 
       if workflow_target
@@ -981,23 +1009,35 @@ EOT
 
         # this is silly, need to load by id to get optionTypes
         # maybe do ?name=foo&includeOptionTypes=true 
-        if catalog_item_type['optionTypes'].nil?
+        if catalog_item_type['optionTypes'].nil? && catalog_item_type['form'].nil?
           catalog_item_type = find_catalog_item_type_by_id(catalog_item_type['id'])
           return [1, "catalog item type not found"] if catalog_item_type.nil?
         end
-        catalog_option_types = catalog_item_type['optionTypes']
-        # instead of config.customOptions just use config...
-        catalog_option_types = catalog_option_types.collect {|it|
-          it['fieldContext'] = nil
-          it['fieldContext'] = 'config'
-          it
-        }
-        if catalog_option_types && !catalog_option_types.empty?
-          api_params = construct_catalog_api_params(catalog_item_type)
-          config_prompt = Morpheus::Cli::OptionTypes.prompt(catalog_option_types, options[:options], @api_client, api_params, options[:no_prompt], false, false, true)['config']
-          item_payload.deep_merge!({'config' => config_prompt})
-        end
         
+        if catalog_item_type['formType'] == 'form'
+          # prompt for form options
+          if catalog_item_type['form'].nil?
+            raise_command_error "No form found for catalog item type '#{catalog_item_type['name']}'"
+          end
+          # use the new PromptHelper method prompt_form()
+          config_prompt = prompt_form(catalog_item_type['form'], options.merge({:context_map => {'config.customOptions' => 'config'}}), @api_client, construct_catalog_api_params(catalog_item_type))
+          item_payload.deep_merge!({'config' => config_prompt})
+        else
+          # prompt for optionTypes
+          catalog_option_types = catalog_item_type['optionTypes']
+          # instead of config.customOptions just use config...
+          catalog_option_types = catalog_option_types.collect {|it|
+            it['fieldContext'] = nil
+            it['fieldContext'] = 'config'
+            it
+          }
+          if catalog_option_types && !catalog_option_types.empty?
+            api_params = construct_catalog_api_params(catalog_item_type)
+            config_prompt = Morpheus::Cli::OptionTypes.prompt(catalog_option_types, options[:options], @api_client, api_params, options[:no_prompt], false, false, true)['config']
+            item_payload.deep_merge!({'config' => config_prompt})
+          end
+        end
+
         if workflow_context
           item_payload['context'] = workflow_context
         else

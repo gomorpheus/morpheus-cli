@@ -283,7 +283,7 @@ EOT
     return 1 if backup.nil?
     parse_options(options, params)
     confirm!("Are you sure you want to delete the backup #{backup['name']}?", options)
-    execute_api(@backups_interface, :destroy, [backup['id']], options, 'backup') do |json_response|
+    execute_api(@backups_interface, :destroy, [backup['id']], options) do |json_response|
       print_green_success "Removed backup #{backup['name']}"
     end
   end

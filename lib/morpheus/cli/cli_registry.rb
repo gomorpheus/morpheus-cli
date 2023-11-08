@@ -95,12 +95,10 @@ module Morpheus
             suggestions = find_command_suggestions(command_name)
             if suggestions && suggestions.size == 1
               msg += "\nThe most similar command is:\n"
-              suggestions.first(5).each do |suggestion|
-                msg += "\t" + suggestion + "\n"
-              end
+              msg += "\t" + suggestions.first + "\n"
             elsif suggestions && suggestions.size > 1
               msg += "\nThe most similar commands are:\n"
-              suggestions.first(5).each do |suggestion|
+              suggestions.first(50).each do |suggestion|
                 msg += "\t" + suggestion + "\n"
               end
             end

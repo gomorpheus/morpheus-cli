@@ -54,6 +54,8 @@ module Morpheus::Routes
       ],
       :'virtual-images' => {},
       options: [
+        "#!forms", # Forms
+        "#!option-types", # Inputs
         "#!option-type-lists", # Option Lists
       ],
       templates: [
@@ -182,6 +184,12 @@ module Morpheus::Routes
 
       # map well known aliases
       case(path.dasherize.pluralize)
+      # when "forms"
+      #   path = "/library/options/#!forms"
+      when "inputs"
+        path = "/library/options/#!option-types"
+      when "option-lists"
+        path = "/library/options/#!option-type-lists"
       when "backups"
         path = id ? "/backups/show" : "/backups/list"
       when "backup-jobs"

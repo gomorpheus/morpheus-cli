@@ -268,7 +268,6 @@ module Morpheus
         build_standard_post_options(opts, options, includes, excludes)
       end
 
-      # todo: this can go away once every command is using execute_api()
       def build_standard_add_many_options(opts, options, includes=[], excludes=[])
         build_standard_post_options(opts, options, includes + [:payloads], excludes)
       end
@@ -1579,6 +1578,9 @@ module Morpheus
           # could use parse_passed_options() here to support exclusion of certain options
           #passed_options = parse_passed_options(options, options[:apply_options] || {})
           passed_options = options[:options].reject {|k,v| k.is_a?(Symbol)}
+          if options[:apply_options_exclude]
+            passed_options = options[:options].reject {|k,v| options[:skip_apply_options].include?(k.to_s) || options[:skip_apply_options].include?(k.to_sym) }
+          end
           if object_key
             payload.deep_merge!({object_key => passed_options})
           else
