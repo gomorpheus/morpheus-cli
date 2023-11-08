@@ -326,7 +326,9 @@ module Morpheus
           end
 
           if !value_found
-            if option_type['type'] == 'number'
+            if option_type['type'] == 'text'
+              value = generic_prompt(option_type)
+            elsif option_type['type'] == 'number'
               value = number_prompt(option_type)
             elsif option_type['type'] == 'password'
               value = password_prompt(option_type)
@@ -380,8 +382,10 @@ module Morpheus
               end
             elsif option_type['type'] == 'file'
               value = file_prompt(option_type)
-            elsif option_type['type'] == 'file-content'
+            elsif option_type['type'] == 'file-content' || option_type['type'] == 'fileContent'
               value = file_content_prompt(option_type, options, api_client, {})
+            elsif option_type['type'] == 'logoSelector'
+              value = file_prompt(option_type)
             elsif option_type['type'] == 'multiText'
               value = multitext_prompt(option_type)
             elsif option_type['type'] == 'azureMarketplace'
@@ -396,7 +400,6 @@ module Morpheus
               value = generic_prompt(option_type)
             end
           end
-
           # --labels x,y,z uses processValue proc to convert strings to an array
           if option_type['processValue'].is_a?(Proc)
             value = option_type['processValue'].call(value)
@@ -408,6 +411,61 @@ module Morpheus
             # multiText expects csv value
             if value && value.is_a?(String)
               value = value.split(",").collect {|it| it.strip }
+            end
+          # todo: Handle these types added with the new form fields:
+          #
+          # byteSize
+          # code-editor
+          # fileContent
+          # logoSelector
+          # keyValue
+          # textArray
+          # typeahead
+          # group
+          # cloud
+          # environment
+          # diskManager
+          # layout
+          # networkManager
+          # plan
+          # resourcePool
+          # secGroup
+          # tag
+          # httpHeader
+          elsif option_type['type'] == 'byteSize'
+            if value.to_s.empty?
+              value = 0 # nil
+            elsif value.is_a?(String)
+              if value.to_s.upcase.include?("G")
+                value = value.to_i * 1024 * 1024 * 1024
+              elsif value.to_s.upcase.include?("M")
+                value = value * 1024 * 1024
+              else
+                # assume bytes by default..
+                value = value.to_i
+              end
+            end
+          elsif option_type['type'] == 'keyValue'
+            value = try_as_json(value)
+            if value.is_a?(String)
+              map = {}
+              value.split(",").each do |it| 
+                pair = it.split("="); 
+                map[pair[0].to_s.strip] = pair[1..-1].join("=").strip
+              end
+              value = map
+            end
+          elsif option_type['type'] == 'textArray'
+            value = try_as_json(value)
+            if value.is_a?(String)
+              value = value.split(",").collect {|it| it.to_s.strip }
+            end
+          else
+            # default translation
+            # for non text inputs, try to parse value as JSON
+            # if option_type['type'] == 'group' || option_type['type'] == 'cloud' etc..
+            if value.is_a?(String) && option_type['type'] != 'text'
+              value = try_as_json(value)
             end
           end
           context_map[field_name] = value if !(value.nil? || (value.is_a?(Hash) && value.empty?))
@@ -1380,6 +1438,19 @@ module Morpheus
           rtn = rtn.join(', ') if rtn.is_a?(Array)
         end
         rtn
+      end
+
+      def self.try_as_json(val)
+        if val.is_a?(String)
+          if (val.to_s[0] == '{' && val.to_s[-1] == '}') || (val.to_s[0] == '[' && val.to_s[-1] == ']')
+            begin
+              val = JSON.parse(val)
+            rescue
+              Morpheus::Logging::DarkPrinter.puts "Failed to parse option value '#{val}' as JSON" if Morpheus::Logging.debug?
+            end
+          end
+        end
+        return val
       end
     end
   end
