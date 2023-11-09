@@ -45,7 +45,7 @@ module Morpheus::Cli::PromptHelper
     api_client = options.key?(:api_client) ? options[:api_client] : @api_client
     api_params = options.key?(:api_params) ? options[:api_params] : {}
     no_prompt = options.key?(:no_prompt) ? options[:no_prompt] : false
-    paging_enabled = options.key?(:paging_enabled) ? options[:paging_enabled] : false
+    paging_enabled = options.key?(:paging_enabled) ? options[:paging_enabled] : true
     ignore_empty = options.key?(:ignore_empty) ? options[:ignore_empty] : false
     # Defaulting skip_sort to true which is the opposite of OptionTypes.prompt()
     # The API handles sorting most of the time now, calling function can sort before prompting if needed
