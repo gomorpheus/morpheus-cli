@@ -59,6 +59,7 @@ class Morpheus::Cli::LibraryFormsCommand
           {
             id: option_type_form['id'],
             name: option_type_form['name'],
+            code: option_type_form['code'],
             labels: option_type_form['labels'],
             description: option_type_form['description'],
           }
@@ -66,6 +67,7 @@ class Morpheus::Cli::LibraryFormsCommand
           columns = [
           :id,
           :name,
+          :code,
           {:labels => {:display_method => lambda {|it| format_list(it[:labels], '', 3) rescue '' }}},
           :description,
         ]
@@ -119,6 +121,7 @@ EOT
       print_description_list({
         "ID" => 'id',
         "Name" => 'name',
+        "Code" => 'code',
         "Description" => 'description',
         "Labels" => lambda {|it| format_list(it['labels']) },
       }, option_type_form, options)
