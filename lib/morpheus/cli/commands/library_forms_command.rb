@@ -545,7 +545,7 @@ EOT
 
   def new_form_input_option_types()
     [
-      {'code' => 'optionType.type', 'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => [{'name' => 'Text', 'value' => 'text'}, {'name' => 'Password', 'value' => 'password'}, {'name' => 'Number', 'value' => 'number'}, {'name' => 'Checkbox', 'value' => 'checkbox'}, {'name' => 'Select', 'value' => 'select'}, {'name' => 'Hidden', 'value' => 'hidden'}], 'defaultValue' => 'text', 'required' => true},
+      {'code' => 'optionType.type', 'fieldName' => 'type', 'fieldLabel' => 'Type', 'type' => 'select', 'selectOptions' => get_available_form_input_types(), 'defaultValue' => 'text', 'required' => true},
       {'fieldName' => 'optionList', 'fieldLabel' => 'Option List', 'type' => 'select', 'optionSource' => 'optionTypeLists', 'required' => true, 'dependsOnCode' => 'optionType.type:select', 'description' => "The Option List to be the source of options when type is 'select'."},
       {'fieldName' => 'fieldLabel', 'fieldLabel' => 'Field Label', 'type' => 'text', 'required' => true, 'description' => 'This is the input label that shows typically to the left of a custom option.'},
       {'fieldName' => 'fieldCode', 'fieldLabel' => 'Localized Label', 'type' => 'typeahead', 'optionSource' => 'messageCodes', 'description' => 'i18n code for the label'},
@@ -578,4 +578,38 @@ EOT
     list
   end
 
+  def get_available_form_input_types()
+    {
+      checkbox: "Checkbox",
+      hidden: "Hidden",
+      number: "Number",
+      password: "Password",
+      radio: "Radio",
+      select: "Select List",
+      text: "Text",
+      textarea: "Textarea",
+      byteSize: "Byte Size",
+      'code-editor': "Code Editor",
+      fileContent: "File Content",
+      logoSelector: "Icon Picker",
+      keyValue: "Key Value",
+      textArray: "Text Array",
+      typeahead: "Typeahead",
+      cloud: "Cloud",
+      diskManager: "Disks",
+      environment: "Environment",
+      ports: "Exposed Ports",
+      group: "Group",
+      'instances-input': "Instances",
+      layout: "Layout",
+      networkManager: "Networks",
+      plan: "Plan",
+      resourcePool: "resourcePool",
+      secGroup: "Security Groups",
+      'servers-input': "Servers",
+      'virtual-image': "Virtual Image",
+      vmwFolders: "Vmw Folders",
+      httpHeader: "Headers",
+    }.collect {|k,v| {'name' => v.to_s, 'value' => k.to_s } }
+  end
 end
