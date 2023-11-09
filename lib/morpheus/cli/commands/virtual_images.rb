@@ -847,7 +847,7 @@ EOT
       print_description_list(virtual_image_location_column_definitions, location, options)
       if volumes && !volumes.empty?
         print_h2 "Volumes", options
-        volume_rows = location_volumes.collect do |volume|
+        volume_rows = volumes.collect do |volume|
           {name: volume['name'], size: Filesize.from("#{volume['rawSize']} B").pretty}
         end
         print cyan
