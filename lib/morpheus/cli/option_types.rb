@@ -584,7 +584,12 @@ module Morpheus
             if matched_options.size > 1
               print Term::ANSIColor.red, "\nInvalid Option #{option_type['fieldLabel']}: [#{use_value}]\n\n", Term::ANSIColor.reset
               print Term::ANSIColor.red, "  * #{option_type['fieldLabel']} [-O #{option_type['fieldContext'] ? (option_type['fieldContext']+'.') : ''}#{option_type['fieldName']}=] - #{option_type['description']}\n", Term::ANSIColor.reset
-              display_select_options(option_type, matched_options)
+              if matched_options && matched_options.size > 10
+                display_select_options(option_type, matched_options.first(10))
+                puts " (#{matched_options.size-10} more)"
+              else
+                display_select_options(option_type, matched_options)
+              end
               print "The value '#{input}' matched #{matched_options.size()} options.\n"
               # print "Perhaps you meant one of these? #{ored_list(matched_options.collect {|i|i[value_field]}, 3)}\n"
               print "Try using value instead of name.\n"
@@ -653,7 +658,12 @@ module Morpheus
                 if matched_options.size > 1
                   print Term::ANSIColor.red, "\nInvalid Option #{option_type['fieldLabel']}: [#{default_value}]\n\n", Term::ANSIColor.reset
                   print Term::ANSIColor.red, "  * #{option_type['fieldLabel']} [-O #{option_type['fieldContext'] ? (option_type['fieldContext']+'.') : ''}#{option_type['fieldName']}=] - #{option_type['description']}\n", Term::ANSIColor.reset
-                  display_select_options(option_type, matched_options)
+                  if matched_options && matched_options.size > 10
+                    display_select_options(option_type, matched_options.first(10))
+                    puts " (#{matched_options.size-10} more)"
+                  else
+                    display_select_options(option_type, matched_options)
+                  end
                   print "The value '#{default_value}' matched #{matched_options.size()} options.\n"
                   # print "Perhaps you meant one of these? #{ored_list(matched_options.collect {|i|i[value_field]}, 3)}\n"
                   print "Try using value instead of name.\n"
@@ -737,7 +747,12 @@ module Morpheus
             if matched_options.size > 1
               print Term::ANSIColor.red, "\nInvalid Option #{option_type['fieldLabel']}: [#{input}]\n\n", Term::ANSIColor.reset
               print Term::ANSIColor.red, "  * #{option_type['fieldLabel']} [-O #{option_type['fieldContext'] ? (option_type['fieldContext']+'.') : ''}#{option_type['fieldName']}=] - #{option_type['description']}\n", Term::ANSIColor.reset
-              display_select_options(option_type, matched_options)
+              if matched_options && matched_options.size > 10
+                display_select_options(option_type, matched_options.first(10))
+                puts " (#{matched_options.size-10} more)"
+              else
+                display_select_options(option_type, matched_options)
+              end
               print "The value '#{input}' matched #{matched_options.size()} options.\n"
               # print "Perhaps you meant one of these? #{ored_list(matched_options.collect {|i|i[value_field]}, 3)}\n"
               print "Try using value instead of name.\n"
@@ -925,7 +940,12 @@ module Morpheus
               exit 1
             else
               #help_prompt(option_type)
-              display_select_options(option_type, select_options)
+              if select_options && select_options.size > 10
+                display_select_options(option_type, select_options.first(10))
+                puts " (#{select_options.size-10} more)"
+              else
+                display_select_options(option_type, select_options)
+              end
               print "\n"
               if select_options.empty?
                 print "The value '#{input}' matched 0 options.\n"
