@@ -607,7 +607,7 @@ EOT
       layout: "Layout",
       networkManager: "Networks",
       plan: "Plan",
-      resourcePool: "resourcePool",
+      resourcePool: "Resource Pool",
       secGroup: "Security Groups",
       'servers-input': "Servers",
       'virtual-image': "Virtual Image",
