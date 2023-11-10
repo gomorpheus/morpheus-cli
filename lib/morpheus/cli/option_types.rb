@@ -217,6 +217,12 @@ module Morpheus
             context_map = context_map[ns.to_s]
           end
 
+          # CLI only options that need some do some inflection to decide how to prompt
+          # defaultValue is it right now..
+          if option_type[:preprocesser].is_a?(Proc)
+            option_type[:preprocesser].call(option_type, api_client, option_params)
+          end
+
           # credential type
           handle_credential_type = -> {
             credential_type = select_prompt(option_type.merge({'defaultValue' => value}), api_client, option_params.merge({'credentialTypes' => option_type['config']['credentialTypes']}), !value.nil?, nil, paging_enabled, ignore_empty, options[:edit_mode])

@@ -553,7 +553,14 @@ EOT
       {'fieldName' => 'fieldLabel', 'fieldLabel' => 'Field Label', 'type' => 'text', 'required' => true, 'description' => 'This is the input label that shows typically to the left of a custom option.'},
       {'fieldName' => 'fieldCode', 'fieldLabel' => 'Localized Label', 'type' => 'typeahead', 'optionSource' => 'messageCodes', 'description' => 'i18n code for the label'},
       {'fieldName' => 'fieldName', 'fieldLabel' => 'Field Name', 'type' => 'text', 'required' => true, 'description' => 'This field sets the name attribute for the input.'},
-      {'fieldName' => 'defaultValue', 'fieldLabel' => 'Default Value', 'type' => 'text'},
+      {'fieldName' => 'defaultValue', 'fieldLabel' => 'Default Value', 'type' => 'text', :preprocesser => lambda do |option_type, api_client, api_params| 
+        input_type = option_type['fieldContext'] ? api_params[option_type['fieldContext']]['type'] : api_params['type']
+        if input_type == 'checkbox'
+          # option_type.merge!({'type' => 'select', 'selectOptions' => [{"name" => "On", "value" => "on"},{"name" => "Off", "value" => "off"}]})
+          option_type.merge!({'type' => 'checkbox'})
+        end
+      end
+      },
       {'fieldName' => 'placeHolder', 'fieldLabel' => 'Placeholder', 'type' => 'text', 'description' => 'Text that is displayed when the field is empty'},
       {'fieldName' => 'helpBlock', 'fieldLabel' => 'Help Block', 'type' => 'text', 'description' => 'This is the explaination of the input that shows typically underneath the option.'},
       {'fieldName' => 'helpBlockFieldCode', 'fieldLabel' => 'Localized Help Block', 'type' => 'typeahead', 'optionSource' => 'messageCodes', 'description' => 'i18n code for the help block'},
