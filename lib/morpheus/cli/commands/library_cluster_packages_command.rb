@@ -171,6 +171,8 @@ class Morpheus::Cli::LibraryClusterPackagesCommand
   def add(args)
     options = {}
     params = {}
+    logo_file = nil
+    dark_logo_file = nil
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name] [options]")
       opts.on('-n', '--name VALUE', String, "Name for this cluster package") do |val|
@@ -202,7 +204,32 @@ class Morpheus::Cli::LibraryClusterPackagesCommand
           params['specTemplates'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
       end
-
+      opts.on('--logo FILE', String, "Upload a custom logo icon") do |val|
+        filename = val
+        logo_file = nil
+        if filename == 'null'
+          logo_file = 'null' # clear it
+        else
+          filename = File.expand_path(filename)
+          if !File.exist?(filename)
+            raise_command_error "File not found: #{filename}"
+          end
+          logo_file = File.new(filename, 'rb')
+        end
+      end
+      opts.on('--dark-logo FILE', String, "Upload a custom dark logo icon") do |val|
+        filename = val
+        dark_logo_file = nil
+        if filename == 'null'
+          dark_logo_file = 'null' # clear it
+        else
+          filename = File.expand_path(filename)
+          if !File.exist?(filename)
+            raise_command_error "File not found: #{filename}"
+          end
+          dark_logo_file = File.new(filename, 'rb')
+        end
+      end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Create a cluster package."
     end
@@ -263,6 +290,11 @@ class Morpheus::Cli::LibraryClusterPackagesCommand
           params['packageVersion'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'packageVersion', 'packageVersion' => 'text', 'fieldLabel' => 'Package Version', 'required' => true}], options[:options], @api_client,{})['packageVersion']
         end
 
+        # logo
+        if params['iconPath'].nil?
+          params['iconPath'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'iconPath', 'fieldLabel' => 'Logo', 'type' => 'select', 'optionSource' => 'iconList'}], options[:options], @api_client,{})['iconPath']
+        end
+
         # specTemplates
         if params['specTemplates'].nil?
           spec_templates = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'specTemplates', 'fieldLabel' => 'Spec Templates', 'type' => 'multiSelect', 'required' => true, 'optionSource' => 'clusterResourceSpecTemplates'}], options[:options], @api_client, {})['specTemplates']
@@ -279,6 +311,16 @@ class Morpheus::Cli::LibraryClusterPackagesCommand
       end
 
       json_response = @library_cluster_packages_interface.create(payload)
+      if json_response['success']
+        if logo_file || dark_logo_file
+          begin
+            @library_cluster_packages_interface.update_logo(json_response['id'], logo_file, dark_logo_file)
+          rescue RestClient::Exception => e
+            print_red_alert "Failed to save logo!"
+            print_rest_exception(e, options)
+          end
+        end
+      end
 
       if options[:json]
         print JSON.pretty_generate(json_response), "\n"
@@ -295,6 +337,8 @@ class Morpheus::Cli::LibraryClusterPackagesCommand
   def update(args)
     options = {}
     params = {}
+    logo_file = nil
+    dark_logo_file = nil
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[name] [options]")
       opts.on('-n', '--name VALUE', String, "Name for this cluster package") do |val|
@@ -326,7 +370,32 @@ class Morpheus::Cli::LibraryClusterPackagesCommand
           params['specTemplates'] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
         end
       end
-
+      opts.on('--logo FILE', String, "Upload a custom logo icon") do |val|
+        filename = val
+        logo_file = nil
+        if filename == 'null'
+          logo_file = 'null' # clear it
+        else
+          filename = File.expand_path(filename)
+          if !File.exist?(filename)
+            raise_command_error "File not found: #{filename}"
+          end
+          logo_file = File.new(filename, 'rb')
+        end
+      end
+      opts.on('--dark-logo FILE', String, "Upload a custom dark logo icon") do |val|
+        filename = val
+        dark_logo_file = nil
+        if filename == 'null'
+          dark_logo_file = 'null' # clear it
+        else
+          filename = File.expand_path(filename)
+          if !File.exist?(filename)
+            raise_command_error "File not found: #{filename}"
+          end
+          dark_logo_file = File.new(filename, 'rb')
+        end
+      end
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
       opts.footer = "Update a cluster package." + "\n" +
                     "[name] is required. This is the name or id of a cluster package."
@@ -351,7 +420,7 @@ class Morpheus::Cli::LibraryClusterPackagesCommand
         params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
       end
      
-      if params.empty?
+      if params.empty? && !logo_file && !dark_logo_file
         print_green_success "Nothing to update"
         exit 1
       end
@@ -361,15 +430,34 @@ class Morpheus::Cli::LibraryClusterPackagesCommand
         print_dry_run @library_cluster_packages_interface.dry.update(cluster_package['id'], payload)
         return 0
       end
-      
-      json_response = @library_cluster_packages_interface.update(cluster_package['id'], payload)
-      
-      if options[:json]
-        print JSON.pretty_generate(json_response), "\n"
-        return 0
-      end
 
-      print_green_success "Updated Cluster Package #{params['name'] || cluster_package['name']}"
+      if (logo_file || dark_logo_file) && params.empty?
+        begin
+          @library_cluster_packages_interface.update_logo(cluster_package['id'], logo_file, dark_logo_file)
+          print_green_success "Updated Cluster Package #{params['name'] || cluster_package['name']}"
+        rescue RestClient::Exception => e
+          print_red_alert "Failed to save logo!"
+          print_rest_exception(e, options)
+        end
+      else
+        json_response = @library_cluster_packages_interface.update(cluster_package['id'], payload)
+        if json_response['success']
+          if logo_file || dark_logo_file
+            begin
+              @library_cluster_packages_interface.update_logo(json_response['id'], logo_file, dark_logo_file)
+            rescue RestClient::Exception => e
+              print_red_alert "Failed to save logo!"
+              print_rest_exception(e, options)
+            end
+          end
+        end
+        if options[:json]
+          print JSON.pretty_generate(json_response), "\n"
+          return 0
+        end
+  
+        print_green_success "Updated Cluster Package #{params['name'] || cluster_package['name']}"
+      end
       return 0
     rescue RestClient::Exception => e
       print_rest_exception(e, options)

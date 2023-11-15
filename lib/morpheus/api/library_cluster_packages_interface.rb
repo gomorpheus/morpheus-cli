@@ -38,4 +38,23 @@ class Morpheus::LibraryClusterPackagesInterface < Morpheus::APIClient
     opts = {method: :delete, url: url, headers: headers, payload: payload.to_json}
     execute(opts)
   end
+
+  def update_logo(id, logo_file, dark_logo_file=nil)
+    url = "#{@base_url}/api/library/cluster-packages/#{id}"
+    headers = { :params => {}, :authorization => "Bearer #{@access_token}"}
+    payload = {}
+    payload["clusterPackage"] = {}
+    if logo_file
+      payload["clusterPackage"]["logo"] = logo_file
+    end
+    if dark_logo_file
+      payload["clusterPackage"]["darkLogo"] = dark_logo_file
+    end
+    if logo_file.is_a?(File) || dark_logo_file.is_a?(File)
+      payload[:multipart] = true
+    else
+      headers['Content-Type'] = 'application/x-www-form-urlencoded'
+    end
+    execute(method: :put, url: url, headers: headers, payload: payload)
+  end
 end
