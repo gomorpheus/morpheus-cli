@@ -89,7 +89,7 @@ class Morpheus::Cli::LibraryClusterPackagesCommand
       opts.banner = subcommand_usage("[clusterPackage]")
       build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
       opts.footer = "Display cluster package details." + "\n" +
-                    "[clusterPackage] is required. This is the name or id of a cluster package."
+                    "[clusterPackage] is required. This is the id of a cluster package."
     end
     optparse.parse!(args)
     if args.count < 1
@@ -143,6 +143,9 @@ class Morpheus::Cli::LibraryClusterPackagesCommand
         "Package Version" => lambda {|it| it['packageVersion']},
         "Package Type" => lambda {|it| it['packageType']},
         "Type" => lambda {|it| it['type'] },
+        "Repeat Install" => lambda {|it| format_boolean(it['repeatInstall'])},
+        "Logo" => lambda {|it| it['imagePath'] },
+        "Dark Logo" => lambda {|it| it['darkImagePath'] },
         "Spec Templates" => lambda {|it| 
           "(#{it['specTemplates'].count}) #{it['specTemplates'].collect {|it| it['name'] }.join(', ')}"
         }
@@ -398,7 +401,7 @@ class Morpheus::Cli::LibraryClusterPackagesCommand
       end
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
       opts.footer = "Update a cluster package." + "\n" +
-                    "[name] is required. This is the name or id of a cluster package."
+                    "[name] is required. This is the id of a cluster package."
     end
 
     optparse.parse!(args)
@@ -471,7 +474,7 @@ class Morpheus::Cli::LibraryClusterPackagesCommand
       opts.banner = subcommand_usage("[clusterPackage]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
       opts.footer = "Delete a cluster package." + "\n" +
-                    "[clusterPackage] is required. This is the name or id of a cluster package."
+                    "[clusterPackage] is required. This is the id of a cluster package."
     end
     optparse.parse!(args)
 
