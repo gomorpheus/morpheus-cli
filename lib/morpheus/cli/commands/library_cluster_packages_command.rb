@@ -343,7 +343,7 @@ class Morpheus::Cli::LibraryClusterPackagesCommand
     logo_file = nil
     dark_logo_file = nil
     optparse = Morpheus::Cli::OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name] [options]")
+      opts.banner = subcommand_usage("[id] [options]")
       opts.on('-n', '--name VALUE', String, "Name for this cluster package") do |val|
         params['name'] = val
       end
