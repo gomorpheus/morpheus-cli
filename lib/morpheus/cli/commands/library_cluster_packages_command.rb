@@ -114,7 +114,7 @@ class Morpheus::Cli::LibraryClusterPackagesCommand
           print_dry_run @library_cluster_packages_interface.dry.get(id)
         return
       end
-      package = find_package_by_name_or_id(id)
+      package = find_package_by_id(id)
       if package.nil?
         return 1
       end
@@ -401,7 +401,7 @@ class Morpheus::Cli::LibraryClusterPackagesCommand
       end
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
       opts.footer = "Update a cluster package." + "\n" +
-                    "[name] is required. This is the id of a cluster package."
+                    "[id] is required. This is the id of a cluster package."
     end
 
     optparse.parse!(args)
@@ -412,7 +412,7 @@ class Morpheus::Cli::LibraryClusterPackagesCommand
       return 1
     end
     begin
-      cluster_package = find_package_by_name_or_id(args[0])
+      cluster_package = find_package_by_id(args[0])
       exit 1 if cluster_package.nil?
       passed_options = (options[:options] || {}).reject {|k,v| k.is_a?(Symbol) }
       payload = nil
@@ -487,7 +487,7 @@ class Morpheus::Cli::LibraryClusterPackagesCommand
     connect(options)
 
     begin
-      cluster_package = find_package_by_name_or_id(args[0])
+      cluster_package = find_package_by_id(args[0])
       if cluster_package.nil?
         return 1
       end
@@ -523,14 +523,6 @@ class Morpheus::Cli::LibraryClusterPackagesCommand
 
   private
 
-  def find_package_by_name_or_id(val)
-    if val.to_s =~ /\A\d{1,}\Z/
-      return find_package_by_id(val)
-    else
-      return find_package_by_name(val)
-    end
-  end
-
   def find_package_by_id(id)
     begin
       json_response = @library_cluster_packages_interface.get(id.to_i)
@@ -541,22 +533,6 @@ class Morpheus::Cli::LibraryClusterPackagesCommand
       else
         raise e
       end
-    end
-  end
-
-  def find_package_by_name(name)
-    packages = @library_cluster_packages_interface.list({name: name.to_s})['clusterPackages']
-    if packages.empty?
-      print_red_alert "Cluster package not found by name #{name}"
-      return nil
-    elsif packages.size > 1
-      print_red_alert "#{packages.size} cluster packages found by name #{name}"
-      print_packages_table(packages, {color: red})
-      print_red_alert "Try using ID instead"
-      print reset,"\n"
-      return nil
-    else
-      return packages[0]
     end
   end
 
