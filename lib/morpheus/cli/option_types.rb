@@ -322,6 +322,7 @@ module Morpheus
                     value = option_type['defaultValue']
                   else
                     select_options = load_source_options(option_type['optionSource'], option_type['optionSourceType'], api_client, option_params)
+                    config_multi_select = option_type["config"] && ["true","on"].include?(option_type["config"]["multiSelect"].to_s)
                     if config_multi_select
                       value = select_options.collect { |it| it['value'] }
                     else
