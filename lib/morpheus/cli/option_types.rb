@@ -76,7 +76,8 @@ module Morpheus
             option_type['type'] = 'multiText'
           end
           # swap types to multiSelect when flag is set..
-          if option_type["config"] && ["true","on"].include?(option_type["config"]["multiSelect"].to_s)
+          config_multi_select = option_type["config"] && ["true","on"].include?(option_type["config"]["multiSelect"].to_s)
+          if config_multi_select
             if option_type["type"] == "typeahead"
               option_type["type"] = "multiTypeahead"
             elsif option_type["type"] == "select"
@@ -316,6 +317,18 @@ module Morpheus
                   value = typeahead_prompt(option_type, api_client, option_params, true)
                   value_found = !!value
                 end
+                if option_type['type'] == 'hidden'
+                  if option_type['optionSource'].nil?
+                    value = option_type['defaultValue']
+                  else
+                    select_options = load_source_options(option_type['optionSource'], option_type['optionSourceType'], api_client, option_params)
+                    if config_multi_select
+                      value = select_options.collect { |it| it['value'] }
+                    else
+                      value = select_options[0] ? select_options[0]['value'] : nil
+                    end
+                  end
+                end
                 if !value_found && !ignore_empty
                   if option_type['required']
                     print Term::ANSIColor.red, "\nMissing Required Option\n\n", Term::ANSIColor.reset
@@ -384,7 +397,12 @@ module Morpheus
               if option_type['optionSource'].nil?
                 value = option_type['defaultValue']
               else
-                value = load_source_options(option_type['optionSource'], option_type['optionSourceType'], api_client, api_params || {})
+                select_options = load_source_options(option_type['optionSource'], option_type['optionSourceType'], api_client, option_params)
+                if config_multi_select
+                  value = select_options.collect { |it| it['value'] }
+                else
+                  value = select_options[0] ? select_options[0]['value'] : nil
+                end
               end
             elsif option_type['type'] == 'file'
               value = file_prompt(option_type)
