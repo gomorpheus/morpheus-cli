@@ -325,8 +325,12 @@ module Morpheus
                     config_multi_select = option_type["config"] && ["true","on"].include?(option_type["config"]["multiSelect"].to_s)
                     if config_multi_select
                       value = select_options.collect { |it| it['value'] }
-                    else
+                    elsif select_options.is_a?(Array)
                       value = select_options[0] ? select_options[0]['value'] : nil
+                    elsif select_options.is_a?(Hash)
+                      value = select_options['value']
+                    else
+                      value = select_options
                     end
                   end
                 end
