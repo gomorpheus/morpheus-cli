@@ -181,7 +181,8 @@ class Morpheus::Cli::CloudFoldersCommand
         #"Type" => lambda {|it| it['type'].to_s.capitalize },
         "Cloud" => lambda {|it| it['zone'] ? it['zone']['name'] : '' },
         "Active" => lambda {|it| format_boolean(it['active']) },
-        "Default" => lambda {|it| format_boolean(it['defaultPool']) },
+        "Default" => lambda {|it| format_boolean(it['defaultFolder']) },
+        "Image Target" => lambda {|it| format_boolean(it['defaultStore']) },
         "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
         #"Tenants" => lambda {|it| it['tenants'] ? it['tenants'].collect {|it| it['name'] }.uniq.join(', ') : '' }
         # "Owner" => lambda {|it| it['owner'] ? it['owner']['name'] : '' },
@@ -319,6 +320,12 @@ class Morpheus::Cli::CloudFoldersCommand
       opts.on('--active [on|off]', String, "Can be used to disable a resource folder") do |val|
         options['active'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
       end
+      opts.on('--default-folder [on|off]', String, "Default Folder") do |val|
+        options['defaultFolder'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      end
+      opts.on('--image-target [on|off]', String, "Image Target") do |val|
+        options['defaultStore'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == ''
+      end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Update a resource folder." + "\n" +
                     "[cloud] is required. This is the name or id of the cloud." + "\n"
@@ -407,6 +414,16 @@ class Morpheus::Cli::CloudFoldersCommand
         # Active
         if options['active'] != nil
           payload['folder']['active'] = options['active']
+        end
+
+        # Default
+        if options['defaultFolder'] != nil
+          payload['folder']['defaultFolder'] = options['defaultFolder']
+        end
+
+        # Image Target
+        if options['defaultStore'] != nil
+          payload['folder']['defaultStore'] = options['defaultStore']
         end
         
         # Visibility
