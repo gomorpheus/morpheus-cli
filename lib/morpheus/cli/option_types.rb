@@ -176,10 +176,9 @@ module Morpheus
                 }
               end
 
+              depends_on_field_key = depends_on_code
               if depends_on_option_type
                 depends_on_field_key = depends_on_option_type['fieldContext'].nil? || depends_on_option_type['fieldContext'].empty? ? "#{depends_on_option_type['fieldName']}" : "#{depends_on_option_type['fieldContext']}.#{depends_on_option_type['fieldName']}"
-              else
-                depends_on_field_key = depends_on_code
               end
 
               field_value = get_object_value(results, depends_on_field_key) ||
@@ -197,6 +196,53 @@ module Morpheus
               end
             end
             next if !found_dep_value
+          end
+
+          # respect optionType.requireOnCode
+          require_option_check_value = option_type['requireOnCode']
+          if !require_option_check_value.to_s.empty?
+            # require_on_code = check_require_on_code(option_type, option_types, options)
+
+            match_type = 'any'
+
+            if require_option_check_value.include?('::')
+              match_type = 'all' if require_option_check_value.start_with?('matchAll')
+              require_option_check_value = require_option_check_value[require_option_check_value.index('::') + 2..-1]
+            end
+
+            found_dep_value = match_type == 'all' ? true : false
+            require_option_check_value.sub(',', ' ').split(' ').each do |value|
+              parts = value.split(':')
+              depends_on_code = parts[0]
+              depends_on_value = parts.count > 1 ? parts[1].to_s.strip : nil
+              depends_on_option_type = option_types.find {|it| it["code"] == depends_on_code }
+              if !depends_on_option_type
+                depends_on_option_type = option_types.find {|it|
+                  (it['fieldContext'] ? "#{it['fieldContext']}.#{it['fieldName']}" : it['fieldName']) == depends_on_code
+                }
+              end
+
+              depends_on_field_key = depends_on_code
+              if depends_on_option_type
+                depends_on_field_key = depends_on_option_type['fieldContext'].nil? || depends_on_option_type['fieldContext'].empty? ? "#{depends_on_option_type['fieldName']}" : "#{depends_on_option_type['fieldContext']}.#{depends_on_option_type['fieldName']}"
+              end
+
+              field_value = get_object_value(results, depends_on_field_key) ||
+                            get_object_value(options, depends_on_field_key) ||
+                            get_object_value(api_params, depends_on_field_key)
+
+              if field_value.nil? && !options['_object_key'].nil?
+                field_value = get_object_value({options['_object_key'] => results}, depends_on_field_key)
+              end
+
+              if !field_value.nil? && (depends_on_value.nil? || depends_on_value.empty? || field_value.to_s.match?(depends_on_value))
+                found_dep_value = true if match_type != 'all'
+              else
+                found_dep_value = false if match_type == 'all'
+              end
+            end
+             
+            option_type = option_type.merge({'required' => found_dep_value})
           end
 
           # build parameters for option source api request
