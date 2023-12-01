@@ -1505,7 +1505,8 @@ EOT
     # this should be fixed on the api side, so it automatically extracts this input from the config
     begin
       instance_type_code = nil
-      catalog_item_type = find_by_id(:catalog_item_type, catalog_item_type_id.to_i)
+      catalog_item_type = record
+      #catalog_item_type = find_by_id(:catalog_item_type, catalog_item_type_id.to_i)
       if catalog_item_type
         if catalog_item_type['type'] == 'instance'
           if catalog_item_type['config'] && catalog_item_type['config']['type']
