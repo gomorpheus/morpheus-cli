@@ -563,7 +563,7 @@ module Morpheus
             # added with :payload too... just need it here to avoid unknown key error
             # todo: remove this when every command supporting :payload is updated to use parse_payload(options) and execute_api(options)
           when :list
-            opts.on( '-m', '--max MAX', "Max Results (use -1 for all results)" ) do |val|
+            opts.on( '-m', '--max MAX', "Max Results" ) do |val|
               # api supports max=-1 for all at the moment..
               if val.to_s == "all" || val.to_s == "-1"
                 options[:max] = "-1"
