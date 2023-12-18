@@ -5,6 +5,7 @@ class Morpheus::Cli::DashboardCommand
   include Morpheus::Cli::ProvisioningHelper
   set_command_name :dashboard
   set_command_description "View Morpheus Dashboard"
+  set_command_hidden
 
   def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
