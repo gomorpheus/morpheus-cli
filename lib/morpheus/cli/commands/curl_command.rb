@@ -33,7 +33,7 @@ class Morpheus::Cli::CurlCommand
           raise ::OptionParser::InvalidOption.new("Failed to parse payload as JSON. Error: #{ex.message}")
         end
       end
-      opts.on('--absolute', "Absolute path, value can be used to prevent automatic using the automatic /api/ path prefix to the path by default.") do
+      opts.on('--absolute', "Absolute path, skip the addition of path prefix '/api/'") do
         options[:absolute_path] = true
       end
       opts.on('--inspect', "Inspect response, prints headers. By default only the body is printed.") do
