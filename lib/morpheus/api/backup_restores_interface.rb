@@ -15,6 +15,10 @@ class Morpheus::BackupRestoresInterface < Morpheus::APIClient
     execute(method: :get, url: "#{base_path}/#{CGI::escape(id.to_s)}", params: params, headers: headers)
   end
 
+  def create(payload, params={}, headers={})
+    execute(method: :post, url: "#{base_path}", params: params, payload: payload, headers: headers)
+  end
+
   def destroy(id, params = {}, headers={})
     validate_id!(id)
     execute(method: :delete, url: "#{base_path}/#{CGI::escape(id.to_s)}", params: params, headers: headers)

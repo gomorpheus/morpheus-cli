@@ -119,10 +119,10 @@ module Morpheus::Cli::BackupsHelper
       "Backup" => lambda {|it| it['backup']['name'] rescue '' },
       "Status" => lambda {|it| format_backup_result_status(it) },
       #"Duration" => lambda {|it| format_duration(it['startDate'], it['endDate']) },
-      "Duration" => lambda {|it| format_duration_milliseconds(it['durationMillis']) },
+      "Duration" => lambda {|it| format_duration_milliseconds(it['durationMillis']) if it['durationMillis'].to_i > 0 },
       "Start Date" => lambda {|it| format_local_dt(it['startDate']) },
       "End Date" => lambda {|it| format_local_dt(it['endDate']) },
-      "Size" => lambda {|it| format_bytes(it['sizeInMb'], 'MB') },
+      "Size" => lambda {|it| it['sizeInMb'].to_i != 0 ? format_bytes(it['sizeInMb'], 'MB') : '' },
     }
   end
 
@@ -155,7 +155,7 @@ module Morpheus::Cli::BackupsHelper
       "Target" => lambda {|it| it['instance']['name'] rescue '' },
       "Status" => lambda {|it| format_backup_result_status(it) },
       #"Duration" => lambda {|it| format_duration(it['startDate'], it['endDate']) },
-      "Duration" => lambda {|it| format_duration_milliseconds(it['durationMillis']) },
+      "Duration" => lambda {|it| format_duration_milliseconds(it['durationMillis']) if it['durationMillis'].to_i > 0 },
       "Start Date" => lambda {|it| format_local_dt(it['startDate']) },
       "End Date" => lambda {|it| format_local_dt(it['endDate']) },
     }
@@ -168,4 +168,5 @@ module Morpheus::Cli::BackupsHelper
   def format_backup_restore_status(backup_restore, return_color=cyan)
     format_backup_result_status(backup_restore, return_color)
   end
+  
 end

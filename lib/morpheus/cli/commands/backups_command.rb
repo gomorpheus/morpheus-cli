@@ -9,7 +9,7 @@ class Morpheus::Cli::BackupsCommand
   
   set_command_description "View and manage backups"
   set_command_name :'backups'
-  register_subcommands :list, :get, :add, :update, :remove, :execute #, :restore
+  register_subcommands :list, :get, :add, :update, :remove, :execute, :restore
   register_subcommands :list_jobs, :get_job, :add_job, :update_job, :remove_job, :execute_job
   register_subcommands :list_results, :get_result, :remove_result
   register_subcommands :list_restores, :get_restore, :remove_restore
@@ -45,7 +45,7 @@ class Morpheus::Cli::BackupsCommand
     end
     params.merge!(parse_list_options(options))
     parse_options(options, params)
-    execute_api(@backups_interface, :list, [], options, 'backup') do |json_response|
+    execute_api(@backups_interface, :list, [], options, 'backups') do |json_response|
       backups = json_response['backups']
       print_h1 "Morpheus Backups", parse_list_subtitles(options), options
       if backups.empty?
@@ -315,19 +315,18 @@ EOT
   end
 
   def restore(args)
-    raise "Not Yet Implemented"
     options = {}
     params = {}
     payload = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[backup] [result] [options]")
-      build_standard_post_options(opts, options)
+      build_standard_post_options(opts, options, [:auto_confirm])
       opts.on('--result ID', String, "Backup Result ID that is being restored") do |val|
         options[:options]['backupResultId'] = val
       end
       opts.on('--restore-instance existing|new', String, "Instance being targeted for the restore, existing to restore the current instance or new to create a new instance. The current instance is targeted by default.") do |val|
-        # restoreInstanceSelect=current|new and the flag on the restore object is called 'restoreToNew'
-        options[:options]['restoreInstanceSelect'] = val
+        # restoreInstance=existing|new and the flag on the restore object is called 'restoreToNew'
+        options[:options]['restoreInstance'] = val
       end
       opts.footer = <<-EOT
 Restore a backup, replacing the existing target with the specified backup result.
@@ -350,32 +349,71 @@ EOT
         available_backups = @backups_interface.list({max:10000})['backups'].collect {|it| {'name' => it['name'], 'value' => it['id']}}
         backup_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'backupId', 'fieldLabel' => 'Backup', 'type' => 'select', 'selectOptions' => available_backups, 'required' => true}], options[:options], @api_client)['backupId']
         backup = find_backup_by_name_or_id(backup_id)
-      return 1 if backup.nil?
+        return 1 if backup.nil?
       end
     end
     # Prompt for backup result
     if backup_result.nil?
-
-      # Instance
-        available_backup_results = @backups_interface.list({backupId: backup['id'], max:10000})['results'].collect {|it| {'name' => it['name'], 'value' => it['id']}}
-        params['backupResultId'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'backupResultId', 'fieldLabel' => 'Backup Result', 'type' => 'select', 'selectOptions' => available_backup_results, 'required' => true}], options[:options], @api_client)['backupResultId']
-        # Name
-        params['name'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Backup Name'}], options[:options], @api_client)['name']
+      #available_backup_results = @backup_results_interface.list({backupId: backup['id'], status: ['success', 'succeeded'], max:10000})['results'].collect {|it| {format_backup_result_option_name(it), 'value' => it['id']}}
+      available_backup_results = @backup_results_interface.list({backupId: backup['id'], max:10000})['results'].select {|it| it['status'].to_s.downcase == 'succeeded' || it['status'].to_s.downcase == 'success' }.collect {|it| {'name' => format_backup_result_option_name(it), 'value' => it['id']} }
+      params['backupResultId'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'backupResultId', 'fieldLabel' => 'Backup Result', 'type' => 'select', 'selectOptions' => available_backup_results, 'required' => true}], options[:options], @api_client)['backupResultId']
+      backup_result = @backup_results_interface.get(params['backupResultId'].to_i)['result']
     end
-    
     parse_payload(options, 'restore') do |payload|
       # Prompt for restore configuration
-      # We should probably require identifying the instance by name or id too, just to be safe.
+      # todo: These options should be based on backup type
+      #       Look at backup_type['restoreExistingEnabled'] and backup_type['restoreNewEnabled']
       # Target Instance
-      if backup_result['instance']
-        params['restoreInstanceSelect'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Instance being targeted for the restore, existing to restore the current instance or new to create a new instance. By default the existing instance is restored.'}], options[:options], @api_client)['restoreInstanceSelect']
+      #if backup_result['instanceId']
+      if backup['locationType'] == 'instance'
+        instance = backup['instance']
+        # could actually fetch the instance.., only need name and id right now though.
+        raise_command_error "Backup instance not found" if instance.nil?
+        params['restoreInstance'] = prompt_value({'fieldName' => 'restoreInstance', 'fieldLabel' => 'Restore Instance', 'type' => 'select', 'selectOptions' => [{'name' => 'Current Instance', 'value' => 'existing'}, {'name' => 'New Instance', 'value' => 'new'}], 'defaultValue' => 'existing', 'required' => true, 'description' => 'Restore the current instance or a new instance?'}, options)
+        if params['restoreInstance'] == 'new'
+          # new instance
+          config_map = prompt_restore_instance_config(options)
+          params['instanceConfig'] = config_map
+        else
+          # existing instance
+          # confirm the instance
+          keep_prompting = !options[:no_prompt]
+          while keep_prompting
+            instance_id = prompt_value({'fieldName' => 'instanceId', 'fieldLabel' => 'Confirm Instance ID', 'type' => 'text', 'required' => true, 'description' => "Enter the current instance ID to confirm that you wish to restore it."}, options)
+            if instance_id && instance_id.to_i == instance['id']
+              params['instanceId'] = instance_id.to_i
+              keep_prompting = false
+            elsif instance_id.to_s.downcase == instance['name'].to_s.downcase # allow matching on name too
+              params['instanceId'] = instance['id']
+              keep_prompting = false
+            else
+              print_red_alert "The value '#{instance_id}' does not match the existing instance #{instance['name']} [#{instance['id'] rescue ''}]. Please try again."
+            end
+          end
+        end
+      elsif backup['locationType'] == 'server'
+        # prompt for server type backup restore
+      elsif backup['locationType'] == 'storage'
+        # prompt for storage type backup restore
+      else
+        print yellow, "Backup location type is unknown: #{backup['locationType']}",reset,"\n"
       end
-      payload['backup'].deep_merge!(params)
+
+      payload['restore'].deep_merge!(params)
     end
 
-    print cyan,"#{bold}WARNING!#{reset}#{cyan} Restoring a backup will erase all data when restored to an existing instance.",reset,"\n"
-    confirm!("Are you sure you want to restore the backup result ID: #{backup_result['id']} Name: #{backup_result['backup']['name'] rescue ''} Date: (#{format_local_dt(backup_result['dateCreated'])})?", options)
-    execute_api(@backups_interface, :restore, [backup['id']], options, 'backup') do |json_response|
+    if params['restoreInstance'] != 'new'
+      if backup['instance']
+        print cyan,"You have selected to restore the existing instance #{backup['instance']['name'] rescue ''} [#{backup['instance']['id'] rescue ''}] with the backup result #{format_backup_result_option_name(backup_result)} [#{backup_result['id']}]",reset,"\n"
+      end
+      if backup['sourceProviderId']
+        print yellow,"#{bold}WARNING!#{reset}#{yellow} Restoring a backup will overwite objects when restored to an existing object store.",reset,"\n"
+      else
+        print yellow,"#{bold}WARNING!#{reset}#{yellow} Restoring a backup will erase all data when restored to an existing instance.",reset,"\n"
+      end
+    end
+    confirm!("Are you sure you want to restore the backup result?", options)
+    execute_api(@backup_restores_interface, :create, [], options, 'restore') do |json_response|
       print_green_success "Restoring backup result ID: #{backup_result['id']} Name: #{backup_result['backup']['name'] rescue ''} Date: (#{format_local_dt(backup_result['dateCreated'])}"
       # should get the restore maybe, or could even support refreshing until it is complete...
       # restore = json_response["restore"]
@@ -506,4 +544,45 @@ EOT
     ]
   end
 
+  def format_backup_result_option_name(result)
+    "#{result['backup']['name']} (#{format_local_dt(result['startDate'])})"
+  end
+
+  # prompt for an instance config (vdiPool.instanceConfig)
+  def prompt_restore_instance_config(options)
+    # use config if user passed one in..
+    scope_context = 'instanceConfig'
+    scoped_instance_config = {}
+    if options[:options][scope_context].is_a?(Hash)
+      scoped_instance_config = options[:options][scope_context]
+    end
+
+    # now configure an instance like normal, use the config as default options with :always_prompt
+    instance_prompt_options = {}
+    # instance_prompt_options[:group] = group ? group['id'] : nil
+    # #instance_prompt_options[:cloud] = cloud ? cloud['name'] : nil
+    # instance_prompt_options[:default_cloud] = cloud ? cloud['name'] : nil
+    # instance_prompt_options[:environment] = selected_environment ? selected_environment['code'] : nil
+    # instance_prompt_options[:default_security_groups] = scoped_instance_config['securityGroups'] ? scoped_instance_config['securityGroups'] : nil
+    
+    instance_prompt_options[:no_prompt] = options[:no_prompt]
+    #instance_prompt_options[:always_prompt] = options[:no_prompt] != true # options[:always_prompt]
+    instance_prompt_options[:options] = scoped_instance_config
+    #instance_prompt_options[:options][:always_prompt] = instance_prompt_options[:no_prompt] != true
+    instance_prompt_options[:options][:no_prompt] = instance_prompt_options[:no_prompt]
+    
+    #instance_prompt_options[:name_required] = true
+    # instance_prompt_options[:instance_type_code] = instance_type_code
+    # todo: an effort to render more useful help eg.  -O Web.0.instance.name
+    help_field_prefix = scope_context
+    instance_prompt_options[:help_field_prefix] = help_field_prefix
+    instance_prompt_options[:options][:help_field_prefix] = help_field_prefix
+    # instance_prompt_options[:locked_fields] = scoped_instance_config['lockedFields']
+    # instance_prompt_options[:for_app] = true
+    instance_prompt_options[:select_datastore] = true
+    instance_prompt_options[:name_required] = true
+    # this provisioning helper method handles all (most) of the parsing and prompting
+    instance_config_payload = prompt_new_instance(instance_prompt_options)
+    return instance_config_payload
+  end
 end
