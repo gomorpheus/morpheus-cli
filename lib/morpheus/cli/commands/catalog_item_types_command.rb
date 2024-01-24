@@ -456,32 +456,6 @@ EOT
       opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
         options[:options]['labels'] = parse_labels(val)
       end
-      opts.on('--logo FILE', String, "Upload a custom logo icon") do |val|
-        filename = val
-        logo_file = nil
-        if filename == 'null'
-          logo_file = 'null' # clear it
-        else
-          filename = File.expand_path(filename)
-          if !File.exist?(filename)
-            raise_command_error "File not found: #{filename}"
-          end
-          logo_file = File.new(filename, 'rb')
-        end
-      end
-      opts.on('--dark-logo FILE', String, "Upload a custom dark logo icon") do |val|
-        filename = val
-        dark_logo_file = nil
-        if filename == 'null'
-          dark_logo_file = 'null' # clear it
-        else
-          filename = File.expand_path(filename)
-          if !File.exist?(filename)
-            raise_command_error "File not found: #{filename}"
-          end
-          dark_logo_file = File.new(filename, 'rb')
-        end
-      end
       opts.on('--config-file FILE', String, "Config from a local JSON or YAML file") do |val|
         options[:config_file] = val.to_s
         file_content = nil
