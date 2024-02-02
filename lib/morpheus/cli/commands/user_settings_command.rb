@@ -104,7 +104,16 @@ EOT
           "ACCESS TOKEN" => lambda {|it| it['maskedAccessToken'] },
           "REFRESH TOKEN" => lambda {|it| it['maskedRefreshToken'] },
           "ACCESS EXPIRATION" => lambda {|it| format_local_dt(it['expiration']) },
-          "ACCESS TTL" => lambda {|it| it['expiration'] ? (format_duration(it['expiration']) rescue '') : '' }
+          "ACCESS TTL" => lambda {|it| 
+            if it['expiration']
+              expires_on = parse_time(it['expiration'])
+              if expires_on && expires_on < Time.now
+                "Expired"
+              else
+                it['expiration'] ? (format_duration(it['expiration']) rescue '') : '' 
+              end
+            end
+          }
         }
         print cyan
         puts as_pretty_table(access_tokens, cols)
