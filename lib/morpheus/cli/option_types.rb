@@ -1113,8 +1113,15 @@ module Morpheus
         value_found = false
         value = nil
         while !value_found do
-          print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? (' (' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{!option_type['defaultValue'].to_s.empty? ? ' ['+option_type['defaultValue'].to_s+']' : ''}: "
-          input = $stdin.gets.chomp!
+          # print "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? (' (' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{!option_type['defaultValue'].to_s.empty? ? ' ['+option_type['defaultValue'].to_s+']' : ''}: "
+          # input = $stdin.gets.chomp!
+          Readline.completion_append_character = ""
+          Readline.basic_word_break_characters = ''
+          Readline.completion_proc = nil
+          prompt_label = "#{option_type['fieldLabel']}#{option_type['fieldAddOn'] ? (' (' + option_type['fieldAddOn'] + ') ') : '' }#{!option_type['required'] ? ' (optional)' : ''}#{!option_type['defaultValue'].to_s.empty? ? ' ['+option_type['defaultValue'].to_s+']' : ''}: "
+          input = Readline.readline(prompt_label, false).to_s
+          input = input.chomp #.strip
+
           value = input.empty? ? option_type['defaultValue'] : input
           if input == '?'
             help_prompt(option_type)
