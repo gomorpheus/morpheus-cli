@@ -385,7 +385,7 @@ EOT
 
     if hubmode == 'skip'
       if ::Morpheus::Cli::OptionTypes::confirm("Would you like to install your License Key now?", options.merge({:default => true}))
-        cmd_res = Morpheus::Cli::License.new.apply([] + (options[:remote] ? ["-r",options[:remote]] : []))
+        cmd_res = Morpheus::Cli::License.new.install([] + (options[:remote] ? ["-r",options[:remote]] : []))
         # license_is_valid = cmd_res != false
       end
     end
