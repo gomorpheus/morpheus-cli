@@ -41,6 +41,12 @@ class Morpheus::Cli::Clouds
       opts.on( '-t', '--type TYPE', "Cloud Type" ) do |val|
         options[:zone_type] = val
       end
+      opts.on('-l', '--labels LABEL', String, "Filter by labels, can match any of the values") do |val|
+        add_query_parameter(params, 'labels', parse_labels(val))
+      end
+      opts.on('--all-labels LABEL', String, "Filter by labels, must match all of the values") do |val|
+        add_query_parameter(params, 'allLabels', parse_labels(val))
+      end
       build_standard_list_options(opts, options)
       opts.footer = "List clouds."
     end
@@ -229,6 +235,9 @@ class Morpheus::Cli::Clouds
       opts.on('--credential VALUE', String, "Credential ID or \"local\"" ) do |val|
         options[:options]['credential'] = val
       end
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        options[:options]['labels'] = parse_labels(val)
+      end
 
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
     end
@@ -342,6 +351,9 @@ class Morpheus::Cli::Clouds
       # opts.on( '-d', '--description DESCRIPTION', "Description (optional)" ) do |desc|
       #   params[:description] = desc
       # end
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        options[:options]['labels'] = parse_labels(val)
+      end
       opts.on('--costing-mode VALUE', String, "Costing Mode can be off, costing, or full. Default is off." ) do |val|
         options[:options]['costingMode'] = val
       end
@@ -1141,6 +1153,7 @@ EOT
       "ID" => 'id',
       "Name" => 'name',
       "Type" => lambda {|it| it['zoneType'] ? it['zoneType']['name'] : '' },
+      "Labels" => lambda {|it| format_list(it['labels'], '', 3) rescue '' },
       "Location" => 'location',
       "Region Code" => lambda {|it| it['regionCode'] },
       "Groups" => lambda {|it| (it['groups'] || []).collect {|g| g.instance_of?(Hash) ? g['name'] : g.to_s }.join(', ') },

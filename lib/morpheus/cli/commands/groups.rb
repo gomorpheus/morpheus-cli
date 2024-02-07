@@ -31,6 +31,12 @@ class Morpheus::Cli::Groups
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage()
+      opts.on('-l', '--labels LABEL', String, "Filter by labels, can match any of the values") do |val|
+        add_query_parameter(params, 'labels', parse_labels(val))
+      end
+      opts.on('--all-labels LABEL', String, "Filter by labels, must match all of the values") do |val|
+        add_query_parameter(params, 'allLabels', parse_labels(val))
+      end
       build_standard_list_options(opts, options)
       opts.footer = "List groups."
     end
@@ -211,8 +217,7 @@ EOT
       params = options[:options] || {}
 
       if params.empty?
-        puts optparse
-        exit 1
+        raise_command_error "Specify at least one option to update.\n#{optparse}"
       end
 
       group_payload.merge!(params)
@@ -638,6 +643,7 @@ EOT
       {
         id: active_group ? (((@active_group_id && (@active_group_id == group['id'])) ? "=> " : "   ") + group['id'].to_s) : group['id'],
         name: group['name'],
+        labels: group['labels'],
         location: group['location'],
         cloud_count: group['zones'] ? group['zones'].size : 0,
         server_count: group['serverCount']
@@ -646,7 +652,8 @@ EOT
     columns = [
       #{:active => {:display_name => ""}},
       {:id => {:display_name => (active_group ? "   ID" : "ID")}},
-      {:name => {:width => 16}},
+      {:name => {:width => 64}},
+      {:labels => {:display_method => lambda {|it| format_list(it[:labels], '', 3) rescue '' }}},
       {:location => {:width => 32}},
       {:cloud_count => {:display_name => "CLOUDS"}},
       {:server_count => {:display_name => "HOSTS"}}
@@ -658,7 +665,8 @@ EOT
     tmp_option_types = [
       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
       {'fieldName' => 'code', 'fieldLabel' => 'Code', 'type' => 'text', 'required' => false, 'displayOrder' => 2},
-      {'fieldName' => 'location', 'fieldLabel' => 'Location', 'type' => 'text', 'required' => false, 'displayOrder' => 3}
+      {'fieldName' => 'location', 'fieldLabel' => 'Location', 'type' => 'text', 'required' => false, 'displayOrder' => 3},
+      {'shorthand' => '-l', 'fieldName' => 'labels', 'fieldLabel' => 'Labels', 'type' => 'text', 'required' => false, 'noPrompt' => true, 'processValue' => lambda {|val| parse_labels(val) }},
     ]
 
     # Advanced Options
