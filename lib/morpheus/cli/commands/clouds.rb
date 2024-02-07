@@ -185,6 +185,7 @@ class Morpheus::Cli::Clouds
         "Type" => lambda {|it| it['zoneType'] ? it['zoneType']['name'] : '' },
         "Code" => 'code',
         "Location" => 'location',
+        "Labels" => lambda {|it| format_list(it['labels'], '') rescue '' },
         "Region Code" => 'regionCode',
         "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
         "Groups" => lambda {|it| it['groups'].collect {|g| g.instance_of?(Hash) ? g['name'] : g.to_s }.join(', ') },

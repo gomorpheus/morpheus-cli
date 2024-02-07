@@ -106,6 +106,14 @@ EOT
       return 0 if render_result
 
       group = json_response['group']
+      group_stats = group['stats']
+      # serverCounts moved to zone.stats.serverCounts
+      server_counts = nil
+      instance_counts = nil
+      if group_stats
+        instance_counts = group_stats['instanceCounts']
+        server_counts = group_stats['serverCounts']
+      end
       is_active = @active_group_id && (@active_group_id == group['id'])
       print_h1 "Group Details"
       print cyan
@@ -114,10 +122,28 @@ EOT
         "Name" => 'name',
         "Code" => 'code',
         "Location" => 'location',
+        "Labels" => lambda {|it| format_list(it['labels'], '') rescue '' },
         "Clouds" => lambda {|it| it['zones'].collect {|z| z['name'] }.join(', ') },
-        "Hosts" => 'serverCount'
+        #"Instances" => lambda {|it| it['stats']['instanceCounts']['all'] rescue '' },
+        # "Hosts" => lambda {|it| it['stats']['serverCounts']['host'] rescue it['serverCount'] },
+        # "VMs" => lambda {|it| it['stats']['serverCounts']['vm'] rescue '' },
+        # "Bare Metal" => lambda {|it| it['stats']['serverCounts']['baremetal'] rescue '' },
       }
       print_description_list(description_cols, group)
+
+      if server_counts
+        print_h2 "Group Stats"
+        print cyan
+        print "Clouds: #{group['zones'].size}".center(20)
+        print "Instances: #{instance_counts['all']}".center(20) if instance_counts
+        print "Hosts: #{server_counts['host']}".center(20)
+        #print "Container Hosts: #{server_counts['containerHost']}".center(20)
+        #print "Hypervisors: #{server_counts['hypervisor']}".center(20)
+        print "Virtual Machines: #{server_counts['vm']}".center(20)
+        print "Bare Metal: #{server_counts['baremetal']}".center(20)
+        #print "Unmanaged: #{server_counts['unmanaged']}".center(20)
+        print "\n"
+      end
       # puts "ID: #{group['id']}"
       # puts "Name: #{group['name']}"
       # puts "Code: #{group['code']}"
@@ -646,17 +672,23 @@ EOT
         labels: group['labels'],
         location: group['location'],
         cloud_count: group['zones'] ? group['zones'].size : 0,
-        server_count: group['serverCount']
+        instance_count: (group['stats']['instanceCounts']['all'] rescue ''),
+        host_count: (group['stats']['serverCounts']['host'] rescue group['serverCount']),
+        vm_count: (group['stats']['serverCounts']['vm'] rescue ''),
+        baremetal_count: (group['stats']['serverCounts']['baremetal'] rescue '')
       }
     end
     columns = [
       #{:active => {:display_name => ""}},
       {:id => {:display_name => (active_group ? "   ID" : "ID")}},
       {:name => {:width => 64}},
-      {:labels => {:display_method => lambda {|it| format_list(it[:labels], '', 3) rescue '' }}},
       {:location => {:width => 32}},
+      {:labels => {:display_method => lambda {|it| format_list(it[:labels], '', 3) rescue '' }}},
       {:cloud_count => {:display_name => "CLOUDS"}},
-      {:server_count => {:display_name => "HOSTS"}}
+      {:instance_count => {:display_name => "INSTANCES"}},
+      {:host_count => {:display_name => "HOSTS"}},
+      {:vm_count => {:display_name => "VMS"}},
+      {:baremetal_count => {:display_name => "BARE METAL"}},
     ]
     print as_pretty_table(rows, columns, opts)
   end
