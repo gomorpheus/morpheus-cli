@@ -246,7 +246,7 @@ EOT
         raise_command_error "Specify at least one option to update.\n#{optparse}"
       end
 
-      if params['labels'].is_a?(String)
+      if params.key?('labels')
         params['labels'] = parse_labels(params['labels'])
       end
       group_payload.merge!(params)
@@ -700,7 +700,7 @@ EOT
     tmp_option_types = [
       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
       {'fieldName' => 'code', 'fieldLabel' => 'Code', 'type' => 'text', 'required' => false, 'displayOrder' => 2},
-      {'shorthand' => '-l', 'fieldName' => 'labels', 'fieldLabel' => 'Labels', 'type' => 'text', 'required' => false, 'processValue' => lambda {|val| parse_labels(val) }, 'displayOrder' => 3},
+      {'shorthand' => '-l', 'optionalValue' => true, 'fieldName' => 'labels', 'fieldLabel' => 'Labels', 'type' => 'text', 'required' => false, 'processValue' => lambda {|val| parse_labels(val) }, 'displayOrder' => 3},
       {'fieldName' => 'location', 'fieldLabel' => 'Location', 'type' => 'text', 'required' => false, 'displayOrder' => 4},
     ]
 
