@@ -41,6 +41,12 @@ class Morpheus::Cli::Clouds
       opts.on( '-t', '--type TYPE', "Cloud Type" ) do |val|
         options[:zone_type] = val
       end
+      opts.on('-l', '--labels LABEL', String, "Filter by labels, can match any of the values") do |val|
+        add_query_parameter(params, 'labels', parse_labels(val))
+      end
+      opts.on('--all-labels LABEL', String, "Filter by labels, must match all of the values") do |val|
+        add_query_parameter(params, 'allLabels', parse_labels(val))
+      end
       build_standard_list_options(opts, options)
       opts.footer = "List clouds."
     end
@@ -179,6 +185,7 @@ class Morpheus::Cli::Clouds
         "Type" => lambda {|it| it['zoneType'] ? it['zoneType']['name'] : '' },
         "Code" => 'code',
         "Location" => 'location',
+        "Labels" => lambda {|it| format_list(it['labels'], '') rescue '' },
         "Region Code" => 'regionCode',
         "Visibility" => lambda {|it| it['visibility'].to_s.capitalize },
         "Groups" => lambda {|it| it['groups'].collect {|g| g.instance_of?(Hash) ? g['name'] : g.to_s }.join(', ') },
@@ -228,6 +235,9 @@ class Morpheus::Cli::Clouds
       end
       opts.on('--credential VALUE', String, "Credential ID or \"local\"" ) do |val|
         options[:options]['credential'] = val
+      end
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        options[:options]['labels'] = parse_labels(val)
       end
 
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
@@ -342,6 +352,9 @@ class Morpheus::Cli::Clouds
       # opts.on( '-d', '--description DESCRIPTION', "Description (optional)" ) do |desc|
       #   params[:description] = desc
       # end
+      opts.on('-l', '--labels [LIST]', String, "Labels") do |val|
+        options[:options]['labels'] = parse_labels(val)
+      end
       opts.on('--costing-mode VALUE', String, "Costing Mode can be off, costing, or full. Default is off." ) do |val|
         options[:options]['costingMode'] = val
       end
@@ -399,6 +412,9 @@ class Morpheus::Cli::Clouds
         # some optionTypes have fieldContext='zone', so move those to the root level of the zone payload
         if params['zone'].is_a?(Hash)
           cloud_payload.merge!(params.delete('zone'))
+        end
+        if params['labels'].is_a?(String)
+          params['labels'] = parse_labels(params['labels'])
         end
         cloud_payload.merge!(params)
         payload = {zone: cloud_payload}
@@ -1141,6 +1157,7 @@ EOT
       "ID" => 'id',
       "Name" => 'name',
       "Type" => lambda {|it| it['zoneType'] ? it['zoneType']['name'] : '' },
+      "Labels" => lambda {|it| format_list(it['labels'], '', 3) rescue '' },
       "Location" => 'location',
       "Region Code" => lambda {|it| it['regionCode'] },
       "Groups" => lambda {|it| (it['groups'] || []).collect {|g| g.instance_of?(Hash) ? g['name'] : g.to_s }.join(', ') },
@@ -1155,10 +1172,11 @@ EOT
       #{'fieldName' => 'zoneType.code', 'fieldLabel' => 'Image Type', 'type' => 'select', 'selectOptions' => cloud_types_for_dropdown, 'required' => true, 'description' => 'Cloud Type.', 'displayOrder' => 0},
       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
       {'fieldName' => 'code', 'fieldLabel' => 'Code', 'type' => 'text', 'required' => false, 'displayOrder' => 2},
-      {'fieldName' => 'location', 'fieldLabel' => 'Location', 'type' => 'text', 'required' => false, 'displayOrder' => 3},
-      {'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'selectOptions' => [{'name' => 'Private', 'value' => 'private'},{'name' => 'Public', 'value' => 'public'}], 'required' => false, 'description' => 'Visibility', 'category' => 'permissions', 'defaultValue' => 'private', 'displayOrder' => 4},
-      {'fieldName' => 'enabled', 'fieldLabel' => 'Enabled', 'type' => 'checkbox', 'required' => false, 'defaultValue' => true, 'displayOrder' => 5},
-      {'fieldName' => 'autoRecoverPowerState', 'fieldLabel' => 'Automatically Power On VMs', 'type' => 'checkbox', 'required' => false, 'defaultValue' => false, 'displayOrder' => 6}
+      {'shorthand' => '-l', 'fieldName' => 'labels', 'fieldLabel' => 'Labels', 'type' => 'text', 'required' => false, 'processValue' => lambda {|val| parse_labels(val) }, 'displayOrder' => 3},
+      {'fieldName' => 'location', 'fieldLabel' => 'Location', 'type' => 'text', 'required' => false, 'displayOrder' => 4},
+      {'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'selectOptions' => [{'name' => 'Private', 'value' => 'private'},{'name' => 'Public', 'value' => 'public'}], 'required' => false, 'description' => 'Visibility', 'category' => 'permissions', 'defaultValue' => 'private', 'displayOrder' => 5},
+      {'fieldName' => 'enabled', 'fieldLabel' => 'Enabled', 'type' => 'checkbox', 'required' => false, 'defaultValue' => true, 'displayOrder' => 6},
+      {'fieldName' => 'autoRecoverPowerState', 'fieldLabel' => 'Automatically Power On VMs', 'type' => 'checkbox', 'required' => false, 'defaultValue' => false, 'displayOrder' => 7}
     ]
 
     # TODO: Account
