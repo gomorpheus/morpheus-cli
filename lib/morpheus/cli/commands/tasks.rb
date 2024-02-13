@@ -1373,11 +1373,11 @@ class Morpheus::Cli::Tasks
     # this makes us all sad
     option_types.each do |option_type|
       if option_type['type'] == 'typeahead'
-        if ['operationalWorkflowName','containerScript','containerTemplate'].include?(option_type['code'])
+        if ['operationalWorkflowName','ifOperationalWorkflowName','elseOperationalWorkflowName','containerScript','containerTemplate'].include?(option_type['code'])
           option_type.deep_merge!({'config' => {'valueField' => 'name'}})
         end
       elsif option_type['type'] == 'hidden'
-        if ['operationalWorkflowId','containerScriptId','containerTemplateId'].include?(option_type['code'])
+        if ['operationalWorkflowId','ifOperationalWorkflowId','elseOperationalWorkflowId','containerScriptId','containerTemplateId'].include?(option_type['code'])
           option_type['processValue'] = lambda {|val| 
             if val.to_s.empty?
               selected_option = Morpheus::Cli::OptionTypes.get_last_select()
