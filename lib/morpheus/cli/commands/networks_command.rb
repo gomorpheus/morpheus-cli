@@ -132,7 +132,7 @@ class Morpheus::Cli::NetworksCommand
                 pool: subnet['pool'] ? subnet['pool']['name'] : '',
                 dhcp: subnet['dhcpServer'] ? 'Yes' : 'No',
                 visibility: subnet['visibility'].to_s.capitalize,
-                active: format_boolean(network['active']),
+                active: format_boolean(subnet['active']),
                 tenants: subnet['tenants'] ? subnet['tenants'].collect {|it| it['name'] }.uniq.join(', ') : ''
               }
               rows << subnet_row
