@@ -200,6 +200,9 @@ module Morpheus
           #   value_label = 'SELECT'
           # elsif option['type'] == 'select'
           end
+          if option_type['optionalValue']
+            value_label = "[#{value_label}]"
+          end
           full_option = "--#{full_field_name} #{value_label}"
           # switch is an alias for the full option name, fieldName is the default
           if option_type['switch']

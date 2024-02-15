@@ -323,7 +323,7 @@ EOT
       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Form name'},
       {'fieldName' => 'code', 'fieldLabel' => 'Code', 'type' => 'text', 'required' => true, 'description' => 'Unique form code'},
       {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text'},
-      {'shorthand' => '-l', 'fieldName' => 'labels', 'fieldLabel' => 'Labels', 'type' => 'text', 'required' => false, 'noPrompt' => true, 'processValue' => lambda {|val| parse_labels(val) }},
+      {'shorthand' => '-l', 'optionalValue' => true, 'fieldName' => 'labels', 'fieldLabel' => 'Labels', 'type' => 'text', 'required' => false, 'noPrompt' => true, 'processValue' => lambda {|val| parse_labels(val) }},
     ]
   end
 

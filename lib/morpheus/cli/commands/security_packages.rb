@@ -57,7 +57,7 @@ class Morpheus::Cli::SecurityPackagesCommand
         api_client.security_package_types.list({max:10000})['securityPackageTypes'].collect { |it| {"name" => it["name"], "value" => it["code"]} }
       }, 'required' => true, 'defaultValue' => 'SCAP Package'},      
       {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true},
-      {'shorthand' => '-l', 'fieldName' => 'labels', 'fieldLabel' => 'Labels', 'type' => 'text', 'required' => false, 'noPrompt' => true, 'processValue' => lambda {|val| parse_labels(val) }},
+      {'shorthand' => '-l', 'optionalValue' => true, 'fieldName' => 'labels', 'fieldLabel' => 'Labels', 'type' => 'text', 'required' => false, 'noPrompt' => true, 'processValue' => lambda {|val| parse_labels(val) }},
       {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'required' => false},
       {'fieldName' => 'enabled', 'fieldLabel' => 'Enabled', 'type' => 'checkbox', 'required' => false, 'defaultValue' => true},
       # {'code' => 'securityPackage.sourceType', 'fieldName' => 'sourceType', 'fieldLabel' => 'Source', 'type' => 'select', 'selectOptions' => [{'name'=>'url','value'=>'url'}], 'defaultValue' => 'url', 'required' => true},
