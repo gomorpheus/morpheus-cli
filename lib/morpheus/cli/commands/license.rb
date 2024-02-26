@@ -17,7 +17,6 @@ class Morpheus::Cli::License
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
-    @api_client = @api_client		
     @license_interface = @api_client.license
   end
 
@@ -276,8 +275,9 @@ class Morpheus::Cli::License
           'Never'
         end
       },
-      "Limit Type" => lambda {|it| format_limit_type(it) },
+      "Report Status" => lambda {|it| format_boolean it["reportStatus"] },
       "Hard Limit" => lambda {|it| format_boolean it["hardLimit"] },
+      "Limit Type" => lambda {|it| format_limit_type(it) },
     }
 
     # if license['limitType'] == 'standard'
