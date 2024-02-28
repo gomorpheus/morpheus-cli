@@ -275,10 +275,19 @@ class Morpheus::Cli::License
           'Never'
         end
       },
+      "Multi-Tenant" => lambda {|it| format_boolean it["multiTenant"] },
+      "White Label" => lambda {|it| format_boolean it["whitelabel"] },
+      "Free Trial" => lambda {|it| format_boolean it["freeTrial"] },
+      "MVM" => lambda {|it| format_boolean it["mvm"] },
       "Stats Reporting" => lambda {|it| format_boolean it["reportStatus"] },
       "Hard Limit" => lambda {|it| format_boolean it["hardLimit"] },
       "Limit Type" => lambda {|it| format_limit_type(it) },
     }
+
+    description_cols.delete("Multi-Tenant") if !license['mvm']
+    description_cols.delete("White Label") if !license['whitelabel']
+    description_cols.delete("Free Trial") if !license['freeTrial']
+    description_cols.delete("MVM") if !license['mvm']
 
     if license['zoneTypes'] && license['zoneTypes'].size > 0
       description_cols["Included Clouds"] = lambda {|it| it['zoneTypes'].join(', ') }
