@@ -275,11 +275,16 @@ class Morpheus::Cli::License
           'Never'
         end
       },
-      "Report Status" => lambda {|it| format_boolean it["reportStatus"] },
+      "Stats Reporting" => lambda {|it| format_boolean it["reportStatus"] },
       "Hard Limit" => lambda {|it| format_boolean it["hardLimit"] },
       "Limit Type" => lambda {|it| format_limit_type(it) },
     }
 
+    if license['zoneTypes'] && license['zoneTypes'].size > 0
+      description_cols["Included Clouds"] = lambda {|it| it['zoneTypes'].join(', ') }
+    elsif license['zoneTypesExcluded'] && license['zoneTypesExcluded'].size > 0
+      description_cols["Excluded Clouds"] = lambda {|it| it['zoneTypesExcluded'].join(', ') }
+    end
     # if license['limitType'] == 'standard'
     #   # new standard metrics limit
     #   used_vms = current_usage['vms']['count'] rescue nil
