@@ -43,8 +43,8 @@ class Morpheus::Cli::Hub
       print_h1 "Morpheus Hub Config", [], options
       print_description_list({
         "Hub URL" => lambda {|it| it['hub']['url'] },
-        "Registered" => lambda {|it| format_boolean(it['hub']['registered']) },
         "Appliance ID" => lambda {|it| it['hub']['applianceUniqueId'] },
+        "Registered" => lambda {|it| format_boolean(it['hub']['registered']) },
         "Stats Reporting" => lambda {|it| format_boolean(it['hub']['reportStatus']) },
         "Send Data" => lambda {|it| format_boolean(it['hub']['sendData']) },
       }, json_response, options)
@@ -155,94 +155,5 @@ EOT
 
   protected
 
-  # custom rendering to print Message below description list
-  def render_response_for_get(json_response, options)
-    render_response(json_response, options, rest_object_key) do
-      record = json_response[rest_object_key]
-      print_h1 rest_label, [], options
-      print cyan
-      print_description_list(rest_column_definitions(options), record, options)
-      # show log message settings...
-      print_h2 "Message", options
-      print cyan
-      puts record['message']
-      print reset,"\n"
-    end
-  end
-
-  def audit_log_object_key
-    "auditLog"
-  end
-
-  def audit_log_list_key
-    "auditLogs"
-  end
-
-  def audit_log_list_column_definitions(options={})
-    {
-      "ID" => 'id',
-      "Level" => lambda {|it| format_log_level(it['level']) },
-      "Message" => {display_method:'message', max_width: (options[:wrap] ? nil : 75)}, 
-      "Event Type" => 'eventType',
-      "Object" => lambda {|it| "#{it['objectClass']} #{it['objectId']}".strip },
-      # "Object Type" => 'objectClass',
-      # "Object ID" => 'objectId',
-      "User" => lambda {|it| 
-        if it['actualUser'] && it['user'] && it['actualUser']['username'] != it['user']['username']
-          it['user']['username'] + '(' + it['actualUser']['username'].to_s + ')'
-        elsif it['user']
-          it['user']['username']
-        else
-          # system or deleted user maybe?
-        end
-      },
-      # "Tenant" => lambda {|it| it['account'] ? it['account']['name'] : '' },
-      "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
-    }
-  end
-
-  def audit_log_column_definitions(options={})
-    {
-      "ID" => 'id',
-      "Level" => lambda {|it| format_log_level(it['level']) },
-      #"Message" => 'message', 
-      "Event Type" => 'eventType',
-      "Object Type" => 'objectClass',
-      "Object ID" => 'objectId',
-      "User" => lambda {|it| 
-        if it['actualUser'] && it['user'] && it['actualUser']['username'] != it['user']['username']
-          it['user']['username'] + '(' + it['actualUser']['username'].to_s + ')'
-        elsif it['user']
-          it['user']['username']
-        else
-          # system or deleted user maybe?
-        end
-      },
-      # "Tenant" => lambda {|it| it['account'] ? it['account']['name'] : '' },
-      "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
-    }
-  end
-
-  def find_audit_log_by_name_or_id(val)
-    return find_audit_log_by_id(val)
-  end
-
-  def find_audit_log_by_id(id)
-    begin
-      json_response = @audit_interface.get(id)
-      return json_response[audit_log_object_key]
-    rescue RestClient::Exception => e
-      if e.response && e.response.code == 404
-        print_red_alert "Audit Log not found by id #{id}"
-        return nil
-      else
-        raise e
-      end
-    end
-  end
-
-  def find_audit_log_by_name(name)
-    raise_command_error "finding audit log by name not supported"
-  end
 
 end
