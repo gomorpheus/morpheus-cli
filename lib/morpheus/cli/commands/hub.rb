@@ -45,7 +45,7 @@ class Morpheus::Cli::Hub
         "Hub URL" => lambda {|it| it['hub']['url'] },
         "Registered" => lambda {|it| format_boolean(it['hub']['registered']) },
         "Appliance ID" => lambda {|it| it['hub']['applianceUniqueId'] },
-        "Report Status" => lambda {|it| format_boolean(it['hub']['reportStatus']) },
+        "Stats Reporting" => lambda {|it| format_boolean(it['hub']['reportStatus']) },
         "Send Data" => lambda {|it| format_boolean(it['hub']['sendData']) },
       }, json_response, options)
       print reset,"\n"
