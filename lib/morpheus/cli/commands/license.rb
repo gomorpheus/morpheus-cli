@@ -73,6 +73,8 @@ class Morpheus::Cli::License
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[key]")
       build_common_options(opts, options, [:json, :dry_run, :remote])
+      opts.footer = "Install a new license key.\n" +
+                    "This will potentially change the enabled features and capabilities of your appliance."
     end
     optparse.parse!(args)
     if args.count > 1
