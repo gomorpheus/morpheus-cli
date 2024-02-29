@@ -141,7 +141,7 @@ class Morpheus::Cli::License
       end
       json_response = @license_interface.test(key)
       license = json_response['license']
-
+      current_usage = json_response['currentUsage'] || {}
       exit_code, err = 0, nil
       if license.nil?
         err = "Unable to decode license."
@@ -163,6 +163,8 @@ class Morpheus::Cli::License
       # all good
       print_h1 "License"
       print_license_details(json_response)
+      print_h2 "License Usage", [], options
+      print_license_usage(license, current_usage)
       print reset,"\n"
       return exit_code, err
     rescue RestClient::Exception => e
