@@ -514,7 +514,8 @@ module Morpheus::Cli::PrintHelper
     else
       percent = ((used_value.to_f / max_value.to_f) * 100)
     end
-    percent_label = ((used_value.nil? || max_value.to_f == 0.0) ? "n/a" : "#{percent.round(percent_sigdig)}%").rjust(6, ' ')
+    unlimited_label = opts[:unlimited_label] || "n/a" 
+    percent_label = ((used_value.nil? || max_value.to_f == 0.0) ? unlimited_label : "#{percent.round(percent_sigdig)}%").rjust(6, ' ')
     bar_display = ""
     if percent > 100
       max_bars.times { bars << "|" }

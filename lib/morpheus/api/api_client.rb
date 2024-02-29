@@ -846,6 +846,10 @@ class Morpheus::APIClient
     Morpheus::HealthInterface.new(common_interface_options).setopts(@options)
   end
 
+  def hub
+    Morpheus::HubInterface.new(common_interface_options).setopts(@options)
+  end
+
   def audit
     Morpheus::AuditInterface.new(common_interface_options).setopts(@options)
   end
