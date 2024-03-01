@@ -98,9 +98,10 @@ class Morpheus::Cli::Hub
       end
       build_standard_post_options(opts, options)
       opts.footer = <<-EOT
-Checkin with the hub, sending the current appliance usage data.
-The checkin is skipped if the appliance is not yet registered or
-if if the appliance is not configured to send data to the hub (reportStatus: false).
+Checkin with the hub.
+This sends the current appliance usage data to the hub and
+it is only done if the appliance is registered with the hub
+and the appliance license has Stats Reporting enabled.
 EOT
     end
     optparse.parse!(args)
