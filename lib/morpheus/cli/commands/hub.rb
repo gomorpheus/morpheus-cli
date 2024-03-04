@@ -76,12 +76,7 @@ class Morpheus::Cli::Hub
     render_response(json_response, options) do
       usage_data = json_response['data']
       print_h1 "Morpheus Hub Usage", [], options
-      # print_description_list({
-      #   "Total Clouds" => lambda {|it| it['appliance']['totalClouds'] },
-      #   "Total Groups" => lambda {|it| it['appliance']['totalGroups'] },
-      #   # etc
-      # }, usage_data, options)
-      puts as_json(json_response['data'], {:pretty_json => false})
+      print_hub_usage_data_details(json_response, options)
       print reset,"\n"
     end
     return 0, nil
@@ -156,5 +151,64 @@ EOT
 
   protected
 
+  def print_hub_usage_data_details(json_response, options)
+    usage_data = json_response['data']
+
+    #print_h2 "Appliance Info", options
+
+    print_description_list({
+      "Appliance URL" => lambda {|it| it['applianceUrl'] },
+      "Appliance Version" => lambda {|it| it['applianceVersion'] },
+      # "Appliance Unique ID" => lambda {|it| ['hubUniqueId'] },
+      "Stats Version" => lambda {|it| it['statsVersion'] },
+      "Last Login" => lambda {|it| it['lastLoggedIn'] ? format_local_dt(it['lastLoggedIn']) : '' },
+      "Timestamp (ms)" => lambda {|it| it['ts'] },
+      "Date" => lambda {|it| parse_time(it['ts']/1000, "yyyy-MM-dd'T'HH:mm:sss'Z'") }
+    }, usage_data, options)
+   
+
+    # print_h2 "Appliance Usage", options
+    # if usage_data['appliance']
+    #   # print_h2 "Appliance", options
+    #   print_description_list({
+    #     "Total Groups" => lambda {|it| it['appliance']['totalGroups'] },
+    #     "Total Clouds" => lambda {|it| it['appliance']['totalClouds'] },
+    #   }, usage_data, options)
+    # end
+
+    print_h2 "Appliance Usage", options
+    # print_details_raw(usage_data['appliance'], options)
+    print_details(usage_data['appliance'], {
+      pretty: true,
+      column_format: {
+        totalMemory: lambda {|it| format_bytes it['totalMemory'] },
+        totalMemoryUsed: lambda {|it| format_bytes it['totalMemoryUsed'] },
+        totalStorage: lambda {|it| format_bytes it['totalStorage'] },
+        totalStorageUsed: lambda {|it| format_bytes it['totalStorageUsed'] },
+        managedMemoryTotal: lambda {|it| format_bytes it['managedMemoryTotal'] },
+        managedMemoryUsed: lambda {|it| format_bytes it['managedMemoryUsed'] },
+        managedStorageTotal: lambda {|it| format_bytes it['managedStorageTotal'] },
+        managedStorageUsed: lambda {|it| format_bytes it['managedStorageUsed'] },
+        unmanagedMemoryTotal: lambda {|it| format_bytes it['unmanagedMemoryTotal'] },
+        unmanagedMemoryUsed: lambda {|it| format_bytes it['unmanagedMemoryUsed'] },
+        unmanagedStorageTotal: lambda {|it| format_bytes it['unmanagedStorageTotal'] },
+        unmanagedStorageUsed: lambda {|it| format_bytes it['unmanagedStorageUsed'] },
+        cloudTypes: lambda {|it| it['cloudTypes'] ? it['cloudTypes'].collect {|row| "#{row['code']} (#{row['count']})"}.join(", ") : '' },
+        instanceTypes: lambda {|it| it['instanceTypes'] ? it['instanceTypes'].collect {|row| "#{row['code']} (#{row['count']})"}.join(", ") : '' },
+        provisionTypes: lambda {|it| it['provisionTypes'] ? it['provisionTypes'].collect {|row| "#{row['code']} (#{row['count']})"}.join(", ") : '' },
+        serverTypes: lambda {|it| it['serverTypes'] ? it['serverTypes'].collect {|row| "#{row['code']} (#{row['count']})"}.join(", ") : '' },
+        clusterTypes: lambda {|it| it['clusterTypes'] ? it['clusterTypes'].collect {|row| "#{row['code']} (#{row['count']})"}.join(", ") : '' },
+      }
+    })
+    
+    # print_h2 "Clouds", options
+    # print_h2 "Hosts", options
+    # print_h2 "Instances", options
+
+     
+  end
+
+
+  
 
 end

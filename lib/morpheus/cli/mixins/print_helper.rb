@@ -1001,6 +1001,83 @@ module Morpheus::Cli::PrintHelper
     print as_description_list(obj, columns, opts)
   end
 
+  def print_pretty_details(obj, opts={})
+    print as_pretty_details(obj, opts)
+  end
+
+  def as_pretty_details(obj, opts={})
+    print as_pretty_details(obj, opts.merge({pretty: true}))
+  end
+
+  def print_details(obj, opts={})
+    print as_details(obj, opts)
+  end
+
+  def as_details(obj, opts={})
+    #return "" if obj.nil?
+    columns = {}
+    keys = obj.keys
+    if opts[:sort]
+      keys.sort!
+    end
+    keys.each do |key|
+      display_proc = nil
+      if opts[:column_format] && opts[:column_format].key?(key.to_sym)
+        display_proc = opts[:column_format][key.to_sym]
+      else
+        display_proc = lambda {|it| format_detail_value(it[key]) }
+      end
+      label = opts[:pretty] ? key.to_s.titleize : key.to_s
+      columns[label] = display_proc
+    end
+    as_description_list(obj, columns, opts)
+  end
+
+  def format_detail_value(value)
+    rtn = value
+    if value.is_a?(Array)
+      # show the first three objects
+      rtn = value.first(3).collect { |row| format_abbreviated_value(row) }.join(", ")
+    elsif value.is_a?(Hash)
+      # show the first three properties
+      keys = values.keys.select { |key| value[key].is_a?(Numeric) || value[key].is_a?(String) }.first(3)
+      rtn = keys.collect { |key|
+        "#{key.to_s.titleize}: #{format_abbreviated_value(value[key])}"
+      }.join(", ")
+    elsif value.is_a?(TrueClass) || value.is_a?(FalseClass)
+      rtn = format_boolean(value)
+    else
+      rtn = value.to_s
+    end
+    return rtn
+  end
+
+  def format_abbreviated_value(value)
+    if value.is_a?(Hash)
+      if value.keys.size == 0
+        "{}"
+      else
+        # show the first three properties
+        keys = value.keys.select { |key| value[key].is_a?(Numeric) || value[key].is_a?(String) }.first(3)
+        keys.collect { |key|
+          "#{key.to_s.titleize}: #{value[key]}"
+        }.join(", ")
+      end
+    elsif value.is_a?(Array)
+      if value.size == 0
+        return "[]"
+      elsif obj.size == 1
+        "[(#{obj.size})]"
+      else
+        "[(#{obj.size})]"
+      end
+    elsif value.is_a?(TrueClass) || value.is_a?(FalseClass)
+      format_boolean(value)
+    else
+      value.to_s
+    end
+  end
+
   # build_column_definitions constructs an Array of column definitions (OpenStruct)
   # Each column is defined by a label (String), and a display_method (Proc)
   #
@@ -1060,7 +1137,7 @@ module Morpheus::Cli::PrintHelper
           column_def.display_method = lambda {|data| get_object_value(data, v) }
         elsif v.is_a?(Proc)
           column_def.display_method = v
-        elsif v.is_a?(Hash) || v.is_a?(OStruct)
+        elsif v.is_a?(Hash) || v.is_a?(OpenStruct)
           if v[:display_name] || v[:label]
             column_def.label = v[:display_name] || v[:label]
           end
