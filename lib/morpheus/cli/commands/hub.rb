@@ -163,7 +163,7 @@ EOT
       "Stats Version" => lambda {|it| it['statsVersion'] },
       "Last Login" => lambda {|it| it['lastLoggedIn'] ? format_local_dt(it['lastLoggedIn']) : '' },
       "Timestamp (ms)" => lambda {|it| it['ts'] },
-      "Date" => lambda {|it| parse_time(it['ts']/1000, "yyyy-MM-dd'T'HH:mm:sss'Z'") }
+      "Date" => lambda {|it| format_local_dt(parse_time(it['ts']/1000, "yyyy-MM-dd'T'HH:mm:sss'Z'")) }
     }, usage_data, options)
    
 
@@ -176,7 +176,7 @@ EOT
     #   }, usage_data, options)
     # end
 
-    print_h2 "Appliance Usage", options
+    print_h2 "Appliance", options
     # print_details_raw(usage_data['appliance'], options)
     print_details(usage_data['appliance'], {
       pretty: true,
