@@ -71,9 +71,6 @@ class Morpheus::Cli::CatalogItemTypesCommand
         print cyan,"No catalog item types found.",reset,"\n"
       else
         list_columns = catalog_item_type_list_column_definitions.upcase_keys!
-        list_columns.delete("Blueprint")
-        list_columns.delete("Workflow")
-        list_columns.delete("Context")
         #list_columns["Config"] = lambda {|it| truncate_string(it['config'], 100) }
         print as_pretty_table(catalog_item_types, list_columns.upcase_keys!, options)
         print_results_pagination(json_response)
@@ -701,12 +698,13 @@ EOT
       "Description" => 'description',
       "Type" => lambda {|it| format_catalog_type(it) },
       "Visibility" => 'visibility',
-      "Layout Code" => 'layoutCode',
+      #"Layout Code" => 'layoutCode',
       "Blueprint" => lambda {|it| it['blueprint'] ? it['blueprint']['name'] : nil },
       "Workflow" => lambda {|it| it['workflow'] ? it['workflow']['name'] : nil },
-      "Context" => lambda {|it| it['context'] },
+      # "Context" => lambda {|it| it['context'] },
       # "Content" => lambda {|it| it['content'] },
       "Form Type" => lambda {|it| it['formType'] == 'form' ? "Form" : "Inputs" },
+      "Form" => lambda {|it| it['form'] ? it['form']['name'] : nil }, 
       "Enabled" => lambda {|it| format_boolean(it['enabled']) },
       "Featured" => lambda {|it| format_boolean(it['featured']) },
       #"Config" => lambda {|it| it['config'] },
