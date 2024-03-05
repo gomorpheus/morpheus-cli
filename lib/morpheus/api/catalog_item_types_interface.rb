@@ -8,8 +8,7 @@ class Morpheus::CatalogItemTypesInterface < Morpheus::RestInterface
 
   # NOT json, multipart file upload, uses PUT update endpoint
   def update_logo(id, logo_file, dark_logo_file=nil)
-    #url = "#{base_path}/#{id}/update-logo"
-    url = "#{base_path}/#{id}"
+    url = "#{base_path}/#{id}/update-logo"
     headers = { :params => {}, :authorization => "Bearer #{@access_token}"}
     payload = {}
     payload["catalogItemType"] = {}
