@@ -281,52 +281,19 @@ class Morpheus::Cli::License
       },
       "Multi-Tenant" => lambda {|it| format_boolean it["multiTenant"] },
       "White Label" => lambda {|it| format_boolean it["whitelabel"] },
-      "Free Trial" => lambda {|it| format_boolean it["freeTrial"] },
-      "MVM" => lambda {|it| format_boolean it["mvm"] },
       "Stats Reporting" => lambda {|it| format_boolean it["reportStatus"] },
       "Hard Limit" => lambda {|it| format_boolean it["hardLimit"] },
       "Limit Type" => lambda {|it| format_limit_type(it) },
     }
 
-    description_cols.delete("Multi-Tenant") if !license['mvm']
+    description_cols.delete("Multi-Tenant") if !license['multiTenant']
     description_cols.delete("White Label") if !license['whitelabel']
-    description_cols.delete("Free Trial") if !license['freeTrial']
-    description_cols.delete("MVM") if !license['mvm']
 
     if license['zoneTypes'] && license['zoneTypes'].size > 0
       description_cols["Included Clouds"] = lambda {|it| it['zoneTypes'].join(', ') }
     elsif license['zoneTypesExcluded'] && license['zoneTypesExcluded'].size > 0
       description_cols["Excluded Clouds"] = lambda {|it| it['zoneTypesExcluded'].join(', ') }
     end
-    # if license['limitType'] == 'standard'
-    #   # new standard metrics limit
-    #   used_vms = current_usage['vms']['count'] rescue nil
-    #   used_discovered_vms = current_usage['discoveredVms']['count'] rescue nil
-    #   used_hosts = current_usage['hosts']['count'] rescue nil
-    #   used_discovered_hosts = current_usage['discoveredHosts']['count'] rescue nil
-    #   used_executions = current_usage['executions']['count'] rescue nil
-    #   max_vms = license["maxManagedVms"].to_i
-    #   max_discovered_vms = license['maxDiscoveredVms'].to_i
-    #   max_hosts = license['maxManagedHosts'].to_i
-    #   max_discovered_hosts = license['maxDiscoveredHosts'].to_i
-    #   max_executions = license['maxExecutions'].to_i
-    #   description_cols["VMs"] = lambda {|it| format_limit(max_vms, used_vms) } # if max_vms.to_i > 0
-    #   description_cols["Discovered VMs"] = lambda {|it| format_limit(max_discovered_vms, used_discovered_vms) } if max_discovered_vms.to_i > 0
-    #   description_cols["Hosts"] = lambda {|it| format_limit(max_hosts, used_hosts)  } if max_hosts.to_i > 0
-    #   description_cols["Discovered Hosts"] = lambda {|it| format_limit(max_discovered_hosts, used_discovered_hosts) } if max_discovered_hosts.to_i > 0
-    #   description_cols["Executions"] = lambda {|it| format_limit(max_executions, used_executions) } if max_executions.to_i > 0
-    # else
-    #   # old workloads limit
-    #   used_memory = current_usage['memory'] rescue nil
-    #   used_storage = current_usage['storage'] rescue nil
-    #   used_workloads = current_usage['workloads'] rescue nil
-    #   max_memory = license['maxMemory'].to_i
-    #   max_storage = license['maxStorage'].to_i
-    #   max_workloads = license['maxInstances'].to_i
-    #   description_cols["Memory"] = lambda {|it| format_limit(max_memory, used_memory) } if max_memory.to_i > 0
-    #   description_cols["Storage"] = lambda {|it| format_limit(max_storage, used_storage) } if max_storage.to_i > 0
-    #   description_cols["Workloads"] = lambda {|it| format_limit(max_workloads, used_workloads) } # if max_workloads.to_i > 0
-    # end
     print_description_list(description_cols, license)
   end
 
@@ -335,35 +302,31 @@ class Morpheus::Cli::License
     # unlimited_label = "∞"
     if license['limitType'] == 'standard'
       # new standard metrics limit
-      used_vms = current_usage['vms']['count'] rescue nil
-      used_discovered_vms = current_usage['discoveredVms']['count'] rescue nil
-      used_hosts = current_usage['hosts']['count'] rescue nil
-      used_discovered_hosts = current_usage['discoveredHosts']['count'] rescue nil
-      used_executions = current_usage['executions']['count'] rescue nil
+      used_vms = current_usage['vms']
+      used_discovered = current_usage['discoveredVms']
+      used_iac = current_usage['iacDeployments']
+      used_hosts = current_usage['hosts']
+      used_executions = current_usage['executions']
+
       max_vms = license["maxManagedVms"].to_i
-      max_vms = 0
-      max_discovered_vms = license['maxDiscoveredVms'].to_i
-      max_hosts = license['maxManagedHosts'].to_i
-      max_discovered_hosts = license['maxDiscoveredHosts'].to_i
+      max_discovered = license['maxDiscoveredVms'].to_i
+      max_iac = license['maxIacDeployments'].to_i
+      max_hosts = license['maxHosts'].to_i
       max_executions = license['maxExecutions'].to_i
       label_width = 15
       chart_opts = {max_bars: 20, unlimited_label: '0%', percent_sigdig: 0}
       out = ""
       out << cyan + "VMs".rjust(label_width, ' ') + ": " + generate_usage_bar(used_vms, max_vms, chart_opts) + cyan + used_vms.to_s.rjust(8, ' ') + " / " + (max_vms.to_i > 0 ? max_vms.to_s : unlimited_label).to_s.ljust(15, ' ') + "\n"
-      out << cyan + "Discoverd VMs".rjust(label_width, ' ') + ": " + generate_usage_bar(used_discovered_vms, max_discovered_vms, chart_opts) + cyan + used_discovered_vms.to_s.rjust(8, ' ') + " / " + (max_discovered_vms.to_i > 0 ? max_discovered_vms.to_s : unlimited_label).to_s.ljust(15, ' ') + "\n"
+      out << cyan + "Discovered".rjust(label_width, ' ') + ": " + generate_usage_bar(used_discovered, max_discovered, chart_opts) + cyan + used_discovered.to_s.rjust(8, ' ') + " / " + (max_discovered.to_i > 0 ? max_discovered.to_s : unlimited_label).to_s.ljust(15, ' ') + "\n"
+      out << cyan + "Iac Deployments".rjust(label_width, ' ') + ": " + generate_usage_bar(used_iac, max_iac, chart_opts) + cyan + used_iac.to_s.rjust(8, ' ') + " / " + (max_iac.to_i > 0 ? max_iac.to_s : unlimited_label).to_s.ljust(15, ' ') + "\n"
       out << cyan + "Hosts".rjust(label_width, ' ') + ": " + generate_usage_bar(used_hosts, max_hosts, chart_opts) + cyan + used_hosts.to_s.rjust(8, ' ') + " / " + (max_hosts.to_i > 0 ? max_hosts.to_s : unlimited_label).to_s.ljust(15, ' ') + "\n"
-      if max_discovered_hosts.to_i > 0
-        out << cyan + "Discoverd Hosts".rjust(label_width, ' ') + ": " + generate_usage_bar(used_discovered_hosts, max_discovered_hosts, chart_opts) + cyan + used_discovered_hosts.to_s.rjust(8, ' ') + " / " + (max_discovered_vms.to_i > 0 ? max_discovered_vms.to_s : unlimited_label).to_s.ljust(15, ' ') + "\n"
-      else
-
-      end
       out << cyan + "Executions".rjust(label_width, ' ') + ": " + generate_usage_bar(used_executions, max_executions, chart_opts) + cyan + used_executions.to_s.rjust(8, ' ') + " / " + (max_executions.to_i > 0 ? max_executions.to_s : unlimited_label).to_s.ljust(15, ' ') + "\n"
       print out
     else
       # old workloads limit
-      used_memory = current_usage['memory'] rescue nil
-      used_storage = current_usage['storage'] rescue nil
-      used_workloads = current_usage['workloads'] rescue nil
+      used_memory = current_usage['memory']
+      used_storage = current_usage['storage']
+      used_workloads = current_usage['workloads']
       max_memory = license['maxMemory'].to_i
       max_storage = license['maxStorage'].to_i
       max_workloads = license['maxInstances'].to_i
@@ -376,4 +339,16 @@ class Morpheus::Cli::License
       print out
     end
   end
+
+  # todo: use this to dry print_license_usage
+  def format_limit(label, used, max, opts={})
+    unlimited_label = "Unlimited"
+    # unlimited_label = "∞"
+    label_width = opts[:label_width] || 15
+    chart_opts = {max_bars: 20, unlimited_label: '0%', percent_sigdig: 0}
+    chart_opts.merge!(opts[:chart_opts]) if opts[:chart_opts]
+    cyan + label.rjust(label_width, ' ') + ": " + generate_usage_bar(used, max, chart_opts) + cyan + used.to_s.rjust(label_width, ' ') + " / " + (max.to_i > 0 ? max.to_s : unlimited_label).to_s.ljust(label_width, ' ') + "\n"
+  end
+
+
 end
