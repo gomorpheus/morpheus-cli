@@ -223,9 +223,10 @@ module Morpheus::Routes
         path = "/admin/settings/environments"
       when "software-licenses"
         path = "/admin/settings/software-licenses"
-      when "license"
+      when "license","licenses"
         path = "/admin/settings/#!license"
       end
+      # todo: this is weird, fix it so "view license matches license before software-licenses without needing the above alias..
       # dasherize path and attempt to match the plural first
       plural_path = path.pluralize
       paths = [path.dasherize]
