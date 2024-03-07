@@ -161,9 +161,8 @@ EOT
       "Appliance Version" => lambda {|it| it['applianceVersion'] },
       # "Appliance Unique ID" => lambda {|it| ['hubUniqueId'] },
       "Stats Version" => lambda {|it| it['statsVersion'] },
-      "Last Login" => lambda {|it| it['lastLoggedIn'] ? format_local_dt(it['lastLoggedIn']) : '' },
-      "Timestamp (ms)" => lambda {|it| it['ts'] },
-      "Date" => lambda {|it| format_local_dt(parse_time(it['ts']/1000, "yyyy-MM-dd'T'HH:mm:sss'Z'")) }
+      "Last Login" => lambda {|it| it['lastLoggedIn'] ? format_local_dt(it['lastLoggedIn'] / 1000).to_s : '' },
+      "Timestamp (ms)" => lambda {|it| it['ts'] ? format_local_dt(it['ts'] / 1000).to_s : '' },
     }, usage_data, options)
    
 
@@ -198,8 +197,8 @@ EOT
         provisionTypes: lambda {|it| it['provisionTypes'] ? it['provisionTypes'].collect {|row| "#{row['code']} (#{row['count']})"}.join(", ") : '' },
         serverTypes: lambda {|it| it['serverTypes'] ? it['serverTypes'].collect {|row| "#{row['code']} (#{row['count']})"}.join(", ") : '' },
         clusterTypes: lambda {|it| it['clusterTypes'] ? it['clusterTypes'].collect {|row| "#{row['code']} (#{row['count']})"}.join(", ") : '' },
-        lastLoggedIn: lambda {|it| it['lastLoggedIn'] ? format_local_dt(parse_time(it['lastLoggedIn']/1000, "yyyy-MM-dd'T'HH:mm:sss'Z'")) : '' },
-        ts: lambda {|it| it['ts'] ? format_local_dt(parse_time(it['ts']/1000, "yyyy-MM-dd'T'HH:mm:sss'Z'")) : '' }
+        lastLoggedIn: lambda {|it| it['lastLoggedIn'] ? format_local_dt(it['lastLoggedIn'] / 1000).to_s : '' },
+        ts: lambda {|it| it['lastLoggedIn'] ? format_local_dt(it['ts'] / 1000).to_s : '' },
       }
     })
     
