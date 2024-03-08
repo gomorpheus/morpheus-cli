@@ -840,6 +840,9 @@ class Morpheus::Cli::JobsCommand
       opts.on("--internal [true|false]", String, "Filters executions based on internal flag. Internal executions are excluded by default.") do |val|
         params["internalOnly"] = (val.to_s != "false")
       end
+      opts.on("--automation [true|false]", String, "Filters executions based on automation flag. Non-automation executions include ansible and kubernetes job types.") do |val|
+        params["automation"] = (val.to_s != "false")
+      end
       build_standard_list_options(opts, options, [:details])
       opts.footer = "List job executions.\n" +
           "[job] is optional. Job ID or name to filter executions."
@@ -876,16 +879,15 @@ class Morpheus::Cli::JobsCommand
       if params["internalOnly"]
         subtitles << "internalOnly: #{params['internalOnly']}"
       end
+      if !params["automation"].nil?
+        subtitles << "automation: #{params['automation']}"
+      end
       print_h1 title, subtitles, options
       print_job_executions(job_executions, options)
-      print_results_pagination(json_response)
+      print_results_pagination(json_response) unless job_executions.size == 0
       print reset,"\n"
     end
-    if job_executions.empty?
-      return 3, "no executions found"
-    else
-      return 0, nil
-    end
+    return 0, nil
   end
 
   def get_execution(args)
