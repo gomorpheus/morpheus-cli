@@ -970,7 +970,9 @@ class Morpheus::Cli::JobsCommand
       end
       if event_data[:error] && event_data[:error].strip.length > 0
         print_h2 "Error"
+        print red
         print event['message'] || event['error']
+        print reset
       end
       print reset,"\n"
       return 0

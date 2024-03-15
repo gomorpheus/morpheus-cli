@@ -84,6 +84,7 @@ module Morpheus::Cli::JobsHelper
       end
       if process_data[:error] && process_data[:error].strip.length > 0
         print_h2 "Error"
+        print red
         print (process['message'] || process['error']).to_s.strip
         print reset,"\n"
       end
@@ -129,6 +130,8 @@ module Morpheus::Cli::JobsHelper
         out << "#{green}#{status_string.upcase}"
       elsif ['error', 'offline', 'failed', 'failure'].include?(status_string)
         out << "#{red}#{status_string.upcase}"
+      elsif ['running'].include?(status_string)
+        out << "#{cyan}#{status_string.upcase}"
       else
         out << "#{yellow}#{status_string.upcase}"
       end
