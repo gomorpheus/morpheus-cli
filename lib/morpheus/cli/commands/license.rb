@@ -313,26 +313,26 @@ class Morpheus::Cli::License
       used_discovered_objects = current_usage['discoveredObjects']
 
 
-      max_managed_servers = license["maxManagedServers"].to_i
-      max_discovered_servers = license['maxDiscoveredServers'].to_i
-      max_hosts = license['maxHosts'].to_i
-      max_mvm = license['maxMvm'].to_i
-      max_iac = license['maxIac'].to_i
-      max_xaas = license['maxXaas'].to_i
-      max_executions = license['maxExecutions'].to_i
-      max_distributed_workers = license['maxDistributedWorkers'].to_i
-      max_discovered_objects = license['maxDiscoveredObjects'].to_i
+      max_managed_servers = license["maxManagedServers"]
+      max_discovered_servers = license['maxDiscoveredServers']
+      max_hosts = license['maxHosts']
+      max_mvm = license['maxMvm']
+      max_iac = license['maxIac']
+      max_xaas = license['maxXaas']
+      max_executions = license['maxExecutions']
+      max_distributed_workers = license['maxDistributedWorkers']
+      max_discovered_objects = license['maxDiscoveredObjects']
       label_width = 20
       chart_opts = {max_bars: 20, unlimited_label: '0%', percent_sigdig: 0}
       out = ""
-      out << cyan + "Managed Servers".rjust(label_width, ' ') + ": " + generate_usage_bar(used_managed_servers, max_managed_servers, chart_opts) + cyan + used_managed_servers.to_s.rjust(8, ' ') + " / " + (max_managed_servers.to_i > 0 ? max_managed_servers.to_s : unlimited_label).to_s.ljust(15, ' ') + "\n"
-      out << cyan + "Discovered Servers".rjust(label_width, ' ') + ": " + generate_usage_bar(used_discovered_servers, max_discovered_servers, chart_opts) + cyan + used_discovered_servers.to_s.rjust(8, ' ') + " / " + (max_discovered_servers.to_i > 0 ? max_discovered_servers.to_s : unlimited_label).to_s.ljust(15, ' ') + "\n"
-      out << cyan + "Hosts".rjust(label_width, ' ') + ": " + generate_usage_bar(used_hosts, max_hosts, chart_opts) + cyan + used_hosts.to_s.rjust(8, ' ') + " / " + (max_hosts.to_i > 0 ? max_hosts.to_s : unlimited_label).to_s.ljust(15, ' ') + "\n"
-      out << cyan + "MVM Hosts".rjust(label_width, ' ') + ": " + generate_usage_bar(used_mvm, max_mvm, chart_opts) + cyan + used_mvm.to_s.rjust(8, ' ') + " / " + (max_mvm.to_i > 0 ? max_mvm.to_s : unlimited_label).to_s.ljust(15, ' ') + "\n"
-      out << cyan + "Iac Deployments".rjust(label_width, ' ') + ": " + generate_usage_bar(used_iac, max_iac, chart_opts) + cyan + used_iac.to_s.rjust(8, ' ') + " / " + (max_iac.to_i > 0 ? max_iac.to_s : unlimited_label).to_s.ljust(15, ' ') + "\n"
-      out << cyan + "Xaas Instances".rjust(label_width, ' ') + ": " + generate_usage_bar(used_xaas, max_xaas, chart_opts) + cyan + used_xaas.to_s.rjust(8, ' ') + " / " + (max_xaas.to_i > 0 ? max_xaas.to_s : unlimited_label).to_s.ljust(15, ' ') + "\n"
-      out << cyan + "Executions".rjust(label_width, ' ') + ": " + generate_usage_bar(used_executions, max_executions, chart_opts) + cyan + used_executions.to_s.rjust(8, ' ') + " / " + (max_executions.to_i > 0 ? max_executions.to_s : unlimited_label).to_s.ljust(15, ' ') + "\n"
-      out << cyan + "Distributed Workers".rjust(label_width, ' ') + ": " + generate_usage_bar(used_distributed_workers, max_distributed_workers, chart_opts) + cyan + used_distributed_workers.to_s.rjust(8, ' ') + " / " + (max_distributed_workers.to_i > 0 ? max_distributed_workers.to_s : unlimited_label).to_s.ljust(15, ' ') + "\n"
+      out << cyan + "Managed Servers".rjust(label_width, ' ') + ": " + generate_usage_bar(used_managed_servers, max_managed_servers, chart_opts) + cyan + used_managed_servers.to_s.rjust(8, ' ') + " / " + (max_managed_servers ? max_managed_servers.to_s : unlimited_label).to_s.ljust(15, ' ') + "\n"
+      out << cyan + "Discovered Servers".rjust(label_width, ' ') + ": " + generate_usage_bar(used_discovered_servers, max_discovered_servers, chart_opts) + cyan + used_discovered_servers.to_s.rjust(8, ' ') + " / " + (max_discovered_servers ? max_discovered_servers.to_s : unlimited_label).to_s.ljust(15, ' ') + "\n"
+      out << cyan + "Hosts".rjust(label_width, ' ') + ": " + generate_usage_bar(used_hosts, max_hosts, chart_opts) + cyan + used_hosts.to_s.rjust(8, ' ') + " / " + (max_hosts ? max_hosts.to_s : unlimited_label).to_s.ljust(15, ' ') + "\n"
+      out << cyan + "MVM Hosts".rjust(label_width, ' ') + ": " + generate_usage_bar(used_mvm, max_mvm, chart_opts) + cyan + used_mvm.to_s.rjust(8, ' ') + " / " + (max_mvm ? max_mvm.to_s : unlimited_label).to_s.ljust(15, ' ') + "\n"
+      out << cyan + "Iac Deployments".rjust(label_width, ' ') + ": " + generate_usage_bar(used_iac, max_iac, chart_opts) + cyan + used_iac.to_s.rjust(8, ' ') + " / " + (max_iac ? max_iac.to_s : unlimited_label).to_s.ljust(15, ' ') + "\n"
+      out << cyan + "Xaas Instances".rjust(label_width, ' ') + ": " + generate_usage_bar(used_xaas, max_xaas, chart_opts) + cyan + used_xaas.to_s.rjust(8, ' ') + " / " + (max_xaas ? max_xaas.to_s : unlimited_label).to_s.ljust(15, ' ') + "\n"
+      out << cyan + "Executions".rjust(label_width, ' ') + ": " + generate_usage_bar(used_executions, max_executions, chart_opts) + cyan + used_executions.to_s.rjust(8, ' ') + " / " + (max_executions ? max_executions.to_s : unlimited_label).to_s.ljust(15, ' ') + "\n"
+      out << cyan + "Distributed Workers".rjust(label_width, ' ') + ": " + generate_usage_bar(used_distributed_workers, max_distributed_workers, chart_opts) + cyan + used_distributed_workers.to_s.rjust(8, ' ') + " / " + (max_distributed_workers ? max_distributed_workers.to_s : unlimited_label).to_s.ljust(15, ' ') + "\n"
       #out << cyan + "Discovered Objects".rjust(label_width, ' ') + ": " + generate_usage_bar(used_discovered_objects, max_discovered_objects, chart_opts) + cyan + used_discovered_objects.to_s.rjust(8, ' ') + " / " + (max_discovered_objects.to_i > 0 ? max_discovered_objects.to_s : unlimited_label).to_s.ljust(15, ' ') + "\n"
       print out
     else
