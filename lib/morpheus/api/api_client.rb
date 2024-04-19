@@ -998,6 +998,11 @@ class Morpheus::APIClient
     Morpheus::NetworkFloatingIpsInterface.new(common_interface_options).setopts(@options)
   end
   
+  def email_templates
+    Morpheus::EmailTemplatesInterface.new(common_interface_options).setopts(@options)
+  end
+
+
   def rest(endpoint)
     Morpheus::RestInterface.new(common_interface_options).setopts(@options.merge({base_path: "#{@base_url}/api/#{endpoint}"}))
   end
