@@ -1256,6 +1256,7 @@ module Morpheus
           file_params = passed_file_params
         end
         is_required = option_type['required']
+
         if file_params['source']
           file_params['sourceType'] = file_params.delete('source')
         end

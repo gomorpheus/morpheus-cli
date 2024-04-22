@@ -9,58 +9,45 @@ class Morpheus::EmailTemplatesInterface < Morpheus::APIClient
     execute(opts)
   end
 
-  # def get(options=nil)
-  #   url = "#{@base_url}/api/tasks"
-  #   headers = { params: {}, authorization: "Bearer #{@access_token}" }
-
-  #   if options.is_a?(Hash)
-  #     headers[:params].merge!(options)
-  #   elsif options.is_a?(Numeric)
-  #     url = "#{@base_url}/api/tasks/#{options}"
-  #   elsif options.is_a?(String)
-  #     headers[:params]['name'] = options
-  #   end
-  #   execute(method: :get, url: url, headers: headers)
-  # end
-
-  # def update(id, options)
-  #   url = "#{@base_url}/api/tasks/#{id}"
-  #   headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-  #   payload = options
-  #   execute(method: :put, url: url, headers: headers, payload: payload.to_json)
-  # end
+  def get(id, params={})
+    url = "#{@base_url}/api/email-templates/#{id}"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    if params.is_a?(Hash)
+      headers[:params].merge!(params)
+    elsif params.is_a?(Numeric)
+      url = "#{base_path}/#{params}"
+    elsif params.is_a?(String)
+      headers[:params]['name'] = params
+    end
+    execute(method: :get, url: url, headers: headers)
+  end
 
 
-  # def create(options)
-  #   url = "#{@base_url}/api/tasks"
-  #   headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-  #   payload = options
-  #   execute(method: :post, url: url, headers: headers, payload: payload.to_json)
-  # end
+  def update(id, payload)
+    url = "#{@base_url}/api/email-templates/#{id}"
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    execute(method: :put, url: url, headers: headers, payload: payload.to_json)
+  end
 
-  # def destroy(id, params={})
-  #   url = "#{@base_url}/api/tasks/#{id}"
-  #   headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-  #   execute(method: :delete, url: url, headers: headers)
-  # end
 
-  # def run(id, options)
-  #   url = "#{@base_url}/api/tasks/#{id}/execute"
-  #   headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
-  #   payload = options
-  #   execute(method: :post, url: url, headers: headers, payload: payload.to_json)
-  # end
+  def create(options)
+    url = "#{@base_url}/api/email-templates"
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    payload = options
+    execute(method: :post, url: url, headers: headers, payload: payload.to_json)
+  end
 
-  # def list_types(params={})
-  #   url = "#{@base_url}/api/task-types"
-  #   headers = { params: params, authorization: "Bearer #{@access_token}" }
-  #   execute(method: :get, url: url, headers: headers)
-  # end
+  def template_types(params={})
+    url = "#{@base_url}/api/email-templates/types"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    opts = {method: :get, url: url, headers: headers}
+    execute(opts)
+  end
 
-  # def get_type(id, params={})
-  #   url = "#{@base_url}/api/task-types/#{id}"
-  #   headers = { params: params, authorization: "Bearer #{@access_token}" }
-  #   execute(method: :get, url: url, headers: headers)
-  # end
+  def destroy(id, params={})
+    url = "#{@base_url}/api/email-templates/#{id}"
+    headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    execute(method: :delete, url: url, headers: headers)
+  end
 
 end
