@@ -4277,26 +4277,24 @@ class Morpheus::Cli::Clusters
 
     if provision_type && provision_type['hasZonePools']
       # Resource pool
-      if !['resourcePoolId', 'resourceGroup', 'vpc'].find { |it| cloud['config'][it] && cloud['config'][it].length > 0 }
-        resource_pool_id = nil
-        resource_pool = options[:resourcePool] ? find_cloud_resource_pool_by_name_or_id(cloud['id'], options[:resourcePool]) : nil
+      resource_pool_id = nil
+      resource_pool = options[:resourcePool] ? find_cloud_resource_pool_by_name_or_id(cloud['id'], options[:resourcePool]) : nil
 
-        if !resource_pool
-          resource_pool_options = @options_interface.options_for_source('zonePools', {groupId: group['id'], zoneId: cloud['id']}.merge(service_plan ? {planId: service_plan['id']} : {}))['data'].reject { |it| it['id'].nil? && it['name'].nil? }
+      if !resource_pool
+        resource_pool_options = @options_interface.options_for_source('zonePools', {groupId: group['id'], zoneId: cloud['id']}.merge(service_plan ? {planId: service_plan['id']} : {}))['data'].reject { |it| it['id'].nil? && it['name'].nil? }
 
-          if resource_pool_options.empty?
-            print_red_alert "Cloud #{cloud['name']} has no available resource pools"
-            exit 1
-          elsif resource_pool_options.count > 1 && !options[:no_prompt]
-            resource_pool_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'resourcePool', 'type' => 'select', 'fieldLabel' => 'Resource Pool', 'selectOptions' => resource_pool_options, 'required' => true, 'skipSingleOption' => true, 'description' => 'Select resource pool.'}],options[:options],api_client, {})['resourcePool']
-          else
-            resource_pool_id = resource_pool_options.first['id']
-          end
-          if resource_pool_id.to_s["poolGroup-"]
-            resource_pool = @resource_pool_groups_interface.get(resource_pool_id)['resourcePoolGroup'] 
-          else 
-            resource_pool = @cloud_resource_pools_interface.get(cloud['id'], resource_pool_id)['resourcePool']
-          end
+        if resource_pool_options.empty?
+          print_red_alert "Cloud #{cloud['name']} has no available resource pools"
+          exit 1
+        elsif resource_pool_options.count > 1 && !options[:no_prompt]
+          resource_pool_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'resourcePool', 'type' => 'select', 'fieldLabel' => 'Resource Pool', 'selectOptions' => resource_pool_options, 'required' => true, 'skipSingleOption' => true, 'description' => 'Select resource pool.'}],options[:options],api_client, {})['resourcePool']
+        else
+          resource_pool_id = resource_pool_options.first['id']
+        end
+        if resource_pool_id.to_s["poolGroup-"]
+          resource_pool = @resource_pool_groups_interface.get(resource_pool_id)['resourcePoolGroup']
+        else
+          resource_pool = @cloud_resource_pools_interface.get(cloud['id'], resource_pool_id)['resourcePool']
         end
       end
     end
