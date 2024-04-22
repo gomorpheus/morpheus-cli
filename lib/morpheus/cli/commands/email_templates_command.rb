@@ -109,6 +109,9 @@ EOT
       opts.on( '--template [TEXT]', "Template" ) do |val|
         options[:template] = val.to_s
       end
+      opts.on("--enabled [on|off]", ['on','off'], "Template enabled") do |val|
+        params['enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
+      end
 
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Create an email template.\n" +
@@ -138,6 +141,10 @@ EOT
         if options[:template]
           payload['emailTemplate']['template'] = options[:template]
         end
+
+        if options[:enabled]
+          payload['emailTemplate']['enabled'] = options[:enabled]
+        end
       else
         payload = {'emailTemplate' => {}}
        
@@ -163,6 +170,9 @@ EOT
 
         payload['emailTemplate']['code'] = template_type['value'] 
         payload['emailTemplate']['template'] = Morpheus::Cli::OptionTypes.file_content_prompt({'fieldName' => 'source', 'fieldLabel' => 'File Content', 'type' => 'file-content', 'required' => true}, {'source' => {'source' => 'local'}}, nil, {})['content']
+      
+        payload['emailTemplate']['enabled'] = Morpheus::Cli::OptionTypes.prompt([ {'fieldName' => 'enabled', 'fieldLabel' => 'Enabled', 'type' => 'checkbox', 'defaultValue' => true}])['enabled']
+
       end
       @email_templates_interface.setopts(options)
       if options[:dry_run]
@@ -170,8 +180,6 @@ EOT
          return
       end
       json_response = @email_templates_interface.create(payload)
-      puts "the response"
-      puts json_response
       if options[:json]
          print JSON.pretty_generate(json_response)
          print "\n"
@@ -193,6 +201,9 @@ EOT
       opts.banner = subcommand_usage( "[emailTemplate] --template")
       opts.on("--template TEMPLATE", String, "Updates Email Template") do |val|
         options[:template] = val.to_s
+      end
+      opts.on("--enabled ENABLED", String "Updates Template Enabled") do |val|
+        options[:enabled] = val.to_s 'on'
       end
 
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
@@ -308,7 +319,8 @@ EOT
     columns = [
       {"ID" => lambda {|it| it['id'] } },
       {"NAME" => lambda {|it| it['name'] } },
-      {"ACCOUNT" => lambda {|it| it['account']['name'] || 'System'} }
+      {"ACCOUNT" => lambda {|it| it['account']['name'] || 'System'} },
+      {"ENABLED" => lambda {|it| it['enabled'] } }
 
       # {"UPDATED" => lambda {|it| format_local_dt(it['lastUpdated']) } },
     ]
@@ -323,6 +335,7 @@ EOT
       "ID" => 'id',
       "Name" => 'name',
       "Account" => lambda {|it| it['account']['name'] || 'System' },
+      "Enabled" => lambda {|it| format_boolean(it['enabled']) },
       "Template" => lambda {|it| it['template'] rescue '' }
     }
   end
