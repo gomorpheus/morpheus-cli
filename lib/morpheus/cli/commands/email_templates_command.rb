@@ -202,8 +202,8 @@ EOT
       opts.on("--template TEMPLATE", String, "Updates Email Template") do |val|
         options[:template] = val.to_s
       end
-      opts.on("--enabled ENABLED", String "Updates Template Enabled") do |val|
-        options[:enabled] = val.to_s 'on'
+      opts.on('--enabled [on|off]', String, "Can be used to enable / disable the email template. Default is on") do |val|
+        options[:enabled] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
 
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
@@ -235,7 +235,12 @@ EOT
       else
         email_template = find_by_name_or_id('emailTemplate', args[0])
         template_payload = {}
-        template_payload['template'] = options[:template]
+        if options[:template]
+          template_payload['template'] = options[:template]
+        end
+        if options[:enabled]
+          template_payload['enabled'] = options[:enabled]
+        end
 
         payload = {"emailTemplate" => template_payload}
       end
