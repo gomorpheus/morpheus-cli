@@ -109,8 +109,12 @@ EOT
       opts.on( '--template [TEXT]', "Template" ) do |val|
         options[:template] = val.to_s
       end
-      opts.on("--enabled [on|off]", ['on','off'], "Template enabled") do |val|
-        params['enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
+      opts.on('--accounts LIST', Array, "Tenant accounts, comma separated list of account IDs") do |list|
+        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+          options[:accounts] = []
+        else
+          options[:accounts] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
       end
 
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
@@ -142,9 +146,10 @@ EOT
           payload['emailTemplate']['template'] = options[:template]
         end
 
-        if options[:enabled]
-          payload['emailTemplate']['enabled'] = options[:enabled]
+        if options[:accounts]
+          payload['emailTemplate']['accounts'] = options[:accounts]
         end
+
       else
         payload = {'emailTemplate' => {}}
        
@@ -161,17 +166,23 @@ EOT
             print_red_alert "A template type is required"
             exit 1
           elsif available_template_types.count > 1 && !options[:no_prompt]
-            template_type_code = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'templateType', 'type' => 'select', 'fieldLabel' => 'Template Type', 'selectOptions' => template_types_for_dropdown, 'required' => true, 'description' => 'Select Template Type.'}],options[:options],@api_client,{})['type']
+            template_type_code = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'templateType', 'type' => 'select', 'fieldLabel' => 'Template Type', 'selectOptions' => template_types_for_dropdown, 'required' => true, 'description' => 'Select Template Type.'}],options[:options],@api_client,{})
+            template_type_code = template_type_code["templateType"]
           else
             template_type_code = available_template_types.first['code']
           end
-          template_type = get_template_types.find { |ct| ct['code'] == template_type_code }
+          #template_type = get_template_types.find { |ct| ct['code'] == template_type_code }
         end
 
-        payload['emailTemplate']['code'] = template_type['value'] 
+        payload['emailTemplate']['code'] = template_type_code
         payload['emailTemplate']['template'] = Morpheus::Cli::OptionTypes.file_content_prompt({'fieldName' => 'source', 'fieldLabel' => 'File Content', 'type' => 'file-content', 'required' => true}, {'source' => {'source' => 'local'}}, nil, {})['content']
-      
-        payload['emailTemplate']['enabled'] = Morpheus::Cli::OptionTypes.prompt([ {'fieldName' => 'enabled', 'fieldLabel' => 'Enabled', 'type' => 'checkbox', 'defaultValue' => true}])['enabled']
+        # Tenants
+        if options[:accounts]
+            payload['emailTemplate']['accounts'] = options[:accounts]
+          else
+            v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'accounts', 'fieldLabel' => 'Tenants', 'type' => 'text', 'required' => false, 'description' => 'Tenant accounts, comma separated list of account IDs'}], options)
+            payload['emailTemplate']['accounts'] = v_prompt['accounts']
+          end
 
       end
       @email_templates_interface.setopts(options)
@@ -202,8 +213,12 @@ EOT
       opts.on("--template TEMPLATE", String, "Updates Email Template") do |val|
         options[:template] = val.to_s
       end
-      opts.on('--enabled [on|off]', String, "Can be used to enable / disable the email template. Default is on") do |val|
-        options[:enabled] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
+      opts.on('--accounts LIST', Array, "Tenant accounts, comma separated list of account IDs") do |list|
+        if list.size == 1 && list[0] == 'null' # hacky way to clear it
+          options[:accounts] = []
+        else
+          options[:accounts] = list.collect {|it| it.to_s.strip.empty? ? nil : it.to_s.strip }.compact.uniq
+        end
       end
 
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
@@ -238,8 +253,8 @@ EOT
         if options[:template]
           template_payload['template'] = options[:template]
         end
-        if options[:enabled]
-          template_payload['enabled'] = options[:enabled]
+        if options[:accounts]
+          template_payload['accounts'] = options[:accounts]
         end
 
         payload = {"emailTemplate" => template_payload}
@@ -323,9 +338,9 @@ EOT
   def print_templates_table(templates, opts={})
     columns = [
       {"ID" => lambda {|it| it['id'] } },
-      {"NAME" => lambda {|it| it['name'] } },
-      {"ACCOUNT" => lambda {|it| it['account']['name'] || 'System'} },
-      {"ENABLED" => lambda {|it| it['enabled'] } }
+      {"Name" => lambda {|it| it['name'] } },
+      {"Owner" => lambda {|it| it['owner']['name'] || 'System'} },
+      {"Tenants" => lambda {|it| it['accounts'].collect {|a| a['name'] }.join(', ') rescue it['owner'] ? 'Global' : ''} }
 
       # {"UPDATED" => lambda {|it| format_local_dt(it['lastUpdated']) } },
     ]
@@ -339,9 +354,9 @@ EOT
     {
       "ID" => 'id',
       "Name" => 'name',
-      "Account" => lambda {|it| it['account']['name'] || 'System' },
-      "Enabled" => lambda {|it| format_boolean(it['enabled']) },
-      "Template" => lambda {|it| it['template'] rescue '' }
+      "Owner" => lambda {|it| it['owner']['name'] || 'System' },
+      "Template" => lambda {|it| it['template'] rescue '' },
+      "Tenants" => lambda {|it| it['accounts'].collect {|a| a['name'] }.join(', ') rescue it['owner'] ? 'Global' : ''}
     }
   end
 
