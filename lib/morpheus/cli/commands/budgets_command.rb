@@ -132,6 +132,7 @@ class Morpheus::Cli::BudgetsCommand
         "Scope" => lambda {|it| format_budget_scope(it) },
         "Period" => lambda {|it| it['year'] },
         "Interval" => lambda {|it| it['interval'].to_s.capitalize },
+        "Forecast Model" => lambda {|it| it['forecastType'] ? it['forecastType']['name'] : '' },
         # the UI doesn't consider timezone, so uhh do it this hacky way for now.
         "Start Date" => lambda {|it| 
           if it['timezone'] == 'UTC'
@@ -173,6 +174,7 @@ class Morpheus::Cli::BudgetsCommand
           }
           budget_row = {label:"Budget"}
           actual_row = {label:"Actual"}
+          forecast_row = {label:"Forecast"}
           multi_year = false
           if budget['startDate'] && budget['endDate'] && parse_time(budget['startDate']).year != parse_time(budget['endDate']).year
             multi_year = true
@@ -192,8 +194,18 @@ class Morpheus::Cli::BudgetsCommand
               budget_row[interval_key] = "#{cyan}#{format_money(budget_cost, currency)}#{cyan}"
               actual_row[interval_key] = "#{cyan}#{format_money(actual_cost, currency)}#{cyan}"
             end
+            forecast_cost = it["forecast"] ? it["forecast"].to_f : 0
+            forecast_over_budget = forecast_cost > 0 && forecast_cost > budget_cost
+            if forecast_over_budget
+              forecast_row[interval_key] = "#{red}#{format_money(forecast_cost, currency)}#{cyan}"
+            else
+              forecast_row[interval_key] = "#{cyan}#{format_money(forecast_cost, currency)}#{cyan}"
+            end
           end
           chart_data = [budget_row, actual_row]
+          if budget['stats']['intervals'].find { |it| it['forecast'] && it['forecast'] != 0 }
+            chart_data << forecast_row
+          end
           print as_pretty_table(chart_data, budget_summary_columns, options)
           print reset,"\n"
         rescue => ex
@@ -575,26 +587,27 @@ EOT
 
   def add_budget_option_types
     [
-      {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
-      {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text', 'displayOrder' => 1},
+      {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true},
+      {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text'},
       # {'fieldName' => 'enabled', 'fieldLabel' => 'Enabled', 'type' => 'checkbox', 'defaultValue' => true},
-      {'fieldName' => 'scope', 'fieldLabel' => 'Scope', 'code' => 'budget.scope', 'type' => 'select', 'selectOptions' => [{'name'=>'Account','value'=>'account'},{'name'=>'Tenant','value'=>'tenant'},{'name'=>'Cloud','value'=>'cloud'},{'name'=>'Group','value'=>'group'},{'name'=>'User','value'=>'user'}], 'defaultValue' => 'account', 'required' => true, 'displayOrder' => 3},
+      {'fieldName' => 'scope', 'fieldLabel' => 'Scope', 'code' => 'budget.scope', 'type' => 'select', 'selectOptions' => [{'name'=>'Account','value'=>'account'},{'name'=>'Tenant','value'=>'tenant'},{'name'=>'Cloud','value'=>'cloud'},{'name'=>'Group','value'=>'group'},{'name'=>'User','value'=>'user'}], 'defaultValue' => 'account', 'required' => true},
       {'fieldName' => 'tenant', 'fieldLabel' => 'Tenant', 'type' => 'select', 'optionSource' => lambda {|api_client, api_params| 
         @options_interface.options_for_source("tenants", {})['data']
-      }, 'required' => true, 'dependsOnCode' => 'budget.scope:tenant', 'displayOrder' => 4},
+      }, 'required' => true, 'dependsOnCode' => 'budget.scope:tenant'},
       {'fieldName' => 'user', 'fieldLabel' => 'User', 'type' => 'select', 'optionSource' => lambda {|api_client, api_params|
         @options_interface.options_for_source("users", {})['data']
-      }, 'required' => true, 'dependsOnCode' => 'budget.scope:user', 'displayOrder' => 5},
+      }, 'required' => true, 'dependsOnCode' => 'budget.scope:user'},
       {'fieldName' => 'group', 'fieldLabel' => 'Group', 'type' => 'select', 'optionSource' => lambda {|api_client, api_params| 
         @options_interface.options_for_source("groups", {})['data']
-      }, 'required' => true, 'dependsOnCode' => 'budget.scope:group', 'displayOrder' => 6},
+      }, 'required' => true, 'dependsOnCode' => 'budget.scope:group'},
       {'fieldName' => 'cloud', 'fieldLabel' => 'Cloud', 'type' => 'select', 'optionSource' => lambda {|api_client, api_params| 
         @options_interface.options_for_source("clouds", {})['data']
-      }, 'required' => true, 'dependsOnCode' => 'budget.scope:cloud', 'displayOrder' => 7},
-      {'fieldName' => 'year', 'fieldLabel' => 'Period', 'code' => 'budget.year', 'type' => 'text', 'required' => true, 'defaultValue' => Time.now.year, 'description' => "The period (year) the budget applies, YYYY or 'custom' to enter Start Date and End Date manually", 'displayOrder' => 8},
-      {'fieldName' => 'startDate', 'fieldLabel' => 'Start Date', 'type' => 'text', 'required' => true, 'description' => 'The Start Date for custom period budget eg. 2021-01-01', 'dependsOnCode' => 'budget.year:custom', 'displayOrder' => 9},
-      {'fieldName' => 'endDate', 'fieldLabel' => 'End Date', 'type' => 'text', 'required' => true, 'description' => 'The End Date for custom period budget eg. 2023-12-31 (must be 1, 2 or 3 years from Start Date)', 'dependsOnCode' => 'budget.year:custom', 'displayOrder' => 10},
-      {'fieldName' => 'interval', 'fieldLabel' => 'Interval', 'type' => 'select', 'selectOptions' => [{'name'=>'Year','value'=>'year'},{'name'=>'Quarter','value'=>'quarter'},{'name'=>'Month','value'=>'month'}], 'defaultValue' => 'year', 'required' => true, 'description' => 'The budget interval, determines cost amounts: "year", "quarter" or "month"', 'displayOrder' => 11}
+      }, 'required' => true, 'dependsOnCode' => 'budget.scope:cloud'},
+      {'fieldName' => 'year', 'fieldLabel' => 'Period', 'code' => 'budget.year', 'type' => 'text', 'required' => true, 'defaultValue' => Time.now.year, 'description' => "The period (year) the budget applies, YYYY or 'custom' to enter Start Date and End Date manually"},
+      {'fieldName' => 'startDate', 'fieldLabel' => 'Start Date', 'type' => 'text', 'required' => true, 'description' => 'The Start Date for custom period budget eg. 2021-01-01', 'dependsOnCode' => 'budget.year:custom'},
+      {'fieldName' => 'endDate', 'fieldLabel' => 'End Date', 'type' => 'text', 'required' => true, 'description' => 'The End Date for custom period budget eg. 2023-12-31 (must be 1, 2 or 3 years from Start Date)', 'dependsOnCode' => 'budget.year:custom'},
+      {'fieldName' => 'interval', 'fieldLabel' => 'Interval', 'type' => 'select', 'selectOptions' => [{'name'=>'Year','value'=>'year'},{'name'=>'Quarter','value'=>'quarter'},{'name'=>'Month','value'=>'month'}], 'defaultValue' => 'year', 'required' => true, 'description' => 'The budget interval, determines cost amounts: "year", "quarter" or "month"'},
+      {'fieldName' => 'forecastType.id', 'fieldLabel' => 'Forecast Model', 'type' => 'select', 'optionSource' => 'forecastTypes', 'description' => 'The budget forcecast model type, determines projected cost calculations.'},
     ]
   end
 

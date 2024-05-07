@@ -1483,9 +1483,13 @@ module Morpheus
       end
 
       def self.sort_option_types(option_types)
-        option_types.select {|it| (it['fieldGroup'] || 'default').casecmp?('default')}.sort {|a,b| a['displayOrder'].to_i <=> b['displayOrder'].to_i} +
-        option_types.reject {|it| ['default', 'advanced'].include?((it['fieldGroup'] || 'default').downcase)}.sort{|a,b| a['displayOrder'] <=> b['displayOrder']}.group_by{|it| it['fieldGroup']}.values.collect { |it| it.sort{|a,b| a['displayOrder'].to_i <=> b['displayOrder'].to_i}}.flatten +
-        option_types.select {|it| 'advanced'.casecmp?(it['fieldGroup'])}.sort {|a,b| a['displayOrder'].to_i <=> b['displayOrder'].to_i}
+        if option_types.find {|it| it['fieldGroup'] || it['displayOrder'] }
+          option_types.select {|it| (it['fieldGroup'] || 'default').casecmp?('default')}.sort {|a,b| a['displayOrder'].to_i <=> b['displayOrder'].to_i} +
+          option_types.reject {|it| ['default', 'advanced'].include?((it['fieldGroup'] || 'default').downcase)}.sort{|a,b| a['displayOrder'] <=> b['displayOrder']}.group_by{|it| it['fieldGroup']}.values.collect { |it| it.sort{|a,b| a['displayOrder'].to_i <=> b['displayOrder'].to_i}}.flatten +
+          option_types.select {|it| 'advanced'.casecmp?(it['fieldGroup'])}.sort {|a,b| a['displayOrder'].to_i <=> b['displayOrder'].to_i}
+        else
+          option_types
+        end
       end
 
       def self.display_select_options(opt, select_options = [], paging = nil)
