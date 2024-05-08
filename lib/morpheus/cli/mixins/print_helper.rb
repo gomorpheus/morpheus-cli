@@ -362,7 +362,7 @@ module Morpheus::Cli::PrintHelper
         end
       end
     end
-    if payload && !payload.empty?
+    if payload #&& !payload.empty?
       out <<  + ' \\' + "\n"
       if headers && headers['Content-Type'] == 'application/json'
         if payload.is_a?(String)
@@ -386,7 +386,7 @@ module Morpheus::Cli::PrintHelper
           # pretty_size = Filesize.from("#{payload.size} B").pretty.strip
           pretty_size = "#{payload.size} B"
           # print "File: #{payload.path} (#{payload.size} bytes)"
-          out << "  -d @#{payload.path}"
+          out << "  --data-binary @#{payload.path}"
         elsif payload.is_a?(String)
           out << "  -d '#{payload}'"
         elsif payload.respond_to?(:map)
