@@ -3,7 +3,7 @@ require 'morpheus/cli/cli_command'
 class Morpheus::Cli::EmailTemplates
   include Morpheus::Cli::CliCommand
 
-  register_subcommands :list, :get, :add, :update, :remove, :execute
+  register_subcommands :list, :get, :add, :update, :remove
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
