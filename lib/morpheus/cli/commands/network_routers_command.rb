@@ -1010,68 +1010,63 @@ class Morpheus::Cli::NetworkRoutersCommand
       puts optparse
       return 1
     end
+    @network_routers_interface.setopts(options)
+    if options[:dry_run]
+      if args[0].to_s =~ /\A\d{1,}\Z/
+        print_dry_run @network_routers_interface.dry.get(args[0].to_i)
+      else
+        print_dry_run @network_routers_interface.dry.list({name:args[0]})
+      end
+      return
+    end
     _firewall_rule(args[0], args[1], options)
   end
 
   def _firewall_rule(router_id, rule_id, options)
-    begin
-      @network_routers_interface.setopts(options)
-      if options[:dry_run]
-        if args[0].to_s =~ /\A\d{1,}\Z/
-          print_dry_run @network_routers_interface.dry.get(router_id.to_i)
-        else
-          print_dry_run @network_routers_interface.dry.list({name:router_id})
-        end
-        return
-      end
-      router = find_router(router_id)
-      if router.nil?
-        return 1
-      end
-
-      if router['type']['hasFirewall']
-        rule = find_firewall_rule(router, rule_id)
-
-        if rule
-          json_response = {'rule' => rule}
-
-          if options[:json]
-            puts as_json(json_response, options, "rule")
-            return 0
-          elsif options[:yaml]
-            puts as_yaml(json_response, options, "rule")
-            return 0
-          elsif options[:csv]
-            puts records_as_csv([json_response['rule']], options)
-            return 0
-          end
-
-          print_h1 "Firewall Rule Details"
-          print cyan
-          description_cols = {
-            "ID" => lambda {|it| it['id'] },
-            "Enabled" => lambda {|it| format_boolean(it['enabled'])},
-            "Priority" => lambda {|it| it['priority']},
-            "Name" => lambda {|it| it['name'] },
-            "Type" => lambda {|it| it['ruleType'] },
-            "Policy" => lambda {|it| it['policy'] },
-            "Direction" => lambda {|it| it['direction'] || 'any' },
-            "Source" => lambda {|it| it['source'].kind_of?(Array) && it['source'].count > 0 ? it['source'].join(', ') : (it['source'].nil? || it['source'].empty? ? 'any' : it['source']) },
-            "Destination" => lambda {|it| it['destination'].kind_of?(Array) && it['destination'].count > 0 ? it['destination'].join(', ') : (it['destination'].nil? || it['destination'].empty? ? 'any' : it['destination'])},
-            "Application" => lambda {|it| it['applications'].count > 0 ? it['applications'][0]['name'] : "#{(it['protocol'] || 'any')} #{it['portRange'] || ''}"}
-          }
-          print_description_list(description_cols, rule)
-        else
-          print_red_alert "Firewall rule #{rule_id} not found for router #{router['name']}"
-        end
-      else
-        print_red_alert "Firewall not supported for #{router['type']['name']}"
-      end
-      println reset
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
+    router = find_router(router_id)
+    if router.nil?
       return 1
     end
+
+    if router['type']['hasFirewall']
+      rule = find_firewall_rule(router, rule_id)
+
+      if rule
+        json_response = {'rule' => rule}
+
+        if options[:json]
+          puts as_json(json_response, options, "rule")
+          return 0
+        elsif options[:yaml]
+          puts as_yaml(json_response, options, "rule")
+          return 0
+        elsif options[:csv]
+          puts records_as_csv([json_response['rule']], options)
+          return 0
+        end
+
+        print_h1 "Firewall Rule Details"
+        print cyan
+        description_cols = {
+          "ID" => lambda {|it| it['id'] },
+          "Enabled" => lambda {|it| format_boolean(it['enabled'])},
+          "Priority" => lambda {|it| it['priority']},
+          "Name" => lambda {|it| it['name'] },
+          "Type" => lambda {|it| it['ruleType'] },
+          "Policy" => lambda {|it| it['policy'] },
+          "Direction" => lambda {|it| it['direction'] || 'any' },
+          "Source" => lambda {|it| it['source'].kind_of?(Array) && it['source'].count > 0 ? it['source'].join(', ') : (it['source'].nil? || it['source'].empty? ? 'any' : it['source']) },
+          "Destination" => lambda {|it| it['destination'].kind_of?(Array) && it['destination'].count > 0 ? it['destination'].join(', ') : (it['destination'].nil? || it['destination'].empty? ? 'any' : it['destination'])},
+          "Application" => lambda {|it| it['applications'].count > 0 ? it['applications'][0]['name'] : "#{(it['protocol'] || 'any')} #{it['portRange'] || ''}"}
+        }
+        print_description_list(description_cols, rule)
+      else
+        print_red_alert "Firewall rule #{rule_id} not found for router #{router['name']}"
+      end
+    else
+      print_red_alert "Firewall not supported for #{router['type']['name']}"
+    end
+    println reset
   end
 
   def add_firewall_rule(args)
