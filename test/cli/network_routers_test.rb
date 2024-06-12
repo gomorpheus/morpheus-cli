@@ -18,36 +18,28 @@ class MorpheusTest::NetworkRoutersTest < MorpheusTest::TestCase
   end
 
   def test_network_routers_firewall_rules
-    network_router = client.network_routers.list({})['networkRouters'].find { |router|
-      if router['firewall']
-        rules = router['type']['hasFirewallGroups'] ? (router['firewall']['ruleGroups'] || []).collect {|it| it['rules']}.flatten : router['firewall']['rules']
-        rules && !rules.empty?
-      else
-        false
-      end
-    }
+    network_router = client.network_routers.list({})['networkRouters'].find {|it| it['firewall'] }
     if network_router
       assert_execute %(network-routers firewall-rules "#{network_router['id']}")
     else
-      puts "No network routers found with firewall rules, unable to execute test `#{__method__}`"
+      puts "No network routers found with a firewall, unable to execute test `#{__method__}`"
     end
   end
 
   def test_network_routers_firewall_rules_get
-    network_router = client.network_routers.list({})['networkRouters'].find { |router|
-      if router['firewall']
-        rules = router['type']['hasFirewallGroups'] ? (router['firewall']['ruleGroups'] || []).collect {|it| it['rules']}.flatten : router['firewall']['rules']
-        rules && !rules.empty?
-      else
-        false
-      end
-    }
+    network_router = client.network_routers.list({})['networkRouters'].find {|it| it['firewall'] }
     if network_router
+      # need to get by id to get the firewall rules
+      network_router = client.network_routers.get(network_router['id'])['networkRouter']
       rules = network_router['type']['hasFirewallGroups'] ? (network_router['firewall']['ruleGroups'] || []).collect {|it| it['rules']}.flatten : network_router['firewall']['rules']
       rule = rules[0]
-      assert_execute %(network-routers firewall-rule "#{network_router['id']}" "#{rule['id']}")
+      if rule
+        assert_execute %(network-routers firewall-rule "#{network_router['id']}" "#{rule['id']}")
+      else
+        puts "No network router firewall rules found, unable to execute test `#{__method__}`"
+      end
     else
-      puts "No network routers found with firewall rules, unable to execute test `#{__method__}`"
+      puts "No network routers found with a firewall, unable to execute test `#{__method__}`"
     end
   end
 
