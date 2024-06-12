@@ -37,7 +37,6 @@ class MorpheusTest::NetworkRoutersTest < MorpheusTest::TestCase
     network_router = client.network_routers.list({})['networkRouters'].find { |router|
       if router['firewall']
         rules = router['type']['hasFirewallGroups'] ? (router['firewall']['ruleGroups'] || []).collect {|it| it['rules']}.flatten : router['firewall']['rules']
-        puts "rules: #{rules.size}"
         rules && !rules.empty?
       else
         false
