@@ -21,6 +21,8 @@ Gem::Specification.new do |spec|
   spec.required_ruby_version = '>= 2.5.1' # according to http.rb doc
   spec.add_development_dependency "bundler", "~> 2.2"
   spec.add_development_dependency "rake"
+  # Fix for mismatched deps: https://github.com/ffi/ffi/issues/1103
+  spec.add_dependency "ffi", "< 1.17.0"
   spec.add_dependency 'term-ansicolor', '~> 1.3.0'
   spec.add_dependency "rest-client", "2.0.2"
   spec.add_dependency 'multipart-post'
