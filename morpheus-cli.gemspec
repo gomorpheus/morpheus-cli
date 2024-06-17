@@ -19,6 +19,7 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   spec.required_ruby_version = '>= 2.5.1' # according to http.rb doc
+  spec.add_dependency "ffi", "1.15.5" # Fix for mismatched deps: https://github.com/ffi/ffi/issues/1103
   spec.add_development_dependency "bundler", "~> 2.2"
   spec.add_development_dependency "rake"
   spec.add_dependency 'term-ansicolor', '~> 1.3.0'
