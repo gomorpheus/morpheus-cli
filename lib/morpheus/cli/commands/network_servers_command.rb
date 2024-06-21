@@ -38,6 +38,8 @@ class Morpheus::Cli::NetworkServersCommand
       #   params['enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s.empty?
       # end
       # ['name', 'serviceUsername', 'servicePassword', 'servicePort', 'serviceHost', 'serviceUrl', 'serviceMode', 'networkFilter', 'tenantMatch']
+      #build_option_type_options(opts, options, add_network_server_option_types)
+      build_option_type_options(opts, options, add_network_server_advanced_option_types)
       build_standard_add_options(opts, options)
       opts.footer = <<-EOT
 Create a new network server.
@@ -110,6 +112,15 @@ EOT
       # params['type'] = network_server_type['code']
       option_result = prompt(network_server_type['optionTypes'], options.merge({:context_map => {'networkServer' => ''}}))
       params.deep_merge!(option_result)
+
+      # advanced options
+      advanced_option_types = update_network_server_advanced_option_types
+      if advanced_option_types && !advanced_option_types.empty?
+        v_prompt = Morpheus::Cli::OptionTypes.no_prompt(advanced_option_types, options[:options], @api_client, {})
+        v_prompt.deep_compact!
+        v_prompt.booleanize! # 'on' => true
+        params.deep_merge!(v_prompt)
+      end
       payload.deep_merge!({rest_object_key => params})
     end
     @network_servers_interface.setopts(options)
@@ -138,6 +149,8 @@ EOT
       #   params['enabled'] = val.to_s == 'on' || val.to_s == 'true' || val.to_s.empty?
       # end
       # ['name', 'serviceUsername', 'servicePassword', 'servicePort', 'serviceHost', 'serviceUrl', 'serviceMode', 'networkFilter', 'tenantMatch']
+      #build_option_type_options(opts, options, update_network_server_option_types)
+      build_option_type_options(opts, options, update_network_server_advanced_option_types)
       build_standard_update_options(opts, options)
       opts.footer = <<-EOT
 Update a network server.
@@ -154,6 +167,16 @@ EOT
     
     # merge -O options into normally parsed options
     params.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+
+    # params['tenants'] = options['tenants'].collect {|it| {'id': it}}
+    # advanced options
+    advanced_option_types = update_network_server_advanced_option_types
+    if advanced_option_types && !advanced_option_types.empty?
+      v_prompt = Morpheus::Cli::OptionTypes.no_prompt(advanced_option_types, options[:options], @api_client, {})
+      v_prompt.deep_compact!
+      v_prompt.booleanize! # 'on' => true
+      params.deep_merge!(v_prompt)
+    end
 
     # construct payload
     payload = nil
@@ -228,35 +251,13 @@ EOT
     'networkServer'
   end
 
-  # def render_response_for_get(json_response, options)
-  #   # load the type and show fields dynamically based on optionTypes
-  #   render_response(json_response, options, rest_object_key) do
-  #     type_record = rest_type_find_by_name_or_id(json_response[rest_object_key]['type']['id']) rescue nil
-  #     type_option_types = type_record ? (type_record['optionTypes'] || []) : []
-  #     record = json_response[rest_object_key]
-  #     print_h1 rest_label, [], options
-  #     print cyan
-  #     columns = rest_column_definitions(options)
-  #     if record['credential'] && record['credential']['type'] != 'local'
-  #       columns.delete("Username")
-  #       columns.delete("Password")
-  #     end
-  #     columns.delete("Throttle Rate") unless type_option_types.find {|it| it['fieldName'] == 'serviceThrottleRate' }
-  #     columns.delete("Disable SSL SNI") unless type_option_types.find {|it| it['fieldName'] == 'ignoreSsl' }
-  #     columns.delete("Network Filter") unless type_option_types.find {|it| it['fieldName'] == 'networkFilter' }
-  #     columns.delete("Zone Filter") unless type_option_types.find {|it| it['fieldName'] == 'zoneFilter' }
-  #     columns.delete("Tenant Match") unless type_option_types.find {|it| it['fieldName'] == 'tenantMatch' }
-  #     columns.delete("IP Mode") unless type_option_types.find {|it| it['fieldName'] == 'serviceMode' }
-  #     columns.delete("Extra Attributes") unless type_option_types.find {|it| it['fieldName'] == 'extraAttributes' }
-  #     columns.delete("App ID") unless type_option_types.find {|it| it['fieldName'] == 'appId' }
-  #     columns.delete("Inventory Existing") unless type_option_types.find {|it| it['fieldName'] == 'inventoryExisting' }
-  #     columns.delete("Enabled") if record['enabled'].nil? # was not always returned, so don't show false if not present..
-  #     print_description_list(columns, record, options)
-  #     print reset,"\n"
-  #   end
-  # end
+  def render_response_for_get(json_response, options)
+    record = json_response[rest_object_key]
+    options[:exclude_tenants] = record['tenants'].nil?
+    super(json_response, options)
+  end
 
- def find_network_server_by_name_or_id(val)
+  def find_network_server_by_name_or_id(val)
     if val.to_s =~ /\A\d{1,}\Z/
       return find_network_server_by_id(val)
     else
@@ -309,19 +310,31 @@ EOT
   end
 
   def add_network_server_advanced_option_types()
-    []
-  end
-
-  def update_network_server_option_types()
     [
-      {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text'},
-      {'fieldName' => 'description', 'fieldLabel' => 'Description', 'type' => 'text'},
-      {'fieldName' => 'enabled', 'fieldLabel' => 'Enabled', 'type' => 'checkbox'},
+      {'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'fieldGroup' => 'Advanced', 'type' => 'select', 'selectOptions' => [{'name' => 'Private', 'value' => 'private'},{'name' => 'Public', 'value' => 'public'}], 'required' => false, 'description' => 'Visibility', 'category' => 'permissions', 'defaultValue' => 'private'},
+      {'fieldName' => 'tenants', 'fieldLabel' => 'Tenants', 'fieldGroup' => 'Advanced', 'type' => 'multiSelect', 'resultValueField' => 'id', 'optionSource' => lambda { |api_client, api_params|
+        api_client.options.options_for_source("allTenants", {})['data']
+      }},
     ]
   end
 
+  def update_network_server_option_types()
+    list = add_network_server_option_types.collect {|it|
+      it.delete('required')
+      it.delete('defaultValue')
+      it
+    }
+    list = list.reject {|it| ["type"].include? it['fieldName'] }
+    list
+  end
+
   def update_network_server_advanced_option_types()
-    []
+    list = add_network_server_advanced_option_types.collect {|it|
+      it.delete('required')
+      it.delete('defaultValue')
+      it
+    }
+    list
   end
 
   def network_server_list_column_definitions(options)
@@ -338,13 +351,12 @@ EOT
   end
 
   def network_server_column_definitions(options)
-    {
+    columns = {
       "ID" => 'id',
       "Name" => lambda {|it| it['name'] },
       "Type" => lambda {|it| it['type'] ? it['type']['name'] : '' },
       "URL" => lambda {|it| it['serviceUrl'] },
-      #todo: support credentials
-      #"Credentials" => lambda {|it| it['credential'] ? (it['credential']['type'] == 'local' ? '(Local)' : it['credential']['name']) : nil },
+      "Credentials" => lambda {|it| it['credential'] ? (it['credential']['type'] == 'local' ? '(Local)' : it['credential']['name']) : nil },
       "Username" => lambda {|it| it['serviceUsername'] },
       "Password" => lambda {|it| it['servicePassword'] },
       "Service Mode" => lambda {|it| it['serviceMode'] },
@@ -352,10 +364,16 @@ EOT
       "Network Filter" => lambda {|it| it['networkFilter'] },
       "Tenant Match" => lambda {|it| it['tenantMatch'] },
       #"Enabled" => lambda {|it| format_boolean(it['enabled']) },
+      "Visibility" => lambda {|it| it['visibility'] ? it['visibility'].capitalize() : '' },
+      "Tenants" => lambda { |it| it['tenants'].collect {|tenant| tenant['name']}.join(', ') rescue '' },
       "Status" => lambda {|it| format_network_server_status(it) },
-      "Date Created" => lambda {|it| format_local_dt(it['dateCreated']) },
-      "Last Updated" => lambda {|it| format_local_dt(it['lastUpdated']) },
+      "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+      "Updated" => lambda {|it| format_local_dt(it['lastUpdated']) }
     }
+    if options[:exclude_tenants]
+      columns.delete("Tenants")
+    end
+    columns
   end
 
   def format_network_server_status(network_server, return_color=cyan)
