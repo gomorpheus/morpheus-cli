@@ -110,13 +110,15 @@ EOT
       # prompt options by type
       network_server_type = @network_server_types_interface.get(network_type_id.to_i)['networkServerType']
       # params['type'] = network_server_type['code']
+      type_options_types = network_server_type['optionTypes'] || []
+      type_options_types.reject! {|it| it['fieldName'] == 'visibility' } # skip visibility, its under advanced now
       option_result = prompt(network_server_type['optionTypes'], options.merge({:context_map => {'networkServer' => ''}}))
       params.deep_merge!(option_result)
 
       # advanced options
-      advanced_option_types = update_network_server_advanced_option_types
+      advanced_option_types = add_network_server_advanced_option_types
       if advanced_option_types && !advanced_option_types.empty?
-        v_prompt = Morpheus::Cli::OptionTypes.no_prompt(advanced_option_types, options[:options], @api_client, {})
+        v_prompt = Morpheus::Cli::OptionTypes.prompt(advanced_option_types, options[:options], @api_client, {})
         v_prompt.deep_compact!
         v_prompt.booleanize! # 'on' => true
         params.deep_merge!(v_prompt)
@@ -311,7 +313,7 @@ EOT
 
   def add_network_server_advanced_option_types()
     [
-      {'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'fieldGroup' => 'Advanced', 'type' => 'select', 'selectOptions' => [{'name' => 'Private', 'value' => 'private'},{'name' => 'Public', 'value' => 'public'}], 'required' => false, 'description' => 'Visibility', 'category' => 'permissions', 'defaultValue' => 'private'},
+      {'fieldName' => 'visibility', 'fieldLabel' => 'Visibility', 'type' => 'select', 'selectOptions' => [{'name' => 'Private', 'value' => 'private'},{'name' => 'Public', 'value' => 'public'}], 'required' => false, 'description' => 'Visibility', 'category' => 'permissions', 'defaultValue' => 'private'},
       {'fieldName' => 'tenants', 'fieldLabel' => 'Tenants', 'fieldGroup' => 'Advanced', 'type' => 'multiSelect', 'resultValueField' => 'id', 'optionSource' => lambda { |api_client, api_params|
         api_client.options.options_for_source("allTenants", {})['data']
       }},
