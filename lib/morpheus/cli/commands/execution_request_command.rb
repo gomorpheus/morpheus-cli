@@ -141,6 +141,7 @@ class Morpheus::Cli::ExecutionRequestCommand
     options = {}
     params = {}
     script_content = nil
+    send_keys = nil
     options[:refresh_until_finished] = true
     optparse = Morpheus::Cli::OptionParser.new do|opts|
       opts.banner = subcommand_usage("[options]")
@@ -159,14 +160,11 @@ class Morpheus::Cli::ExecutionRequestCommand
       opts.on('--script SCRIPT', "Script to be executed" ) do |val|
         script_content = val
       end
-      opts.on('--file FILE', "File containing the script. This can be used instead of --script" ) do |filename|
-        full_filename = File.expand_path(filename)
-        if File.exist?(full_filename)
-          script_content = File.read(full_filename)
-        else
-          print_red_alert "File not found: #{full_filename}"
-          exit 1
-        end
+      opts.on('--optionTypes [true|false]', String, "Include optionTypes in the response. Default is false.") do |val|
+        params['optionTypes'] = (val.to_s == '' || val.to_s == 'on' || val.to_s == 'true')
+      end
+      opts.on('--send-keys [true|false]', "Send key mappings to the hypervisor console so commands such as <LEFT>, <RIGHT> and <WAIT> can be used." ) do |val|
+        send_keys = val.to_s == 'on' || val.to_s == 'true' || val.to_s.empty?
       end
       opts.on('--refresh [SECONDS]', String, "Refresh until execution is finished. Default interval is #{default_refresh_interval} seconds.") do |val|
         options[:refresh_until_finished] = true
@@ -208,6 +206,9 @@ class Morpheus::Cli::ExecutionRequestCommand
           script_content = v_prompt['script']
         end
         payload['script'] = script_content
+        if !send_keys.nil?
+          payload['sendKeys'] = send_keys
+        end
       end
       @execution_request_interface.setopts(options)
       if options[:dry_run]
