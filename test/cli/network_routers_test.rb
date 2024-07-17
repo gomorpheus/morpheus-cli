@@ -8,7 +8,10 @@ class MorpheusTest::NetworkRoutersTest < MorpheusTest::TestCase
   end
 
   def test_network_routers_get
-    network_router = client.network_routers.list({})['networkRouters'][0]
+    # find one that does not have a duplicate name..so we can get it by name
+    #network_router = client.network_routers.list({})['networkRouters'][0]
+    network_routers = client.network_routers.list({})['networkRouters']
+    network_router = network_routers.find {|it| !(network_routers.find {|other| other['name'] == it['name'] }) }
     if network_router
       assert_execute %(network-routers get "#{network_router['id']}")
       assert_execute %(network-routers get "#{escape_arg network_router['name']}")
