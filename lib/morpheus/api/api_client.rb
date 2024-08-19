@@ -1002,6 +1002,9 @@ class Morpheus::APIClient
     Morpheus::EmailTemplatesInterface.new(common_interface_options).setopts(@options)
   end
 
+  def library_operating_systems
+    Morpheus::LibraryOperatingSystemsInterface.new(common_interface_options).setopts(@options)
+  end
 
   def rest(endpoint)
     Morpheus::RestInterface.new(common_interface_options).setopts(@options.merge({base_path: "#{@base_url}/api/#{endpoint}"}))
