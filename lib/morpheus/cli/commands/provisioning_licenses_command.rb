@@ -127,7 +127,6 @@ class Morpheus::Cli::ProvisioningLicensesCommand
         {"Copies" => lambda {|license| 
           "#{license['reservationCount']}/#{license['copies']}"
         } },
-        {"Description" => lambda {|license| license['description'] } },
         {"Virtual Images" => lambda {|it| it['virtualImages'] ? it['virtualImages'].collect {|v| v['name']}.join(', ') : '' } },
         {"Tenants" => lambda {|it| it['tenants'] ? it['tenants'].collect {|acnt| acnt['name']}.join(', ') : '' } },
       ]
