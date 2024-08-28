@@ -1722,6 +1722,8 @@ module Morpheus::Cli::ProvisioningHelper
 
       if ip_required == false && network_interface['ipAddress'] == nil && selected_network['dhcpServer'] == true
         network_interface['ipMode'] = 'dhcp'
+      elsif network_interface['ipAddress']
+        network_interface['ipMode'] = 'static'
       end
 
       network_interfaces << network_interface
