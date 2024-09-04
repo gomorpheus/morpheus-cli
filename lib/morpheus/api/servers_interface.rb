@@ -191,5 +191,26 @@ class Morpheus::ServersInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def maintenance(serverId, payload = {}, params = {})
+    url = "#{@base_url}/api/servers/#{serverId}/maintenance"
+    headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
+  def leave_maintenance(serverId, payload = {}, params = {})
+    url = "#{@base_url}/api/servers/#{serverId}/leave-maintenance"
+    headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
+  def placement(serverId, payload = {}, params = {})
+    url = "#{@base_url}/api/servers/#{serverId}/placement"
+    headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
 
 end

@@ -11,7 +11,8 @@ class Morpheus::Cli::Hosts
                        :run_workflow, :make_managed, :upgrade_agent, :snapshots, :software, :software_sync, :update_network_label,
                        {:'types' => :list_types},
                        {:exec => :execution_request},
-                       :wiki, :update_wiki
+                       :wiki, :update_wiki,
+                       :maintenance, :leave_maintenance, :placement
   alias_subcommand :details, :get
   set_default_subcommand :list
 
@@ -2149,6 +2150,232 @@ EOT
     end
   end
 
+  def update_network_label(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[server] [options]")
+      opts.on('--network NETWORK', "Network Interface ID" ) do |val|
+        options[:network] = val
+      end
+      opts.on('--label LABEL', "label") do |val|
+        options[:label] = val
+      end
+      opts.footer = "Change the label of a Network Interface.\n" +
+                    "Editing an Interface will not apply changes to the physical hardware. The purpose is for a manual override or data correction (mostly for self managed or baremetal servers where cloud sync is not available)\n" +
+                    "[name or id] is required. The name or the id of the server.\n" +
+                    "[network] ID of the Network Interface. (optional).\n" +
+                    "[label] New Label name for the Network Interface (optional)"
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      puts_error  "#{Morpheus::Terminal.angry_prompt}wrong number of arguments. Expected 1 and received #{args.count} #{args.inspect}\n#{optparse}"
+      return 1
+    end
+    connect(options)
+
+    begin
+      host = find_host_by_name_or_id(args[0])
+      return 1 if host.nil?
+
+      network_id = options[:network]
+      if network_id != nil && network_id.to_i == 0
+        print_red_alert  "network must be an ID/integer above 0, not a name/string value."
+        network_id = nil
+      end
+
+
+      if !network_id
+        available_networks = get_available_networks(host)
+        network_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'network', 'fieldLabel' => 'Network', 'type' => 'select', 'selectOptions' => available_networks, 'required' => true, 'defaultValue' => available_networks[0], 'description' => "The networks available for relabeling"}], options[:options])
+        network_id = network_prompt['network']
+      end
+
+      label = options[:label]
+      while label.nil? do
+        label_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'label', 'fieldLabel' => 'Label', 'type' => 'text', 'required' => true}], options[:options])
+        label = label_prompt['label']
+      end
+      payload = { "name" => label }
+      if options[:dry_run]
+        print_dry_run @servers_interface.dry.update_network_label(network_id, host["id"], payload)
+        return
+      end
+      json_response = @servers_interface.update_network_label(network_id, host["id"], payload)
+      if options[:json]
+        puts as_json(json_response, options)
+      else
+        print_green_success "Updated label for host #{host['name']} network #{network_id} to #{label}"
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+
+  def maintenance(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[host]")
+      build_standard_update_options(opts, options, [:auto_confirm])
+      opts.footer = <<-EOT
+Enable maintenance mode for a host.
+[host] is required. This is the name or id of a host.
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    
+    server = find_host_by_name_or_id(args[0])
+    return 1 if server.nil?
+
+    # Just let the API return this error instead
+
+    # # load server type to determine if maintenance mode is supported
+    # server_type_id = server['computeServerType']['id']
+    # server_type = @server_types_interface.get(server_type_id)['serverType']
+    # if !server_type['hasMaintenanceMode']
+    #   raise_command_error "Server type does not support maintenance mode"
+    # end
+
+    payload = {}
+    if options[:payload]
+      payload = options[:payload]
+      payload.deep_merge!(parse_passed_options(options))
+    else
+      payload.deep_merge!(parse_passed_options(options))
+    end
+    params = {}
+    params.merge!(parse_query_options(options))
+
+    confirm!("Are you sure you would like to enable maintenance mode on host '#{server['name']}'?", options)
+
+    @servers_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @servers_interface.dry.maintenance(server['id'], payload, params)
+      return
+    end
+    json_response = @servers_interface.maintenance(server['id'], payload, params)
+    render_response(json_response, options) do
+      print_green_success "Maintenance mode enabled for host #{server['name']}"
+      #get([server['id']])
+    end
+    return 0, nil
+  end
+
+  def leave_maintenance(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[host]")
+      build_standard_update_options(opts, options, [:auto_confirm])
+      opts.footer = <<-EOT
+Disable maintenance mode for a host.
+[host] is required. This is the name or id of a host.
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    
+    server = find_host_by_name_or_id(args[0])
+    return 1 if server.nil?
+
+    # Just let the API return this error instead
+    
+    # # load server type to determine if maintenance mode is supported
+    # server_type_id = server['computeServerType']['id']
+    # server_type = @server_types_interface.get(server_type_id)['serverType']
+    # if !server_type['hasMaintenanceMode']
+    #   raise_command_error "Server type does not support maintenance mode"
+    # end
+
+    payload = {}
+    if options[:payload]
+      payload = options[:payload]
+      payload.deep_merge!(parse_passed_options(options))
+    else
+      payload.deep_merge!(parse_passed_options(options))
+    end
+    params = {}
+    params.merge!(parse_query_options(options))
+
+    confirm!("Are you sure you would like to leave maintenance mode on host '#{server['name']}'?", options)
+
+    @servers_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @servers_interface.dry.leave_maintenance(server['id'], payload, params)
+      return
+    end
+    json_response = @servers_interface.leave_maintenance(server['id'], payload, params)
+    render_response(json_response, options) do
+      print_green_success "Maintenance mode enabled for host #{server['name']}"
+      #get([server['id']])
+    end
+    return 0, nil
+  end
+
+  def placement(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[host]")
+      build_standard_update_options(opts, options, [:auto_confirm])
+      opts.footer = <<-EOT
+Update placement for a host.
+[host] is required. This is the name or id of a host.
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    
+    server = find_host_by_name_or_id(args[0])
+    return 1 if server.nil?
+    payload = {}
+    if options[:payload]
+      payload = options[:payload]
+      payload.deep_merge!({'server' => parse_passed_options(options)})
+    else
+      payload.deep_merge!({'server' => parse_passed_options(options)})
+      # prompt 
+      # Host (preferredParentServer.id)
+      if payload['server']['host']
+        options[:options] = payload['server'].remove('host')
+      end
+      default_host = (server['preferredParentServer'] ? server['preferredParentServer']['id'] : (server['parentServer'] ? server['parentServer']['id'] : nil))
+      host = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'host', 'type' => 'select', 'fieldLabel' => 'Host', 'optionSource' => 'parentServers', 'required' => false, 'description' => 'Choose the preferred parent host for this virtual machine to be placed on.', 'defaultValue' => default_host}],options[:options],@api_client,{'serverId' => server['id']})['host']
+      if !host.to_s.empty?
+        payload['server']['preferredParentServer'] = {'id' => host}
+      end
+
+
+      # Placement Strategy (placementStrategy)
+      placement_strategy = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'placementStrategy', 'type' => 'select', 'fieldLabel' => 'Placement Strategy', 'optionSource' => 'placementStrategies', 'required' => false, 'description' => 'Choose the placement strategy for this virtual machine.', 'defaultValue' => server['placementStrategy']}],options[:options],@api_client,{'serverId' => server['id']})['placementStrategy']
+      if !placement_strategy.to_s.empty?
+        payload['server']['placementStrategy'] = placement_strategy
+      end
+    end
+    params = {}
+    params.merge!(parse_query_options(options))
+
+    confirm!("Are you sure you would like to update placement for host '#{server['name']}'?", options)
+
+    @servers_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @servers_interface.dry.placement(server['id'], payload, params)
+      return
+    end
+    json_response = @servers_interface.placement(server['id'], payload, params)
+    render_response(json_response, options) do
+      print_green_success "Maintenance mode enabled for host #{server['name']}"
+      #get([server['id']])
+    end
+    return 0, nil
+  end
+
   private
 
   def find_host_by_id(id)
@@ -2295,71 +2522,6 @@ EOT
       out = format_server_status(server, return_color)
     end
     out
-  end
-
-  def update_network_label(args)
-    options = {}
-    params = {}
-    optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[server] [options]")
-      opts.on('--network NETWORK', "Network Interface ID" ) do |val|
-        options[:network] = val
-      end
-      opts.on('--label LABEL', "label") do |val|
-        options[:label] = val
-      end
-      opts.footer = "Change the label of a Network Interface.\n" +
-                    "Editing an Interface will not apply changes to the physical hardware. The purpose is for a manual override or data correction (mostly for self managed or baremetal servers where cloud sync is not available)\n" +
-                    "[name or id] is required. The name or the id of the server.\n" +
-                    "[network] ID of the Network Interface. (optional).\n" +
-                    "[label] New Label name for the Network Interface (optional)"
-      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
-    end
-    optparse.parse!(args)
-    if args.count != 1
-      puts_error  "#{Morpheus::Terminal.angry_prompt}wrong number of arguments. Expected 1 and received #{args.count} #{args.inspect}\n#{optparse}"
-      return 1
-    end
-    connect(options)
-
-    begin
-      host = find_host_by_name_or_id(args[0])
-      return 1 if host.nil?
-
-      network_id = options[:network]
-      if network_id != nil && network_id.to_i == 0
-        print_red_alert  "network must be an ID/integer above 0, not a name/string value."
-        network_id = nil
-      end
-
-
-      if !network_id
-        available_networks = get_available_networks(host)
-        network_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'network', 'fieldLabel' => 'Network', 'type' => 'select', 'selectOptions' => available_networks, 'required' => true, 'defaultValue' => available_networks[0], 'description' => "The networks available for relabeling"}], options[:options])
-        network_id = network_prompt['network']
-      end
-
-      label = options[:label]
-      while label.nil? do
-        label_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'label', 'fieldLabel' => 'Label', 'type' => 'text', 'required' => true}], options[:options])
-        label = label_prompt['label']
-      end
-      payload = { "name" => label }
-      if options[:dry_run]
-        print_dry_run @servers_interface.dry.update_network_label(network_id, host["id"], payload)
-        return
-      end
-      json_response = @servers_interface.update_network_label(network_id, host["id"], payload)
-      if options[:json]
-        puts as_json(json_response, options)
-      else
-        print_green_success "Updated label for host #{host['name']} network #{network_id} to #{label}"
-      end
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
-    end
   end
 
   def get_available_networks(host)
