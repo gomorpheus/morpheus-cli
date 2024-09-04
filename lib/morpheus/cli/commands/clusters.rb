@@ -626,8 +626,10 @@ class Morpheus::Cli::Clusters
         service_plan = prompt_service_plan(api_params, options)
 
         if service_plan
-          server_payload['plan'] = {'id' => service_plan['id'], 'code' => service_plan['code'], 'options' => prompt_service_plan_options(service_plan, provision_type, options)}
+          server_payload['plan'] = {'id' => service_plan['id'], 'code' => service_plan['code']}
           api_params['planId'] = service_plan['id']
+          plan_opts = prompt_service_plan_options(service_plan, provision_type, options)
+          server_payload['servicePlanOptions'] = plan_opts if plan_opts && !plan_opts.empty?
         end
 
         # Multi-disk / prompt for volumes
@@ -1289,7 +1291,9 @@ class Morpheus::Cli::Clusters
         service_plan = prompt_service_plan({zoneId: cloud_id, siteId: cluster['site']['id'], provisionTypeId: server_type['provisionType']['id'], groupTypeId: cluster_type['id'], }, options)
 
         if service_plan
-          server_payload['plan'] = {'code' => service_plan['code'], 'options' => prompt_service_plan_options(service_plan, nil, options)}
+          server_payload['plan'] = {'code' => service_plan['code']}
+          plan_opts = prompt_service_plan_options(service_plan, nil, options)
+          server_payload['servicePlanOptions'] = plan_opts if plan_opts && !plan_opts.empty?
         end
 
         if resource_pool = prompt_resource_pool(cluster, cloud, service_plan, server_type['provisionType'], options)
