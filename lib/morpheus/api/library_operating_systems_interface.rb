@@ -4,7 +4,7 @@ class Morpheus::LibraryOperatingSystemsInterface < Morpheus::APIClient
 
   def list_os_types(params={})
     url = "#{@base_url}/api/library/operating-systems/os-types"
-    params['sort'] = 'name'
+    params['pageConfig'] = { sort:'owner,name', order:'desc,asc' }
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers}
     execute(opts)
@@ -15,6 +15,13 @@ class Morpheus::LibraryOperatingSystemsInterface < Morpheus::APIClient
     url = "#{@base_url}/api/library/operating-systems/os-types/#{id}"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
     opts = {method: :get, url: url, headers: headers}
+    execute(opts)
+  end
+
+  def update(id, payload)
+    url = "#{@base_url}/api/library/operating-systems/#{id}"
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :put, url: url, headers: headers, payload: payload.to_json}
     execute(opts)
   end
 
@@ -33,8 +40,22 @@ class Morpheus::LibraryOperatingSystemsInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def create(payload)
+    url = "#{@base_url}/api/library/operating-systems"
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :post, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
   def destroy_image(id, payload={})
     url = "#{@base_url}/api/library/operating-systems/os-types/images/#{id}"
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    opts = {method: :delete, url: url, headers: headers, payload: payload.to_json}
+    execute(opts)
+  end
+
+  def destroy(id, payload={})
+    url = "#{@base_url}/api/library/operating-systems/#{id}"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     opts = {method: :delete, url: url, headers: headers, payload: payload.to_json}
     execute(opts)
