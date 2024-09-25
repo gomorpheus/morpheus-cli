@@ -16,7 +16,7 @@ class Morpheus::Cli::PluginsCommand
     params = {}
     filename = nil
     optparse = Morpheus::Cli::OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name] [file]")
+      opts.banner = subcommand_usage("[file]")
       build_standard_post_options(opts, options)
       opts.footer = <<-EOT
 Upload a plugin file.
@@ -55,7 +55,7 @@ EOT
     params = {}
     filename = nil
     optparse = Morpheus::Cli::OptionParser.new do|opts|
-      opts.banner = subcommand_usage("[name] [file]")
+      opts.banner = subcommand_usage("")
       build_standard_post_options(opts, options)
       opts.footer = <<-EOT
 Check for installed plugins that have available updates.
