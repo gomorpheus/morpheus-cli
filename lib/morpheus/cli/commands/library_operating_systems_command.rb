@@ -3,6 +3,7 @@ require 'morpheus/cli/cli_command'
 class Morpheus::Cli::LibraryOperatingSystemsCommand
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::LibraryHelper
+  include Morpheus::Cli::WhoamiHelper
 
   set_command_name :'library-operating-systems'
 
@@ -149,6 +150,9 @@ class Morpheus::Cli::LibraryOperatingSystemsCommand
         "Bit Count" => lambda {|it| it['bitCount'] },
         "Owner" => lambda { |it| it['owner']}
       }
+      if is_master_account
+        description_cols["Visibility"] = lambda {|it| it['visibility']}
+      end
 
       print_description_list(description_cols, os_type)
       title = "OsType - Images"
