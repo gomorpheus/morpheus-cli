@@ -351,6 +351,7 @@ class Morpheus::Cli::LibraryOperatingSystemsCommand
 
   def update(args)
     options = {}
+    params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[osType] [options]")
       opts.on('-n', '--name VALUE', String, "Name of OsType") do |val|
@@ -390,7 +391,7 @@ class Morpheus::Cli::LibraryOperatingSystemsCommand
         params['description'] = val
       end
       opts.on('--install-agent [on|off]', String, "Install Agent? Pass true to install agent. Default is false.") do |val|
-        options['installAgent'] = !['false','off','0'].include?(val.to_s)
+        params['installAgent'] = !['false','off','0'].include?(val.to_s)
       end
 
       build_common_options(opts, options, [:options, :json, :dry_run, :remote])
@@ -414,7 +415,6 @@ class Morpheus::Cli::LibraryOperatingSystemsCommand
       }
 
       # no prompting, just collect all user passed options
-      params = {}
       params.deep_merge!(options.reject {|k,v| k.is_a?(Symbol) })
       params.deep_merge!(options[:options]) if options[:options]
 
