@@ -1324,15 +1324,19 @@ module Morpheus
 
         # supports multi-part fields via config.fields
         # {"fields": [{"name":"tag", "required":true, "label": "Tag"}, {"name":"value", "required":false, "label": "Scope"}]}
+        min_count = option_type['minCount'] || 1
+        count = 0
+
         if option_type['config']['fields']
-          while (option_type['required'] && rtn.empty?) || self.confirm("Add#{rtn.empty? ? '': ' more'} #{option_type['fieldLabel']}?", {:default => false})
+          while (option_type['required'] && (rtn.empty? || count < min_count)) || self.confirm("Add#{rtn.empty? ? '': ' more'} #{option_type['fieldLabel']}?", {:default => false})
             rtn ||= []
             value = {}
             option_type['config']['fields'].each do |field|
               field_label = field['label'] || field['name'].capitalize
-              value[field['name']] = generic_prompt(option_type.merge({'fieldLabel' => field_label, 'required' => field['required'], 'description' => "#{option_type['fieldLabel']} #{field_label}"}))
+              value[field['name']] = generic_prompt(option_type.merge({'fieldLabel' => min_count > 1 ? "#{field_label} #{count + 1}" : field_label, 'required' => field['required'], 'description' => "#{option_type['fieldLabel']} #{field_label}"}))
             end
             rtn << value
+            count += 1
           end
         else
           if rtn = generic_prompt(option_type)
