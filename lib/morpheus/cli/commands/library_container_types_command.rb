@@ -163,6 +163,9 @@ class Morpheus::Cli::LibraryContainerTypesCommand
         "Virtual Image" => lambda {|it| 
           it['virtualImage'] ? it['virtualImage']['name'] : ''
         },
+        "OsType" => lambda {|it| 
+          it['osType'] ? it['osType']['name'] : ''
+        },
         # "Category" => lambda {|it| it['category'].to_s.capitalize },
         # # "Logo" => lambda {|it| it['logo'].to_s },
         # "Visiblity" => lambda {|it| it['visibility'].to_s.capitalize },
@@ -473,6 +476,9 @@ class Morpheus::Cli::LibraryContainerTypesCommand
       end
       opts.on('--version VALUE', String, "Version") do |val|
         params['containerVersion'] = val
+      end
+      opts.on('--osType VALUE', Integer, "OsType") do |val|
+        params['osTypeId'] = val
       end
       # opts.on('--technology CODE', String, "Technology") do |val|
       #   params['provisionTypeCode'] = val
