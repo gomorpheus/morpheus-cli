@@ -314,7 +314,7 @@ class Morpheus::Cli::LibraryOperatingSystemsCommand
         prompt_if_nil(params, options, 'osFamily', 'OsFamily')
 
         if params['bitCount'].nil?
-          params['bitCount'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'bitCount', 'type' => 'number', 'fieldLabel' => 'BitCount', 'required' => false, 'description' => 'BitCount.'}],options[:options],@api_client,{})['bitCount']
+          params['bitCount'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'bitCount', 'type' => 'number', 'fieldLabel' => 'BitCount', 'required' => true, 'description' => 'BitCount.'}],options[:options],@api_client,{})['bitCount']
         end
 
         if params['cloudInitVersion'].nil?
