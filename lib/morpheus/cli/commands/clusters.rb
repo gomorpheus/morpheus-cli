@@ -589,8 +589,16 @@ class Morpheus::Cli::Clusters
         # Provision Type
         provision_type = (layout && layout['provisionType'] ? layout['provisionType'] : nil) || get_provision_type_for_zone_type(cloud['zoneType']['id'])
         provision_type = @provision_types_interface.get(provision_type['id'])['provisionType'] if !provision_type.nil?
-
         api_params = {zoneId: cloud['id'], siteId: group['id'], layoutId: layout['id'], groupTypeId: cluster_type['id'], provisionType: provision_type['code'], provisionTypeId: provision_type['id']}
+
+        # Service Plan
+        service_plan = prompt_service_plan(api_params, options)
+        if service_plan
+          server_payload['plan'] = {'id' => service_plan['id'], 'code' => service_plan['code']}
+          api_params['planId'] = service_plan['id']
+          plan_opts = prompt_service_plan_options(service_plan, provision_type, options)
+          server_payload['servicePlanOptions'] = plan_opts if plan_opts && !plan_opts.empty?
+        end
 
         # Controller type
         server_types = @server_types_interface.list({computeTypeId: cluster_type['controllerTypes'].first['id'], zoneTypeId: cloud['zoneType']['id'], useZoneProvisionTypes: true})['serverTypes'].reject {|it| it['provisionType']['code'] == 'manual'}
@@ -608,23 +616,13 @@ class Morpheus::Cli::Clusters
             end
           end
 
-          if controller_provision_type && resource_pool = prompt_resource_pool(group, cloud, nil, controller_provision_type, options)
+          if controller_provision_type && resource_pool = prompt_resource_pool(group, cloud, service_plan, controller_provision_type, options)
             server_payload['config']['resourcePoolId'] = resource_pool['id']
             api_params['config'] ||= {}
             api_params['config']['resourcePool'] = resource_pool['id']
             api_params['resourcePoolId'] = resource_pool['id']
             api_params['zonePoolId'] = resource_pool['id']
           end
-        end
-
-        # Service Plan
-        service_plan = prompt_service_plan(api_params, options)
-
-        if service_plan
-          server_payload['plan'] = {'id' => service_plan['id'], 'code' => service_plan['code']}
-          api_params['planId'] = service_plan['id']
-          plan_opts = prompt_service_plan_options(service_plan, provision_type, options)
-          server_payload['servicePlanOptions'] = plan_opts if plan_opts && !plan_opts.empty?
         end
 
         # Multi-disk / prompt for volumes
