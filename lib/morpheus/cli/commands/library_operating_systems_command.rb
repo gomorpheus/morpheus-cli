@@ -7,7 +7,7 @@ class Morpheus::Cli::LibraryOperatingSystemsCommand
 
   set_command_name :'library-operating-systems'
 
-  register_subcommands :list, :get, :add, :update, :remove, :add_image, :remove_image
+  register_subcommands :list, :get, :add, :update, :remove, :add_image, :remove_image, :get_image
 
   def initialize()
   end
@@ -198,7 +198,7 @@ class Morpheus::Cli::LibraryOperatingSystemsCommand
 
     end
     return run_command_for_each_arg(id_list) do |arg|
-      _get_image(arg, options)
+      _get_image(arg)
     end
   end
 
