@@ -306,6 +306,7 @@ class Morpheus::Cli::License
       used_discovered_servers = current_usage['discoveredServers']
       used_hosts = current_usage['hosts']
       used_mvm = current_usage['mvm']
+      used_mvm_sockets = current_usage['mvmSockets']
       used_iac = current_usage['iac']
       used_xaas = current_usage['xaas']
       used_executions = current_usage['executions']
@@ -317,6 +318,7 @@ class Morpheus::Cli::License
       max_discovered_servers = license['maxDiscoveredServers']
       max_hosts = license['maxHosts']
       max_mvm = license['maxMvm']
+      max_mvm_sockets = license['maxMvmSockets']
       max_iac = license['maxIac']
       max_xaas = license['maxXaas']
       max_executions = license['maxExecutions']
@@ -329,6 +331,7 @@ class Morpheus::Cli::License
       out << cyan + "Discovered Servers".rjust(label_width, ' ') + ": " + generate_usage_bar(used_discovered_servers, max_discovered_servers, chart_opts) + cyan + used_discovered_servers.to_s.rjust(8, ' ') + " / " + (max_discovered_servers ? max_discovered_servers.to_s : unlimited_label).to_s.ljust(15, ' ') + "\n"
       out << cyan + "Hosts".rjust(label_width, ' ') + ": " + generate_usage_bar(used_hosts, max_hosts, chart_opts) + cyan + used_hosts.to_s.rjust(8, ' ') + " / " + (max_hosts ? max_hosts.to_s : unlimited_label).to_s.ljust(15, ' ') + "\n"
       out << cyan + "MVM Hosts".rjust(label_width, ' ') + ": " + generate_usage_bar(used_mvm, max_mvm, chart_opts) + cyan + used_mvm.to_s.rjust(8, ' ') + " / " + (max_mvm ? max_mvm.to_s : unlimited_label).to_s.ljust(15, ' ') + "\n"
+      out << cyan + "MVM Sockets".rjust(label_width, ' ') + ": " + generate_usage_bar(used_mvm_sockets, max_mvm_sockets, chart_opts) + cyan + used_mvm_sockets.to_s.rjust(8, ' ') + " / " + (max_mvm_sockets ? max_mvm_sockets.to_s : unlimited_label).to_s.ljust(15, ' ') + "\n"
       out << cyan + "Iac Deployments".rjust(label_width, ' ') + ": " + generate_usage_bar(used_iac, max_iac, chart_opts) + cyan + used_iac.to_s.rjust(8, ' ') + " / " + (max_iac ? max_iac.to_s : unlimited_label).to_s.ljust(15, ' ') + "\n"
       out << cyan + "Xaas Instances".rjust(label_width, ' ') + ": " + generate_usage_bar(used_xaas, max_xaas, chart_opts) + cyan + used_xaas.to_s.rjust(8, ' ') + " / " + (max_xaas ? max_xaas.to_s : unlimited_label).to_s.ljust(15, ' ') + "\n"
       out << cyan + "Executions".rjust(label_width, ' ') + ": " + generate_usage_bar(used_executions, max_executions, chart_opts) + cyan + used_executions.to_s.rjust(8, ' ') + " / " + (max_executions ? max_executions.to_s : unlimited_label).to_s.ljust(15, ' ') + "\n"
