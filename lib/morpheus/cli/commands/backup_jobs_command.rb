@@ -109,6 +109,9 @@ EOT
       columns = backup_job_column_definitions
       columns.delete("Provider") if backup_job['backupProvider'].nil?
       columns.delete("Repository") if backup_job['backupRepository'].nil?
+      columns.delete("Synthetic Full Enabled") if backup_job['syntheticFull'].nil?
+      columns.delete("Synthetic Full Schedule") if backup_job['syntheticFull'].nil?
+      columns.delete("Synthetic Full Next") if backup_job['syntheticFull'].nil?
       print_description_list(columns, backup_job)
       # print reset,"\n"
       print_h2 "Backups", options
@@ -158,7 +161,7 @@ EOT
         params['scheduleId'] = nil
       end
 
-      job_type_config = Morpheus::Cli::OptionTypes.prompt(backup_job_type_option_types("new", params["jobTypeId"], options), options[:options].deep_merge({:context_map => {'domain' => ''}}), @api_client, options[:params])
+      job_type_config = Morpheus::Cli::OptionTypes.prompt(add_backup_job_type_option_types("new", params["jobTypeId"], options), options[:options].deep_merge({ :context_map => { 'domain' => ''}}), @api_client, options[:params])
       job_type_config.deep_compact!
       params.deep_merge!(job_type_config)
       payload['job'].deep_merge!(params)
@@ -207,7 +210,7 @@ EOT
         v_prompt['scheduleId'] = nil
       end
       params.deep_merge!(v_prompt)
-      advanced_config = Morpheus::Cli::OptionTypes.no_prompt(update_backup_job_advanced_option_types, options[:options], @api_client, options[:params])
+      advanced_config = Morpheus::Cli::OptionTypes.no_prompt(update_backup_job_type_option_types("new", get_object_value(backup_job, "jobType.id"), options[:params]), options[:options], @api_client, options[:params])
       advanced_config.deep_compact!
       params.deep_merge!(advanced_config)
       payload.deep_merge!({'job' => params})
@@ -288,6 +291,9 @@ EOT
       "Schedule" => lambda {|it| it['schedule']['name'] rescue '' },
       "Next" => lambda {|it| format_local_dt(it['nextFire']) },
       "Retention Count" => lambda {|it| it['retentionCount'] rescue '' },
+      "Synthetic Full Enabled" => lambda {|it| it['syntheticFull']['enabled'] rescue ''},
+      "Synthetic Full Schedule" => lambda {|it| it['syntheticFull']['schedule']['name'] rescue ''},
+      "Synthetic Full Next" => lambda {|it|  format_local_dt(it['syntheticFull']['nextFire']) rescue ''},
       "Provider" => lambda {|it| it['backupProvider']['name'] rescue '' },
       "Repository" => lambda {|it| it['backupRepository']['name'] rescue '' },
       "Source" => lambda {|it| it['source'] },
@@ -315,29 +321,13 @@ EOT
     ]
   end
 
-  def update_backup_job_option_types
-    add_backup_job_option_types.collect {|it|
-      it.delete('required')
-      it.delete('defaultValue')
-      it
-    }
-  end
-
-  def update_backup_job_advanced_option_types
-    add_backup_job_advanced_option_types.collect {|it|
-      it.delete('required')
-      it.delete('defaultValue')
-      it
-    }
-  end
-
-  def backup_job_type_option_types(job_action, backup_job_type, options)
-    backup_settings = @backup_settings_interface.get(options)["backupSettings"]
+  def add_backup_job_type_option_types(job_action, backup_job_type, options)
+    backup_settings = @backup_settings_interface.get(options)["backupSettings"] || {}
     # get job defaults
-    default_retention_count = options.dig('backupJob', 'retentionCount') || backup_settings["retentionCount"]
-    default_schedule = options.dig('backupJob', 'scheduleTypeId') || backup_settings.dig("defaultSchedule", "id")
-    default_synthetic_enabled = options.dig('backupJob', 'syntheticFullEnabled') || backup_settings["defaultSyntheticFullBackupsEnabled"]
-    default_synthetic_schedule = options.dig('backupJob', 'syntheticFullSchedule') || backup_settings.dig("defaultSyntheticFullBackupSchedule", "id")
+    default_retention_count = options&.dig('backupJob', 'retentionCount') || get_object_value(backup_settings, "retentionCount")
+    default_schedule = options&.dig('backupJob', 'scheduleTypeId') || get_object_value(backup_settings, "defaultSchedule.id")
+    default_synthetic_enabled = options&.dig('backupJob', 'syntheticFullEnabled') || get_object_value(backup_settings, "defaultSyntheticFullBackupsEnabled")
+    default_synthetic_schedule = options&.dig('backupJob', 'syntheticFullSchedule') || get_object_value(backup_settings, "defaultSyntheticFullBackupSchedule.id")
     job_input_params = {jobAction: job_action, id: backup_job_type}
     job_inputs = @options_interface.options_for_source('backupJobOptionTypes', job_input_params)['data']['optionTypes']
     job_inputs.each do | input |
@@ -357,8 +347,20 @@ EOT
     job_inputs
   end
 
-  def get_backup_job_option_types(job_action, backup_type, options)
+  def update_backup_job_option_types
+    add_backup_job_option_types.collect {|it|
+      it.delete('required')
+      it.delete('defaultValue')
+      it
+    }
+  end
 
+  def update_backup_job_type_option_types(job_action, backup_job_type, options)
+    add_backup_job_type_option_types(job_action, backup_job_type, options).collect {|it|
+      it.delete('required')
+      it.delete('defaultValue')
+      it
+    }
   end
 
 end
