@@ -158,7 +158,7 @@ EOT
         params['scheduleId'] = nil
       end
 
-      job_type_config = Morpheus::Cli::OptionTypes.prompt(backup_job_type_option_types("new", params["jobTypeId"], options), options[:options], @api_client, options[:params])
+      job_type_config = Morpheus::Cli::OptionTypes.prompt(backup_job_type_option_types("new", params["jobTypeId"], options), options[:options].deep_merge({:context_map => {'domain' => ''}}), @api_client, options[:params])
       job_type_config.deep_compact!
       params.deep_merge!(job_type_config)
       payload['job'].deep_merge!(params)
@@ -341,8 +341,6 @@ EOT
     job_input_params = {jobAction: job_action, id: backup_job_type}
     job_inputs = @options_interface.options_for_source('backupJobOptionTypes', job_input_params)['data']['optionTypes']
     job_inputs.each do | input |
-      # modify the field context for the backup payload
-      input['fieldContext'] = nil
       # set input defaults from global settings
       input['defaultValue'] = case input['fieldName']
                               when "retentionCount"

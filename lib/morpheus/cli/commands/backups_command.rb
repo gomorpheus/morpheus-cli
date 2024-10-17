@@ -210,7 +210,7 @@ EOT
           build_option_type_options(opts, options, job_inputs)
         end
         job_opt_parser.parse!(args)
-        v_prompt = Morpheus::Cli::OptionTypes.prompt(job_inputs, options[:options], @api_client)
+        v_prompt = Morpheus::Cli::OptionTypes.prompt(job_inputs, options[:options].deep_merge({:context_map => {'domain' => 'backupJob'}}), @api_client)
         v_prompt.deep_compact!.booleanize! # remove empty values and convert checkbox "on" and "off" to true and false
         params.deep_merge!(v_prompt)
       end
@@ -494,8 +494,6 @@ EOT
     job_input_params = {jobAction: job_action, backupTypeCode: backup_type}
     job_inputs = @options_interface.options_for_source('backupJobOptionTypes', job_input_params)['data']['optionTypes']
     job_inputs.each do | input |
-      # modify the field context for the backup payload
-      input['fieldContext'] = "backupJob"
       # set input defaults from global settings
       input['defaultValue'] = case input['fieldName']
       when "retentionCount"
