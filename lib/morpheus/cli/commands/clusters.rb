@@ -526,12 +526,7 @@ class Morpheus::Cli::Clusters
         resourceName = options[:resourceName]
 
         if !resourceName
-          if options[:no_prompt]
-            print_red_alert "No resource name provided"
-            exit 1
-          else
-            resourceName = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'resourceName', 'type' => 'text', 'fieldLabel' => 'Resource Name', 'required' => true, 'description' => 'Resource Name.'}],options[:options],@api_client,{})['resourceName']
-          end
+          resourceName = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'resourceName', 'type' => 'text', 'fieldLabel' => 'Resource Name', 'required' => false, 'description' => 'Resource Name.'}],options[:options],@api_client,{})['resourceName']
         end
 
         server_payload['name'] = resourceName
@@ -594,8 +589,16 @@ class Morpheus::Cli::Clusters
         # Provision Type
         provision_type = (layout && layout['provisionType'] ? layout['provisionType'] : nil) || get_provision_type_for_zone_type(cloud['zoneType']['id'])
         provision_type = @provision_types_interface.get(provision_type['id'])['provisionType'] if !provision_type.nil?
-
         api_params = {zoneId: cloud['id'], siteId: group['id'], layoutId: layout['id'], groupTypeId: cluster_type['id'], provisionType: provision_type['code'], provisionTypeId: provision_type['id']}
+
+        # Service Plan
+        service_plan = prompt_service_plan(api_params, options)
+        if service_plan
+          server_payload['plan'] = {'id' => service_plan['id'], 'code' => service_plan['code']}
+          api_params['planId'] = service_plan['id']
+          plan_opts = prompt_service_plan_options(service_plan, provision_type, options)
+          server_payload['servicePlanOptions'] = plan_opts if plan_opts && !plan_opts.empty?
+        end
 
         # Controller type
         server_types = @server_types_interface.list({computeTypeId: cluster_type['controllerTypes'].first['id'], zoneTypeId: cloud['zoneType']['id'], useZoneProvisionTypes: true})['serverTypes'].reject {|it| it['provisionType']['code'] == 'manual'}
@@ -613,23 +616,13 @@ class Morpheus::Cli::Clusters
             end
           end
 
-          if controller_provision_type && resource_pool = prompt_resource_pool(group, cloud, nil, controller_provision_type, options)
+          if controller_provision_type && resource_pool = prompt_resource_pool(group, cloud, service_plan, controller_provision_type, options)
             server_payload['config']['resourcePoolId'] = resource_pool['id']
             api_params['config'] ||= {}
             api_params['config']['resourcePool'] = resource_pool['id']
             api_params['resourcePoolId'] = resource_pool['id']
             api_params['zonePoolId'] = resource_pool['id']
           end
-        end
-
-        # Service Plan
-        service_plan = prompt_service_plan(api_params, options)
-
-        if service_plan
-          server_payload['plan'] = {'id' => service_plan['id'], 'code' => service_plan['code']}
-          api_params['planId'] = service_plan['id']
-          plan_opts = prompt_service_plan_options(service_plan, provision_type, options)
-          server_payload['servicePlanOptions'] = plan_opts if plan_opts && !plan_opts.empty?
         end
 
         # Multi-disk / prompt for volumes
@@ -652,6 +645,8 @@ class Morpheus::Cli::Clusters
         # remove metadata option_type , prompt manually for that field 'tags' instead of 'metadata'
         metadata_option_type = option_type_list.find {|type| type['fieldName'] == 'metadata' }
         option_type_list = option_type_list.reject {|type| type['fieldName'] == 'metadata' }
+
+        server_count = layout['serverCount']
 
         # KLUDGE: google zone required for network selection
         if option_type = option_type_list.find {|type| type['code'] == 'computeServerType.googleLinux.googleZoneId'}
@@ -683,6 +678,10 @@ class Morpheus::Cli::Clusters
 
         # Layout template options
         cluster_payload.deep_merge!(Morpheus::Cli::OptionTypes.prompt(load_layout_options(cluster_payload), options[:options], @api_client, api_params, options[:no_prompt], true))
+
+        # Set node count for ssh hosts
+        ssh_host_option = option_type_list.select{|it| it['fieldName'] == 'sshHosts'}.first
+        ssh_host_option['minCount'] = server_count unless ssh_host_option.nil?
 
         # Server options
         server_payload.deep_merge!(Morpheus::Cli::OptionTypes.prompt(option_type_list, options[:options].deep_merge({:context_map => {'domain' => ''}}), @api_client, api_params, options[:no_prompt], true))
@@ -729,7 +728,7 @@ class Morpheus::Cli::Clusters
 
         # Host / Domain
         server_payload['networkDomain'] = options[:domain] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'networkDomain', 'fieldLabel' => 'Network Domain', 'type' => 'select', 'required' => false, 'optionSource' => 'networkDomains'}], options[:options], @api_client, api_params)['networkDomain']
-        server_payload['hostname'] = options[:hostname] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'hostname', 'fieldLabel' => 'Hostname', 'type' => 'text', 'required' => true, 'description' => 'Hostname', 'defaultValue' => resourceName}], options[:options], @api_client, api_params)['hostname']
+        server_payload['hostname'] = options[:hostname] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'hostname', 'fieldLabel' => 'Hostname', 'type' => 'text', 'required' => false, 'description' => 'Hostname', 'defaultValue' => resourceName}], options[:options], @api_client, api_params)['hostname']
 
         # Kube Default Repo
         if cluster_payload['type'] == 'kubernetes-cluster'
