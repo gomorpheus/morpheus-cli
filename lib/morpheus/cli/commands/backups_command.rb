@@ -22,6 +22,7 @@ class Morpheus::Cli::BackupsCommand
     @backup_restores_interface = @api_client.backup_restores
     @instances_interface = @api_client.instances
     @servers_interface = @api_client.servers
+    @options_interface = @api_client.options
   end
 
   def handle(args)
@@ -188,15 +189,6 @@ EOT
         params['jobAction'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'jobAction', 'fieldLabel' => 'Backup Job Type', 'type' => 'select', 'optionSource' => 'backupJobActions', 'required' => true, 'defaultValue' => 'new'}], options[:options], @api_client)['jobAction']
         if params['jobAction'] == 'new'
           params['jobName'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'jobName', 'fieldLabel' => 'Job Name', 'type' => 'text', 'required' => false, 'defaultValue' => nil}], options[:options], @api_client)['jobName']
-          default_retention_count = (create_results['backup'] && create_results['backup']['retentionCount']) ? create_results['backup']['retentionCount'] : ((create_results['backupSettings'] && create_results['backupSettings']['retentionCount']) ? create_results['backupSettings']['retentionCount'] : nil)
-          params['retentionCount'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'retentionCount', 'fieldLabel' => 'Retention Count', 'type' => 'number', 'required' => false, 'defaultValue' => default_retention_count}], options[:options], @api_client)['retentionCount']
-          params['jobSchedule'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'jobSchedule', 'fieldLabel' => 'Backup Schedule', 'type' => 'select', 'optionSource' => lambda { |api_client, api_params| 
-            schedules = api_client.options.options_for_source('executeSchedules',{})['data']
-            [{"name" => "Manual", "value" => "manual"}] + schedules
-          }, 'required' => false}], options[:options], @api_client)['jobSchedule']
-          if params['jobSchedule'] == 'manual' || params['jobSchedule'] == ''
-            params.delete('jobSchedule')
-          end
         elsif params['jobAction'] == 'clone'
           params['jobId'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'jobId', 'fieldLabel' => 'Backup Job', 'type' => 'select', 'optionSource' => lambda { |api_client, api_params| 
             @backup_jobs_interface.list({max:10000})['jobs'].collect {|backup_job|
@@ -211,9 +203,20 @@ EOT
             }
           }, 'required' => true}], options[:options], @api_client)['jobId']
         end
+
+        # new job option types
+        job_inputs = build_backup_job_option_types(params['jobAction'], params['backupType'], create_results)
+        job_opt_parser = Morpheus::Cli::OptionParser.new do |opts|
+          build_option_type_options(opts, options, job_inputs)
+        end
+        job_opt_parser.parse!(args)
+        v_prompt = Morpheus::Cli::OptionTypes.prompt(job_inputs, options[:options].deep_merge({:context_map => {'domain' => 'backupJob'}}), @api_client)
+        v_prompt.deep_compact!.booleanize! # remove empty values and convert checkbox "on" and "off" to true and false
+        params.deep_merge!(v_prompt)
       end
       payload['backup'].deep_merge!(params)
     end
+    #options[:payload] = payload
     execute_api(@backups_interface, :create, [], options, 'backup') do |json_response|
       backup = json_response['backup']
       print_green_success "Added backup #{backup['name']}"
@@ -482,6 +485,30 @@ EOT
   private
 
   ## Backups
+  def build_backup_job_option_types(job_action, backup_type, config_opts)
+    # get job defaults
+    default_retention_count = config_opts.dig('backup', 'retentionCount') || config_opts.dig('backupSettings', 'retentionCount')
+    default_schedule = config_opts.dig('backup', 'scheduleTypeId') || config_opts.dig('backup', 'backupJob', 'scheduleTypeId') || config_opts.dig('backupSettings', 'defaultBackupSchedule')
+    default_synthetic_enabled = config_opts.dig('backup', 'backupJob', 'syntheticFullEnabled') || config_opts.dig('backupSettings', 'defaultSyntheticFullBackupsEnabled')
+    default_synthetic_schedule = config_opts.dig('backup', 'backupJob', 'syntheticFullSchedule') || config_opts.dig('backupSettings', 'defaultSyntheticFullBackupSchedule')
+    job_input_params = {jobAction: job_action, backupTypeCode: backup_type}
+    job_inputs = @options_interface.options_for_source('backupJobOptionTypes', job_input_params)['data']['optionTypes']
+    job_inputs.each do | input |
+      # set input defaults from global settings
+      input['defaultValue'] = case input['fieldName']
+      when "retentionCount"
+        default_retention_count
+      when "scheduleTypeId"
+        default_schedule
+      when "syntheticFullEnabled"
+        default_synthetic_enabled
+      when "syntheticFullSchedule"
+        default_synthetic_schedule
+      end
+    end
+
+    job_inputs
+  end
 
   def backup_list_column_definitions()
     {
