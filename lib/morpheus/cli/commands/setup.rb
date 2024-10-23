@@ -133,7 +133,7 @@ EOT
       # unless Morpheus::Cli::OptionTypes.confirm("Would you like to setup and initialize the remote appliance now?", options)  
       #   return 9, "aborted command"
       # end
-      print "\n"
+      # print "\n"
       hubmode = nil
       hub_init_payload = nil # gets included as payload for hub scoped like hub.email
       if hub_settings['enabled']
