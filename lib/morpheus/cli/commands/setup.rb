@@ -130,9 +130,9 @@ EOT
       puts "It looks like you are the first one here, so let's begin."
       print reset, "\n"
       # print "\n"
-      unless Morpheus::Cli::OptionTypes.confirm("Would you like to setup and initialize the remote appliance now?", options)  
-        return 9, "aborted command"
-      end
+      # unless Morpheus::Cli::OptionTypes.confirm("Would you like to setup and initialize the remote appliance now?", options)  
+      #   return 9, "aborted command"
+      # end
       print "\n"
       hubmode = nil
       hub_init_payload = nil # gets included as payload for hub scoped like hub.email
@@ -395,24 +395,26 @@ EOT
     print reset
     #print "\n"
 
-    if hubmode == 'skip'
-      if ::Morpheus::Cli::OptionTypes::confirm("Would you like to install your License Key now?", options.merge({:default => true}))
-        cmd_res = Morpheus::Cli::License.new.install([] + (options[:remote] ? ["-r",options[:remote]] : []))
-        # license_is_valid = cmd_res != false
-      end
-    end
-
-    if ::Morpheus::Cli::OptionTypes::confirm("Would you like to create the first group now?", options.merge({:default => true}))
-      cmd_res = Morpheus::Cli::Groups.new.add(['--use'] + (options[:remote] ? ["-r",options[:remote]] : []))
-
-      #print "\n"
-
-      # if cmd_res !=
-        if ::Morpheus::Cli::OptionTypes::confirm("Would you like to create the first cloud now?", options.merge({:default => true}))
-          cmd_res = Morpheus::Cli::Clouds.new.add([] + (options[:remote] ? ["-r",options[:remote]] : []))
-          #print "\n"
+    unless options[:no_prompt]
+      if hubmode == 'skip' && payload['licenseKey'].to_s.empty?
+        if ::Morpheus::Cli::OptionTypes::confirm("Would you like to install your License Key now?", options.merge({:default => true}))
+          cmd_res = Morpheus::Cli::License.new.install([] + (options[:remote] ? ["-r",options[:remote]] : []))
+          # license_is_valid = cmd_res != false
         end
-      # end
+      end
+
+      if ::Morpheus::Cli::OptionTypes::confirm("Would you like to create the first group now?", options.merge({:default => true}))
+        cmd_res = Morpheus::Cli::Groups.new.add(['--use'] + (options[:remote] ? ["-r",options[:remote]] : []))
+
+        #print "\n"
+
+        # if cmd_res !=
+          if ::Morpheus::Cli::OptionTypes::confirm("Would you like to create the first cloud now?", options.merge({:default => true}))
+            cmd_res = Morpheus::Cli::Clouds.new.add([] + (options[:remote] ? ["-r",options[:remote]] : []))
+            #print "\n"
+          end
+        # end
+      end
     end
     print "\n",reset
     return exit_code, err
