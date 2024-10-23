@@ -2191,7 +2191,7 @@ module Morpheus::Cli::ProvisioningHelper
           end
         end
         if options[:for_datastore]
-          permissions['tenantPermissions'] = accounts.collect {|it| {'account' => {'id' => it}, 'defaultStore' => default_stores.include?(it), 'defaultTarget' => default_targets.include?(it)}}
+          permissions['tenantPermissions'] = accounts.collect {|it| {'id' => it, 'defaultStore' => default_stores.include?(it), 'defaultTarget' => default_targets.include?(it)}}
         else
           permissions['tenantPermissions'] = {'accounts' => accounts}
         end
