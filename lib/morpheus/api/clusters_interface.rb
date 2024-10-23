@@ -259,10 +259,22 @@ class Morpheus::ClustersInterface < Morpheus::APIClient
     execute(method: :get, url: url, headers: headers)
   end
 
+  def create_datastore(id, payload)
+    url = "#{base_path}/#{id}/data-stores"
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    execute(method: :post, url: url, headers: headers, payload: payload.to_json)
+  end
+
   def update_datastore(id, datastore_id, payload)
     url = "#{base_path}/#{id}/datastores/#{datastore_id}"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
     execute(method: :put, url: url, headers: headers, payload: payload.to_json)
+  end
+
+  def destroy_datastore(id, datastore_id, params={})
+    url = "#{base_path}/#{id}/datastores/#{datastore_id}"
+    headers = { :params => params, :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    execute(method: :delete, url: url, headers: headers)
   end
 
   def wiki(id, params)

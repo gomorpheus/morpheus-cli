@@ -2150,25 +2150,51 @@ module Morpheus::Cli::ProvisioningHelper
       end
 
       # Tenants
+      default_stores = []
+      default_targets = []
       unless excludes.include?('tenants')
         if !options[:tenants].nil?
           accounts = options[:tenants].collect {|id| id.to_i}
         elsif !options[:no_prompt]
           account_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'account', 'type' => 'select', 'fieldLabel' => 'Add Tenant', 'selectOptions' => available_accounts, 'required' => false, 'description' => 'Add Tenant Permissions.'}], options[:options], @api_client, {})['account']
 
-          if !account_id.nil?
+          unless account_id.nil?
             accounts << account_id
             available_accounts = available_accounts.reject {|it| it['value'] == account_id}
+
+            # Prompt default store / target
+            if options[:for_datastore]
+              if Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'defaultTarget', 'type' => 'checkbox', 'fieldLabel' => 'Default', 'required' => false, 'description' => 'Designate as Default Store.', 'defaultValue' => false}], options[:options].merge({:checkbox_as_boolean => true}), @api_client, {})['defaultTarget']
+                default_targets << account_id
+              end
+              if Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'defaultStore', 'type' => 'checkbox', 'fieldLabel' => 'Image Target', 'required' => false, 'description' => 'Designate as Image Target.', 'defaultValue' => false}], options[:options].merge({:checkbox_as_boolean => true}), @api_client, {})['defaultStore']
+                default_stores << account_id
+              end
+            end
 
             while !available_accounts.empty? && (account_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'account', 'type' => 'select', 'fieldLabel' => 'Add Another Tenant', 'selectOptions' => available_accounts, 'required' => false, 'description' => 'Add Tenant Permissions.'}], options[:options], @api_client, {})['account'])
               if !account_id.nil?
                 accounts << account_id
                 available_accounts = available_accounts.reject {|it| it['value'] == account_id}
+
+                # Prompt default store / target
+                if options[:for_datastore]
+                  if Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'defaultTarget', 'type' => 'checkbox', 'fieldLabel' => 'Default', 'required' => false, 'description' => 'Designate as Default Store.', 'defaultValue' => false}], options[:options].merge({:checkbox_as_boolean => true}), @api_client, {})['defaultTarget']
+                    default_targets << account_id
+                  end
+                  if Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'defaultStore', 'type' => 'checkbox', 'fieldLabel' => 'Image Target', 'required' => false, 'description' => 'Designate as Image Target.', 'defaultValue' => false}], options[:options].merge({:checkbox_as_boolean => true}), @api_client, {})['defaultStore']
+                    default_stores << account_id
+                  end
+                end
               end
             end
           end
         end
-        permissions['tenantPermissions'] = {'accounts' => accounts}
+        if options[:for_datastore]
+          permissions['tenantPermissions'] = accounts.collect {|it| {'account' => {'id' => it}, 'defaultStore' => default_stores.include?(it), 'defaultTarget' => default_targets.include?(it)}}
+        else
+          permissions['tenantPermissions'] = {'accounts' => accounts}
+        end
       end
     end
     permissions

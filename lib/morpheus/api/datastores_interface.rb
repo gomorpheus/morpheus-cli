@@ -12,4 +12,10 @@ class Morpheus::DatastoresInterface < Morpheus::APIClient
     execute(method: :get, url: url, headers: headers)
   end
 
+  def types(params={})
+    url = "/api/data-store-types"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    opts = {method: :get, url: url, headers: headers}
+    execute(opts)
+  end
 end
