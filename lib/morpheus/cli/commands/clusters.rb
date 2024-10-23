@@ -2952,11 +2952,9 @@ class Morpheus::Cli::Clusters
 
         # perms
         perms = prompt_permissions(options.merge({:for_datastore => true}), ['plans', 'groupDefaults'])
-        perms_payload = {}
-        perms_payload['resourcePermissions'] = perms['resourcePermissions'] if !perms['resourcePermissions'].nil?
-        perms_payload['tenantPermissions'] = perms['tenantPermissions'] if !perms['tenantPermissions'].nil?
 
-        datastore['permissions'] = perms_payload
+        datastore['resourcePermissions'] = perms['resourcePermissions'] unless perms['resourcePermissions'].nil?
+        datastore['tenants'] = perms['tenantPermissions'] unless perms['tenantPermissions'].nil?
         datastore['visibility'] = perms['resourcePool']['visibility'] if !perms['resourcePool'].nil? && !perms['resourcePool']['visibility'].nil?
 
         payload = {datastore:datastore}
