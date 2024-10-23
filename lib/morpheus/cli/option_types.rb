@@ -404,6 +404,9 @@ module Morpheus
               value = password_prompt(option_type)
             elsif option_type['type'] == 'checkbox'
               value = checkbox_prompt(option_type)
+              if options[:checkbox_as_boolean]
+                value = (value == 'on')
+              end
             elsif option_type['type'] == 'radio'
               value = radio_prompt(option_type)
             elsif option_type['type'] == 'textarea'

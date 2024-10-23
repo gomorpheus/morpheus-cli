@@ -19,7 +19,7 @@ class Morpheus::Cli::Clusters
   register_subcommands :list_pods, :remove_pod, :restart_pod
   register_subcommands :list_jobs, :remove_job
   register_subcommands :list_services, :remove_service
-  register_subcommands :list_datastores, :get_datastore, :update_datastore
+  register_subcommands :list_datastores, :get_datastore, :update_datastore, :add_datastore, :remove_datastore
   register_subcommands :update_permissions
   register_subcommands :api_config, :view_api_token, :view_kube_config
   register_subcommands :wiki, :update_wiki
@@ -32,6 +32,7 @@ class Morpheus::Cli::Clusters
     @groups_interface = @api_client.groups
     @cluster_layouts_interface = @api_client.library_cluster_layouts
     @security_groups_interface = @api_client.security_groups
+    @datastores_interface = @api_client.datastores
     #@security_group_rules_interface = @api_client.security_group_rules
     @cloud_resource_pools_interface = @api_client.cloud_resource_pools
     @resource_pool_groups_interface = @api_client.resource_pool_groups
@@ -2908,6 +2909,132 @@ class Morpheus::Cli::Clusters
     end
   end
 
+  def add_datastore(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage( "[cluster] [options]")
+      build_option_type_options(opts, options, add_datastore_option_types)
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+      opts.footer = "Add datastore to a cluster.\n" +
+        "[cluster] is required. This is the name or id of an existing cluster.\n" +
+        "[name] is required. This is the name of the new datastore."
+    end
+
+    optparse.parse!(args)
+    if args.count != 1 and args.count != 2
+      raise_command_error "wrong number of arguments, expected 1-2 and got (#{args.count}) #{args}\n#{optparse}"
+    end
+    connect(options)
+
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      return 1 if cluster.nil?
+      if options[:payload]
+        payload = options[:payload]
+        # support -O OPTION switch on top of --payload
+        if options[:options]
+          payload ||= {}
+          payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) })
+        end
+      else
+        options[:params] ||= {}
+        options[:params].merge!({:serverGroupId => cluster['id']})
+
+        datastore = Morpheus::Cli::OptionTypes.prompt(add_datastore_option_types, options[:options], @api_client, options[:params])
+
+        datastore_type = find_datastore_type_by_code(datastore['datastoreType'])
+        datastore['datastoreType'] = {id:datastore_type['id']}
+
+        # datastore type options
+        unless datastore_type['optionTypes'].empty?
+          datastore.merge!(Morpheus::Cli::OptionTypes.prompt(datastore_type['optionTypes'], options[:options].deep_merge({:context_map => {'domain' => ''}, :checkbox_as_boolean => true}), @api_client, options[:params]))
+        end
+
+        # perms
+        perms = prompt_permissions(options.merge({:for_datastore => true}), ['plans', 'groupDefaults'])
+        perms_payload = {}
+        perms_payload['resourcePermissions'] = perms['resourcePermissions'] if !perms['resourcePermissions'].nil?
+        perms_payload['tenantPermissions'] = perms['tenantPermissions'] if !perms['tenantPermissions'].nil?
+
+        datastore['permissions'] = perms_payload
+        datastore['visibility'] = perms['resourcePool']['visibility'] if !perms['resourcePool'].nil? && !perms['resourcePool']['visibility'].nil?
+
+        payload = {datastore:datastore}
+      end
+
+      @clusters_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.create_datastore(cluster['id'], payload)
+        return
+      end
+      json_response = @clusters_interface.create_datastore(cluster['id'], payload)
+      if options[:json]
+        puts as_json(json_response)
+      elsif json_response['success']
+        if json_response['msg'] == nil
+          print_green_success "Added datastore to cluster #{cluster['name']}"
+        else
+          print_green_success json_response['msg']
+        end
+      end
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def remove_datastore(args)
+    params = {}
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[cluster] [datastore]")
+      opts.on( '-f', '--force', "Force Delete" ) do
+        params[:force] = 'on'
+      end
+      build_standard_remove_options(opts, options)
+      opts.footer = "Delete a datastore from a cluster.\n" +
+        "[cluster] is required. This is the name or id of an existing cluster.\n" +
+        "[datastore] is required. This is the name or id of an existing datastore."
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:2)
+    connect(options)
+    params.merge!(parse_query_options(options))
+
+    cluster = find_cluster_by_name_or_id(args[0])
+    return 1 if cluster.nil?
+
+    datastore_id = args[1]
+    if datastore_id.empty?
+      raise_command_error "missing required worker parameter"
+    end
+
+    datastore = find_datastore_by_name_or_id(cluster['id'], datastore_id)
+    if datastore.nil?
+      print_red_alert "Datastore not found for '#{datastore_id}'"
+      return 1
+    end
+    unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you would like to remove the cluster datastore '#{datastore['name'] || datastore['id']}'?", options)
+      return 9, "aborted command"
+    end
+
+    @clusters_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @clusters_interface.dry.destroy_datastore(cluster['id'], datastore['id'], params)
+      return
+    end
+    json_response = @clusters_interface.destroy_datastore(cluster['id'], datastore['id'], params)
+    render_response(json_response, options) do
+      msg = "Datastore #{datastore['name']} is being removed from cluster #{cluster['name']}..."
+      if json_response['msg']
+        msg = json_response['msg']
+      end
+      print_green_success msg
+    end
+    return 0, nil
+  end
+
   def update_datastore(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
@@ -3970,6 +4097,25 @@ class Morpheus::Cli::Clusters
     json_results['datastores'].empty? ? nil : json_results['datastores'][0]
   end
 
+  def find_datastore_type_by_code_or_id(val)
+    (val.to_s =~ /\A\d{1,}\Z/) ? find_datastore_type_by_id(val) : find_datastore_type_by_code(val)
+  end
+
+  def find_datastore_type_by_id(id)
+    get_datastore_types.find { |it| it['id'] == id }
+  end
+
+  def find_datastore_type_by_code(code)
+    get_datastore_types.find { |it| it['code'].downcase == code.downcase }
+  end
+
+  def get_datastore_types(refresh=false)
+    if !@datastore_types || refresh
+      @datastore_types = @datastores_interface.types()['datastoreTypes']
+    end
+    @datastore_types
+  end
+
   def find_job_by_name_or_id(cluster_id, val)
     if val.to_s =~ /\A\d{1,}\Z/
       params = {jobId: val.to_i}
@@ -4273,6 +4419,14 @@ class Morpheus::Cli::Clusters
     opts.on('--hostname VALUE', String, "Hostname") do |val|
       options[:hostname] = val
     end
+  end
+
+  def add_datastore_option_types
+    [
+      {'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
+      {'fieldName' => 'datastoreType', 'fieldLabel' => 'Type', 'type' => 'select', 'optionSource' => 'datastoreTypes', 'description' => 'Choose a datastore type.', 'required' => true, 'displayOrder' => 2},
+      {'fieldName' => 'active', 'fieldLabel' => 'Active', 'type' => 'checkbox', 'required' => true, 'displayOrder' => 3, 'defaultValue' => true},
+    ]
   end
 
   def prompt_resource_pool(group, cloud, service_plan, provision_type, options)

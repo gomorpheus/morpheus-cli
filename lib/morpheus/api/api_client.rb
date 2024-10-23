@@ -950,6 +950,14 @@ class Morpheus::APIClient
     Morpheus::NetworkServerGroupsInterface.new(common_interface_options).setopts(@options)
   end
 
+  def network_server_services
+    Morpheus::NetworkServerServicesInterface.new(common_interface_options).setopts(@options)
+  end
+
+  def network_resource_types
+    Morpheus::NetworkResourceTypesInterface.new(common_interface_options).setopts(@options)
+  end
+
   def network_edge_clusters
     Morpheus::NetworkEdgeClustersInterface.new(common_interface_options).setopts(@options)
   end
