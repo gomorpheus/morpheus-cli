@@ -35,6 +35,9 @@ class Morpheus::Cli::Setup
       opts.on('--hubmode MODE','--hubmode MODE', "Choose an option for hub registration possible values are login, register, skip.") do |val|
         options[:hubmode] = val.to_s.downcase
       end
+      opts.on('--license KEY', String, "License key to install") do |val|
+        options[:license] = val
+      end
       opts.on('--force','--force', "Force setup, make api request even if setup is unavailable.") do
         options[:force] = true
       end
@@ -354,6 +357,15 @@ EOT
         payload.delete('hub')
       end
 
+      # License Key prompt
+      print_h2 "License", options
+      if options[:license]
+        payload['licenseKey'] = options[:license].strip
+      else
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'licenseKey', 'fieldLabel' => 'License Key', 'type' => 'text', 'description' => "Enter a License Key to install now or leave blank to use a community license or install one manually later."}], options[:options])
+        key = v_prompt['licenseKey']
+        payload['licenseKey'] = key.strip if !key.to_s.strip.empty?
+      end
     end
       
     # ok, make the api request
