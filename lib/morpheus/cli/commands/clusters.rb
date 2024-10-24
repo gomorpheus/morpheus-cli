@@ -221,6 +221,7 @@ class Morpheus::Cli::Clusters
           "Cloud" => lambda { |it| it['zone']['name'] },
           "Location" => lambda { |it| it['location'] },
           "Layout" => lambda { |it| it['layout'] ? it['layout']['name'] : ''},
+          "Integrations" => lambda {|it| format_name_and_id(it['integrations']) },
           "API Url" => 'serviceUrl',
           "Visibility" => lambda { |it| it['visibility'].to_s.capitalize },
           #"Groups" => lambda {|it| it['groups'].collect {|g| g.instance_of?(Hash) ? g['name'] : g.to_s }.join(', ') },
@@ -803,6 +804,9 @@ class Morpheus::Cli::Clusters
       opts.on("--tenant ACCOUNT", String, "Account ID or Name" ) do |val|
         options[:tenant] = val
       end
+      opts.on('--integrations [LIST]', Array, "Updates Cluster Integration(s), comma separated list of integration IDs") do |list|
+        options[:integrations] = list ? list.collect {|it| it.to_s.strip.to_i } : []
+      end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Update a cluster.\n" +
                     "[cluster] is required. This is the name or id of an existing cluster."
@@ -832,6 +836,7 @@ class Morpheus::Cli::Clusters
       else
         cluster = find_cluster_by_name_or_id(args[0])
         cluster_payload = {}
+        cluster_payload.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) })
         cluster_payload['name'] = options[:name] if !options[:name].empty?
         cluster_payload['description'] = options[:description] if !options[:description].empty?
         cluster_payload['labels'] = options[:labels] if !options[:labels].nil?
@@ -841,6 +846,7 @@ class Morpheus::Cli::Clusters
         cluster_payload['serviceToken'] = options[:apiToken] if !options[:apiToken].nil?
         cluster_payload['refresh'] = options[:refresh] if options[:refresh] == true
         cluster_payload['tenant'] = options[:tenant] if !options[:tenant].nil?
+        cluster_payload['integrations'] = options[:integrations] if !options[:integrations].nil?
         payload = {"cluster" => cluster_payload}
       end
 
@@ -848,10 +854,9 @@ class Morpheus::Cli::Clusters
         print_red_alert "No clusters available for update"
         exit 1
       end
-
-      if cluster_payload.empty?
-        print_green_success "Nothing to update"
-        exit 1
+      
+      if payload['cluster'].empty?
+        raise_command_error "Specify at least one option to update.\n#{optparse}"
       end
 
       @clusters_interface.setopts(options)
