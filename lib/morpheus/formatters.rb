@@ -478,6 +478,18 @@ def format_name_values(obj)
   end
 end
 
+def format_name_and_id(obj)
+  if(obj.is_a?(Array))
+    return "" if obj.empty? # && hide_empty
+    names, ids = obj.collect {|it| it['name'] rescue "" }, obj.collect {|it| it['id'] rescue "" }
+    "#{names.join(", ")} [#{ids.join(",")}]"
+  elsif(obj.is_a?(Hash))
+    "#{obj['name']} [#{obj['id']}]" rescue ""
+  else
+    object.to_s
+  end
+end
+
 def a_or_an(v)
   v.to_s =~ /^[aeiou]/i ? "an" : "a"
 end
