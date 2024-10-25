@@ -9,7 +9,7 @@ class Morpheus::Cli::Processes
 
   set_command_name :'process'
 
-  register_subcommands :list, :get, {:'get-event' => :event_details}
+  register_subcommands :list, :get, {:'get-event' => :event_details}, :retry, :cancel
 
   # alias_subcommand :details, :get
   # set_default_subcommand :list
@@ -344,6 +344,76 @@ class Morpheus::Cli::Processes
       print_rest_exception(e, options)
       exit 1
     end
+  end
+
+  def retry(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[id]")
+      build_standard_update_options(opts, options, [:auto_confirm])
+      opts.footer = <<-EOT
+Retry a process.
+[id] is required. This is the id of a process.
+Only a process that is failed or cancelled and is of a retryable type can be retried.
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    # process = find_process_by_id(args[0])
+    # return 1 if process.nil?
+    process_id = args[0]
+    payload = parse_payload(options)
+    if payload.nil?
+      payload = parse_passed_options(options)
+      # prompt
+    end
+    confirm!("Are you sure you would like to retry process #{process_id}?", options)
+    @processes_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @processes_interface.dry.retry(process_id, payload)
+      return
+    end
+    json_response = @processes_interface.retry(process_id, payload)
+    render_response(json_response, options) do
+      print_green_success "Retrying process #{process_id}"
+    end
+    return 0, nil
+  end
+
+  def cancel(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[id]")
+      build_standard_update_options(opts, options, [:auto_confirm])
+      opts.footer = <<-EOT
+Cancel a process.
+[id] is required. This is the id of a process.
+Only a process that is currently running and is of a cancellable type can be canceled.
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:1)
+    connect(options)
+    # process = find_process_by_id(args[0])
+    # return 1 if process.nil?
+    process_id = args[0]
+    payload = parse_payload(options)
+    if payload.nil?
+      payload = parse_passed_options(options)
+      # prompt
+    end
+    confirm!("Are you sure you would like to cancel process #{process_id}?", options)
+    @processes_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @processes_interface.dry.cancel(process_id, payload)
+      return
+    end
+    json_response = @processes_interface.cancel(process_id, payload)
+    render_response(json_response, options) do
+      print_green_success "Cancelling process #{process_id}"
+    end
+    return 0, nil
   end
 
   def event_details(args)
