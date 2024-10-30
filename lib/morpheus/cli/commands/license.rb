@@ -294,6 +294,13 @@ class Morpheus::Cli::License
     elsif license['zoneTypesExcluded'] && license['zoneTypesExcluded'].size > 0
       description_cols["Excluded Clouds"] = lambda {|it| it['zoneTypesExcluded'].join(', ') }
     end
+
+    if license['taskTypes'] && license['taskTypes'].size > 0
+      description_cols["Included Tasks"] = lambda {|it| it['taskTypes'].join(', ') }
+    elsif license['taskTypesExcluded'] && license['taskTypesExcluded'].size > 0
+      description_cols["Excluded Tasks"] = lambda {|it| it['taskTypesExcluded'].join(', ') }
+    end
+
     print_description_list(description_cols, license)
   end
 
