@@ -2237,7 +2237,7 @@ class Morpheus::Cli::Clusters
         print_dry_run @clusters_interface.dry.get_container_group(cluster['id'], resource_type, id, params)
         return
       end
-      container_group = @clusters_interface.get_container_group(cluster['id'], resource_type, id, params)
+      container_group = @clusters_interface.get_container_group(cluster['id'], resource_type, id, params)['resource']
 
       render_result = render_with_format(container_group, options, 'containers')
       return 0 if render_result
