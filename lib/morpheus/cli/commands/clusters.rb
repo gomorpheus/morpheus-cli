@@ -13,7 +13,7 @@ class Morpheus::Cli::Clusters
   register_subcommands :upgrade_cluster
   register_subcommands :list_volumes, :remove_volume
   register_subcommands :list_namespaces, :get_namespace, :add_namespace, :update_namespace, :remove_namespace
-  register_subcommands :list_containers, :remove_container, :restart_container
+  register_subcommands :list_containers, :remove_container, :restart_container, :get_container
   register_subcommands :list_deployments, :remove_deployment, :restart_deployment
   register_subcommands :list_stateful_sets, :remove_stateful_set, :restart_stateful_set
   register_subcommands :list_pods, :remove_pod, :restart_pod
@@ -25,6 +25,8 @@ class Morpheus::Cli::Clusters
   register_subcommands :wiki, :update_wiki
   register_subcommands :apply_template
   register_subcommands :refresh
+  register_subcommands :list_replicasets, :list_daemonsets, :list_endpoints, :list_ingresses, :list_policies, :list_volumes, :list_volume_claims, :list_config_maps, :list_secrets
+  register_subcommands :get_pod, :get_deployment, :get_replicaset, :get_daemonset, :get_endpoint, :get_ingress, :get_policy, :get_volume_claim, :get_volume, :get_config_map, :get_secret, :get_stateful_set, :get_job, :get_service
 
   def connect(opts)
     @api_client = establish_remote_appliance_connection(opts)
@@ -2211,7 +2213,45 @@ class Morpheus::Cli::Clusters
             :id, :status, :name, :cpu, :memory, :storage
         ]
         print as_pretty_table(rows, columns, options)
+        print_results_pagination(json_response)
       end
+      print reset,"\n"
+      return 0
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
+  def _get_container_group(args, options, resource_type)
+    begin
+      cluster = find_cluster_by_name_or_id(args[0])
+      id = args[1]
+      return 1 if cluster.nil?
+
+      params = {}
+      params.merge!(parse_list_options(options))
+      params['resourceLevel'] = options[:resourceLevel] if !options[:resourceLevel].nil?
+      @clusters_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clusters_interface.dry.get_container_group(cluster['id'], resource_type, id, params)
+        return
+      end
+      container_group = @clusters_interface.get_container_group(cluster['id'], resource_type, id, params)
+
+      render_result = render_with_format(container_group, options, 'containers')
+      return 0 if render_result
+      resource_is = options['title'] ? options['title'].capitalize : resource_type.capitalize
+      title = "Morpheus Cluster #{cluster['name']}: #{resource_is}"
+      print_h1 title
+      print cyan
+      description_cols = {
+          "ID" => 'id',
+          "Name" => 'name',
+          "Status" => 'status',
+          "metadata" => lambda { |it| as_json(it['metadata']) }
+      }
+      print_description_list(description_cols, container_group)
       print reset,"\n"
       return 0
     rescue RestClient::Exception => e
@@ -2325,6 +2365,26 @@ class Morpheus::Cli::Clusters
     end
     connect(options)
     _list_container_groups(args, options,resource_type)
+  end
+
+  def get_deployment(args)
+    resource_type = 'deployment'
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage( "[cluster]")
+      opts.on("--resource-level LEVEL", String, "Resource Level") do |val|
+        options[:resourceLevel] = val.to_s
+      end
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "get #{resource_type} for a cluster.\n" +
+          "[cluster] and [#{resource_type}] is required. This is the name or id of an existing cluster, and the id of the #{resource_type}"
+    end
+    optparse.parse!(args)
+    if args.count != 2
+      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+    _get_container_group(args, options, resource_type)
   end
 
   def remove_deployment(args)
@@ -2443,6 +2503,26 @@ class Morpheus::Cli::Clusters
     end
     connect(options)
     _list_container_groups(args, options, resource_type)
+  end
+
+  def get_pod(args)
+    resource_type = 'pod'
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage( "[cluster]")
+      opts.on("--resource-level LEVEL", String, "Resource Level") do |val|
+        options[:resourceLevel] = val.to_s
+      end
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "get #{resource_type} for a cluster.\n" +
+          "[cluster] and [#{resource_type}] is required. This is the name or id of an existing cluster, and the id of the #{resource_type}"
+    end
+    optparse.parse!(args)
+    if args.count != 2
+      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+    _get_container_group(args, options, resource_type)
   end
 
   def remove_pod(args)
@@ -4607,5 +4687,136 @@ class Morpheus::Cli::Clusters
       print_rest_exception(e, options)
       exit 1
     end
+  end
+
+  def list_replicasets(args)
+    _list_resources(args, 'replicaset')
+  end
+
+  def get_replicaset(args)
+    _get_resource(args, 'replicaset')
+  end
+
+  def list_daemonsets(args)
+    _list_resources(args, 'daemonset')
+  end
+
+  def get_daemonset(args)
+    _get_resource(args, 'daemonset')
+  end
+
+
+  def list_endpoints(args)
+    _list_resources(args, 'endpoint')
+  end
+
+  def get_endpoint(args)
+    _get_resource(args, 'endpoint')
+  end
+
+  def list_ingresses(args)
+    _list_resources(args, 'ingresse')
+  end
+
+  def get_ingress(args)
+    _get_resource(args, 'ingresse', {'title' => 'ingress'})
+  end
+
+  def list_policies(args)
+    _list_resources(args, 'policie')
+  end
+
+  def get_policy(args)
+    _get_resource(args, 'policie', {'title' => 'policy'})
+  end
+
+  def list_volume_claims(args)
+    _list_resources(args, 'volumeclaim')
+  end
+
+  def get_volume_claim(args)
+    _get_resource(args, 'volumeclaim')
+  end
+
+  def list_volumes(args)
+    _list_resources(args, 'volume')
+  end
+
+  def get_volume(args)
+    _get_resource(args, 'volume')
+  end
+
+
+  def list_config_maps(args)
+    _list_resources(args, 'configmap')
+  end
+
+  def get_config_map(args)
+    _get_resource(args, 'configmap')
+  end
+
+  def list_secrets(args)
+    _list_resources(args, 'secret')
+  end
+
+  def get_secret(args)
+    _get_resource(args, 'secret')
+  end
+
+  def get_container(args)
+    _get_resource(args, 'container')
+  end
+
+  def get_stateful_set(args)
+    _get_resource(args, 'statefulset')
+
+  end
+
+  def get_job(args)
+    _get_resource(args, 'job')
+  end
+
+  def get_service(args)
+    _get_resource(args, 'service')
+  end
+
+  private
+
+  def _get_resource(args, resource_type, options = {})
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[cluster]")
+      opts.on("--resource-level LEVEL", String, "Resource Level") do |val|
+        options[:resourceLevel] = val.to_s
+      end
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "get #{resource_type} for a cluster.\n" +
+                    "[cluster] and [#{resource_type}] is required. This is the name or id of an existing cluster, and the id of the #{resource_type}"
+    end
+    optparse.parse!(args)
+    
+    if args.count != 2
+      raise_command_error "wrong number of arguments, expected 2 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+
+    connect(options)
+    _get_container_group(args, options, resource_type)
+  end
+
+  def _list_resources(args, resource_type, options = {})
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage( "[cluster]")
+      opts.on("--resource-level LEVEL", String, "Resource Level") do |val|
+        options[:resourceLevel] = val.to_s
+      end
+      build_common_options(opts, options, [:list, :query, :json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.footer = "List #{resource_type}s for a cluster.\n" +
+          "[cluster] is required. This is the name or id of an existing cluster."
+    end
+    optparse.parse!(args)
+    if args.count != 1
+      raise_command_error "wrong number of arguments, expected 1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
+    end
+    connect(options)
+    _list_container_groups(args, options, resource_type)
   end
 end

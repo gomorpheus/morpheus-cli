@@ -228,6 +228,12 @@ class Morpheus::ClustersInterface < Morpheus::APIClient
     execute(method: :get, url: url, headers: headers)
   end
 
+  def get_container_group(cluster_id, resource_type, id, params={})
+    url = "#{base_path}/#{cluster_id}/#{resource_type}s/#{id}"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    execute(method: :get, url: url, headers: headers)
+  end
+
   def restart_container_group(id, container_group_id, resource_type, params={})
     url = "#{base_path}/#{id}/#{resource_type}s/#{container_group_id}/restart"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
@@ -332,4 +338,11 @@ class Morpheus::ClustersInterface < Morpheus::APIClient
     opts = {method: :get, url: url, headers: headers}
     execute(opts)
   end
+
+  def list_resources(id, resources, params={})
+    url = "#{base_path}/#{id}/#{resources}"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    execute(method: :get, url: url, headers: headers)
+  end
+
 end
