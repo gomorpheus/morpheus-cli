@@ -2746,6 +2746,9 @@ class Morpheus::Cli::Instances
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[instance]")
+      opts.on('--include-network-interfaces','--include-network-interfaces', "Populate payload networkInterfaces with current interfaces") do
+        options[:include_nics] = true
+      end
       build_standard_update_options(opts, options)
     end
     optparse.parse!(args)
@@ -2775,11 +2778,17 @@ class Morpheus::Cli::Instances
       plan_id = instance['plan']['id']
       resource_pool_id = instance['config']['resourcePoolId'] if instance['config']
       current_plan_name = instance['plan']['name']
-      current_interfaces = get_instance_interfaces(instance)
-      if current_interfaces != false 
-        payload['networkInterfaces'] = current_interfaces
-      end
       
+      # JD: networkInterfaces should not be needed but pre 7.0.8/8.0.0 the API does expect it to be passed
+      # However if the instance has more than one server this creates duplicate nics and breaks things
+      # so only continue to do it if the instance has just one server and remote version is pre 7.0.8
+      # should also only do this if remote version < 7.0.8
+      if options[:include_nics] || (!remote_version_gte("7.0.8") && instance['servers'] && instance['servers'].size == 1)
+          current_interfaces = get_instance_interfaces(instance)
+          if current_interfaces != false 
+            payload['networkInterfaces'] = current_interfaces
+          end
+      end
 
       # need to GET provision type for some settings...
       provision_type = @provision_types_interface.get(instance['layout']['provisionTypeId'])['provisionType']
@@ -5583,4 +5592,22 @@ private
     end
   end
 
+  def remote_version_gte(required_version)
+    version = @remote_appliance[:build_version]
+    return false if version.nil?
+    version_numbers = version.split(".")
+    required_version_numbers = required_version.split(".")
+    result = true
+    required_version_numbers.each_with_index do |v, i|
+      if version_numbers[i].to_i > v.to_i
+        break
+      elsif version_numbers[i].to_i < v.to_i
+        result = false
+        break
+      else
+        # keep going
+      end
+    end
+    return result
+  end
 end
