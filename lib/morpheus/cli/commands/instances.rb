@@ -2775,10 +2775,10 @@ class Morpheus::Cli::Instances
       plan_id = instance['plan']['id']
       resource_pool_id = instance['config']['resourcePoolId'] if instance['config']
       current_plan_name = instance['plan']['name']
-      current_interfaces = get_instance_interfaces(instance)
-      if current_interfaces != false 
-        payload['networkInterfaces'] = current_interfaces
-      end
+      # current_interfaces = get_instance_interfaces(instance)
+      # if current_interfaces != false 
+      #   payload['networkInterfaces'] = current_interfaces
+      # end
       
 
       # need to GET provision type for some settings...
