@@ -4790,7 +4790,7 @@ class Morpheus::Cli::Clusters
 
   def _get_resource(args, resource_type, options = {})
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[cluster]")
+      opts.banner = subcommand_usage("[cluster] [id]")
       opts.on("--resource-level LEVEL", String, "Resource Level") do |val|
         options[:resourceLevel] = val.to_s
       end
