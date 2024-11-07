@@ -232,6 +232,8 @@ class Morpheus::Cli::Clusters
           "Created" => lambda {|it| format_local_dt(it['dateCreated']) },
           "Created By" => lambda {|it| it['createdBy'] ? it['createdBy']['username'] : '' },
           "Enabled" => lambda { |it| format_boolean(it['enabled']) },
+          "Managed" => lambda { |it| format_boolean(it['managed']) },
+          "Auto Power On VMs" => lambda { |it| format_boolean(it['autoRecoverPowerState']) },
           "Status" => lambda { |it| format_cluster_status(it) }
       }
       print_description_list(description_cols, cluster)
@@ -800,6 +802,9 @@ class Morpheus::Cli::Clusters
       opts.on('--managed [on|off]', String, "Can be used to enable / disable managed cluster. Default is on") do |val|
         options[:managed] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
+      opts.on('--autoRecoverPowerState [on|off]', String, "Automatically Power On VMs") do |val|
+        options[:autoRecoverPowerState] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
+      end
       opts.on( nil, '--refresh', "Refresh cluster" ) do
         options[:refresh] = true
       end
@@ -844,6 +849,7 @@ class Morpheus::Cli::Clusters
         cluster_payload['labels'] = options[:labels] if !options[:labels].nil?
         cluster_payload['enabled'] = options[:active] if !options[:active].nil?
         cluster_payload['managed'] = options[:managed] if !options[:managed].nil?
+        cluster_payload['autoRecoverPowerState'] = options[:autoRecoverPowerState] if !options[:autoRecoverPowerState].nil?
         cluster_payload['serviceUrl'] = options[:apiUrl] if !options[:apiUrl].nil?
         cluster_payload['serviceToken'] = options[:apiToken] if !options[:apiToken].nil?
         cluster_payload['refresh'] = options[:refresh] if options[:refresh] == true
