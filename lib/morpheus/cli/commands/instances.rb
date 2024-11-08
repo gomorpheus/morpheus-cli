@@ -5585,6 +5585,8 @@ private
         details['interfaces'].each do |inter|
           interfaces.push(inter)
         end
+        # only include the first one or it will create duplicates
+        break
       end
       return interfaces
     rescue
