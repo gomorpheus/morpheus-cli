@@ -531,6 +531,7 @@ EOT
       v_prompt.deep_compact!
       virtual_image_payload.deep_merge!(v_prompt)
       virtual_image_files = virtual_image_payload.delete('virtualImageFiles')
+      upload_type = virtual_image_payload.delete('uploadType') # not used serverside
       virtual_image_payload['imageType'] = image_type['code']
       storage_provider_id = virtual_image_payload.delete('storageProviderId')
       if !storage_provider_id.to_s.empty?
@@ -550,6 +551,11 @@ EOT
       # fix issue with api returning imageType vmware instead of vmdk
       if virtual_image_payload && virtual_image_payload['imageType'] == 'vmware'
         virtual_image_payload['imageType'] == 'vmdk'
+      end
+      # no need to make second request anymore, just include virtualImage.url
+      if file_url
+        virtual_image_payload['url'] = file_url
+        file_url = nil
       end
       #payload = {'virtualImage' => virtual_image_payload}
       payload.deep_merge!({'virtualImage' => virtual_image_payload})
@@ -999,7 +1005,9 @@ EOT
         tmp_option_types.reject! {|opt| ['storageProviderId', 'userData', 'sshUsername', 'sshPassword'].include?(opt['fieldName'])}
       else
         if include_file_selection
-          tmp_option_types << {'fieldContext' => 'virtualImageFiles', 'fieldName' => 'imageFile', 'fieldLabel' => 'Image File', 'type' => 'file', 'required' => false, 'description' => 'Choose an image file to upload', 'displayOrder' => 11}
+          tmp_option_types << {'code' => 'virtualImage.uploadType', 'fieldName' => 'uploadType', 'fieldLabel' => 'Create Image ID', 'type' => 'select', 'selectOptions' => [{'name' => 'File', 'value' => 'file'},{'name' => 'URL/Path', 'value' => 'url'},{'name' => 'None', 'value' => 'none'}], 'defaultValue' => 'file', 'required' => false, 'description' => 'Choose upload type: file, url or none', 'displayOrder' => 11}
+          tmp_option_types << {'dependsOnCode' => 'virtualImage.uploadType:file', 'fieldContext' => 'virtualImageFiles', 'fieldName' => 'imageFile', 'fieldLabel' => 'Image File', 'type' => 'file', 'required' => false, 'description' => 'Choose an image file to upload', 'displayOrder' => 12}
+          tmp_option_types << {'dependsOnCode' => 'virtualImage.uploadType:url', 'fieldName' => 'url', 'fieldLabel' => 'URL/Path', 'type' => 'text', 'required' => false, 'description' => 'Enter URL/Path to virtual image file(s)', 'displayOrder' => 13}
         end
       end
     end
