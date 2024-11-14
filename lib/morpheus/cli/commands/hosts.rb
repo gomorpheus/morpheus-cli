@@ -1009,6 +1009,9 @@ class Morpheus::Cli::Hosts
       opts.on('--ssh-password VALUE', String, "SSH Password") do |val|
         params['sshPassword'] = val == "null" ? nil : val
       end
+      opts.on('--ssh-key-pair ID', String, "SSH Key Pair ID") do |val|
+        params['sshKeyPair'] = val == "null" ? nil : {"id" => val.to_i}
+      end
       opts.on('--power-schedule-type ID', String, "Power Schedule Type ID") do |val|
         params['powerScheduleType'] = val == "null" ? nil : val
       end
