@@ -25,6 +25,13 @@ class Morpheus::ApplianceSettingsInterface < Morpheus::APIClient
     execute(opts)
   end
 
+  def locales(params={})
+    url = "#{base_path}/locales"
+    headers = { params: params, authorization: "Bearer #{@access_token}" }
+    opts = {method: :get, url: url, headers: headers}
+    execute(opts)
+  end
+
   def maintenance(params={}, payload={})
     url = "#{base_path}/maintenance"
     headers = { params: params, authorization: "Bearer #{@access_token}" }
