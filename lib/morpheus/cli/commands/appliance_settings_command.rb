@@ -7,7 +7,7 @@ class Morpheus::Cli::ApplianceSettingsCommand
   set_command_name :'appliance-settings'
 
   register_subcommands :get, :update, :toggle_maintenance, :'reindex'
-  
+
   set_default_subcommand :get
 
   def connect(opts)
@@ -33,7 +33,7 @@ class Morpheus::Cli::ApplianceSettingsCommand
       raise_command_error "wrong number of arguments, expected 0 and got (#{args.count}) #{args}\n#{optparse}"
       return 1
     end
-    
+
     begin
       @appliance_settings_interface.setopts(options)
 
@@ -220,6 +220,25 @@ class Morpheus::Cli::ApplianceSettingsCommand
       opts.on("--stats-retainment-period DAYS", Integer, "Stats retainment period. The number of days stats should be available. Can be 30, 60, or 90.") do |val|
         params['statsRetainmentPeriod'] = val.to_i
       end
+      opts.on("--cloud-sync-interval-seconds SECONDS", Integer, "Cloud sync interval in seconds") do |val|
+        params['cloudSyncIntervalSeconds'] = val.to_i
+      end
+      opts.on("--cluster-sync-interval-seconds SECONDS", Integer, "Cluster sync interval in seconds") do |val|
+        params['clusterSyncIntervalSeconds'] = val.to_i
+      end
+      opts.on("--usage-retainment-period DAYS", Integer, "Retainment period for usage records") do |val|
+        params['usageRetainmentPeriod'] = val.to_i
+      end
+      opts.on("--invoice-retainment-period DAYS", Integer, "Retainment period for invoice records") do |val|
+        params['invoiceRetainmentPeriod'] = val.to_i
+      end
+      opts.on("--max-option-list-size NUMBER", Integer, "Max option list size (x10^3)") do |val|
+        params['maxOptionListSize'] = val.to_i
+      end
+      opts.on("--default-locale STRING", String, "Default locale for the appliance") do |val|
+        params['defaultLocale'] = val == 'null' ? nil : val
+      end
+
       build_common_options(opts, options, [:json, :payload, :dry_run, :quiet, :remote])
     end
 
