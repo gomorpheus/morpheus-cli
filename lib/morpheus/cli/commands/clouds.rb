@@ -1183,7 +1183,7 @@ EOT
 
     # Details (zoneType.optionTypes)
 
-    if cloud_type && cloud_type['optionTypes']
+    if cloud_type && cloud_type['optionTypes'] && cloud_type['code'] != 'standard'
       if !cloud_type['optionTypes'].find {|opt| opt['type'] == 'credential'}
         tmp_option_types << {'fieldName' => 'type', 'fieldLabel' => 'Credentials', 'type' => 'credential', 'optionSource' => 'credentials', 'required' => true, 'defaultValue' => 'local', 'config' => {'credentialTypes' => get_cloud_type_credential_types(cloud_type['code'])}, 'displayOrder' => 7}
         cloud_type['optionTypes'].select {|opt| ['username', 'password', 'serviceUsername', 'servicePassword'].include?(opt['fieldName'])}.each {|opt| opt['localCredential'] = true}
