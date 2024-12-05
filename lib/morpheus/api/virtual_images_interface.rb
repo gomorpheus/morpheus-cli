@@ -44,6 +44,12 @@ class Morpheus::VirtualImagesInterface < Morpheus::APIClient
     execute(method: :put, url: url, headers: headers, payload: payload.to_json)
   end
 
+  def convert(id, payload)
+    url = "#{@base_url}/api/virtual-images/#{id}/convert"
+    headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }
+    execute(method: :post, url: url, headers: headers, payload: payload.to_json)
+  end
+
   def destroy(id, params={})
     url = "#{@base_url}/api/virtual-images/#{id}"
     headers = { :authorization => "Bearer #{@access_token}", 'Content-Type' => 'application/json' }

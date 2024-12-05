@@ -6,7 +6,7 @@ class Morpheus::Cli::VirtualImages
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::ProvisioningHelper
 
-  register_subcommands :list, :get, :add, :add_file, :remove_file, :update, :remove, :types => :virtual_image_types
+  register_subcommands :list, :get, :add, :add_file, :remove_file, :update, :remove, :convert, :types => :virtual_image_types
   register_subcommands :list_locations, :get_location, :remove_location
 
   # def initialize() 
@@ -302,7 +302,7 @@ EOT
     options = {}
     tenants_list = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name] [options]")
+      opts.banner = subcommand_usage("[image] [options]")
       opts.on('--tenants LIST', Array, "Tenant Access, comma separated list of account IDs") do |list|
         if list.size == 1 && list[0] == 'null' # hacky way to clear it
           tenants_list = []
@@ -324,7 +324,7 @@ EOT
       end
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Update a virtual image." + "\n" +
-                    "[name] is required. This is the name or id of a virtual image."
+                    "[image] is required. This is the name or id of a virtual image."
     end
     optparse.parse!(args)
     verify_args!(args:args, optparse:optparse, count:1)
@@ -375,6 +375,56 @@ EOT
     end
     return 0, nil
     
+  end
+
+  def convert(args)
+    image_name = args[0]
+    options = {}
+    # storageProviderId, format, name
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[image] [options]")
+      opts.on('-n', '--name NAME', String, "Name (optional) of the new converted image. Default is name of the original image.") do |val|
+        options[:options]['name'] = val
+      end
+      opts.on('-f', '--format FORMAT', String, "Format (optional). Default is 'qcow2'") do |val|
+        options[:options]['format'] = val
+      end
+      opts.on('--storageProvider VALUE', String, "Storage Provider ID (optional). Default is storage provider of the original image.") do |val|
+        options[:options]['storageProvider'] = val.to_s
+      end
+      build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
+      opts.footer = "Convert a virtual image to a new format." + "\n" +
+        "[image] is required. This is the name or id of a virtual image."
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, min:1, max:4)
+
+    connect(options)
+
+    virtual_image = find_virtual_image_by_name_or_id(image_name)
+    return 1, "Virtual image not found for #{image_name}" if virtual_image.nil?
+
+    passed_options = parse_passed_options(options)
+    payload = nil
+    if options[:payload]
+      payload = options[:payload]
+      payload.deep_merge!({virtual_image_object_key => passed_options}) unless passed_options.empty?
+    else
+      virtual_image_payload = passed_options
+      virtual_image_payload['storageProvider'] = {'id' => virtual_image_payload['storageProvider']} unless virtual_image_payload['storageProvider'].nil?
+      payload = virtual_image_payload
+    end
+    @virtual_images_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @virtual_images_interface.dry.convert(virtual_image['id'], payload)
+      return
+    end
+    json_response = @virtual_images_interface.convert(virtual_image['id'], payload)
+    render_response(json_response, options, 'virtualImage') do
+      print_green_success "Updated virtual image #{virtual_image['name']}"
+      _get(virtual_image["id"], {}, options)
+    end
+    return 0, nil
   end
 
   def virtual_image_types(args)
@@ -621,7 +671,7 @@ EOT
     do_gzip = false
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name] [filepath]")
+      opts.banner = subcommand_usage("[image] [filepath]")
       opts.on('--filename FILENAME', String, "Filename for uploaded file. Derived from [filepath] by default." ) do |val|
         file_name = val
       end
@@ -633,7 +683,7 @@ EOT
       end
       build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
       opts.footer = "Upload a virtual image file." + "\n" +
-                    "[name] is required. This is the name or id of a virtual image." + "\n" +
+                    "[image] is required. This is the name or id of a virtual image." + "\n" +
                     "[filepath] or --url is required. This is location of the virtual image file."
     end
     optparse.parse!(args)
@@ -700,7 +750,7 @@ EOT
   def remove_file(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name] [filename]")
+      opts.banner = subcommand_usage("[image] [filename]")
       build_common_options(opts, options, [:auto_confirm, :json, :dry_run, :remote])
     end
     optparse.parse!(args)
