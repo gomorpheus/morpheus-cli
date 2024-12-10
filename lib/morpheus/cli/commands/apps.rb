@@ -506,7 +506,7 @@ class Morpheus::Cli::Apps
               # prompt for cloudFormation config
               # todo
             else
-              print yellow, "Unknown template type: #{template_type})", "\n"
+              print yellow, "Unknown template type: #{blueprint_type})", "\n"
             end
           end
         end
