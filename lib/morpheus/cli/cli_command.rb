@@ -1767,7 +1767,18 @@ module Morpheus
           output = records.collect { |record| 
             options[:select_fields].collect { |field| 
               value = get_object_value(record, field)
-              value.is_a?(String) ? value : JSON.fast_generate(value)
+              if options[:json]
+                as_json(value, options)
+              elsif options[:yaml]
+                output = as_yaml(value, options)
+              elsif options[:csv]
+                as_csv(value, nil, options)
+              else
+                # default behavior
+                # value.is_a?(String) ? value : as_json(value, options)
+                do_pretty = options.key?(:pretty_json) ? options[:pretty_json] : false # or true?
+                value.is_a?(String) ? value : (do_pretty ? JSON.pretty_generate(value) : JSON.fast_generate(value))
+              end
             }.join(options[:delim] || ",")
           }.join(options[:newline] || "\n")
         elsif options[:json]
