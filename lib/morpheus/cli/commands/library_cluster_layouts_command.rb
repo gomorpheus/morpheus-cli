@@ -845,7 +845,7 @@ class Morpheus::Cli::LibraryClusterLayoutsCommand
   end
 
   def find_layout_by_name(name)
-    layouts = @library_cluster_layouts_interface.list(instance_type_id, {name: name.to_s})['layouts']
+    layouts = @library_cluster_layouts_interface.list({name: name.to_s})['layouts']
     if layouts.empty?
       print_red_alert "Cluster layout not found by name #{name}"
       return nil
