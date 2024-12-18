@@ -2756,7 +2756,10 @@ class Morpheus::Cli::Instances
     connect(options)
     instance = find_instance_by_name_or_id(args[0])
     return 1, "instance not found" if instance.nil?
-    
+    # need to load full instance details in case fetched by name
+    if instance['containerDetails'].nil?
+      instance = find_instance_by_id(instance['id'])
+    end
     payload = {}
     if options[:payload]
       payload = options[:payload]
@@ -2811,13 +2814,22 @@ class Morpheus::Cli::Instances
       payload["instance"]["plan"] = {"id" => service_plan["id"]}
 
       volumes_response = @instances_interface.volumes(instance['id'])
-      current_volumes = volumes_response['volumes'].sort {|x,y| x['displayOrder'] <=> y['displayOrder'] }
+      current_volumes = nil
 
       # prompt for volumes
       vol_options = options 
       vol_options['siteId'] = group_id
       vol_options['zoneId'] = cloud_id
-      volumes = prompt_resize_volumes(current_volumes, service_plan, provision_type, vol_options)
+      server = instance['containerDetails'][0]['server'] rescue nil
+      if server.nil?
+        Morpheus::Logging::DarkPrinter.puts "Failed to load server info"
+        volumes_response = @instances_interface.volumes(instance['id'])
+        current_volumes = volumes_response['volumes'].sort {|x,y| x['displayOrder'] <=> y['displayOrder'] }
+      else
+         # or just use instance['volumes'] ?
+        current_volumes = server['volumes'].sort {|x,y| x['displayOrder'] <=> y['displayOrder'] }
+      end
+      volumes = prompt_resize_volumes(current_volumes, service_plan, provision_type, vol_options, server)
       if !volumes.empty?
         payload["volumes"] = volumes
       end
