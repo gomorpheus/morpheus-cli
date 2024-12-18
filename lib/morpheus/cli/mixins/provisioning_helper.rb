@@ -1645,7 +1645,6 @@ module Morpheus::Cli::ProvisioningHelper
             matching_volume = volumes.find {|v| v['controllerMountPoint'] && v['controllerMountPoint'].split(':')[0] == sc['id'].to_s }
             if matching_volume
               sc['busNumber'] = matching_volume['controllerMountPoint'].split(":")[1]
-              puts "found it! busNumber is " + sc['busNumber'].to_s
             end
           end
           sct = storage_controller_types.find { |t| t['id'] == sc['type']['id'] }
