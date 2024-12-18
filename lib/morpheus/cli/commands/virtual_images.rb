@@ -172,11 +172,8 @@ EOT
         id
       else
         image = find_virtual_image_by_name_or_id(id)
-        if image
-          image['id']
-        else
-          raise_command_error "virtual image not found for name '#{id}'"
-        end
+        return 1, "virtual image not found for name '#{id}'" if image.nil?
+        image['id']
       end
     end
     return run_command_for_each_arg(id_list) do |arg|
@@ -383,15 +380,16 @@ EOT
     # storageProviderId, format, name
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[image] [options]")
-      opts.on('-n', '--name NAME', String, "Name (optional) of the new converted image. Default is name of the original image.") do |val|
-        options[:options]['name'] = val
-      end
-      opts.on('-f', '--format FORMAT', String, "Format (optional). Default is 'qcow2'") do |val|
-        options[:options]['format'] = val
-      end
-      opts.on('--storageProvider VALUE', String, "Storage Provider ID (optional). Default is storage provider of the original image.") do |val|
-        options[:options]['storageProvider'] = val.to_s
-      end
+      # opts.on('-n', '--name NAME', String, "Name (optional) of the new converted image. Default is name of the original image.") do |val|
+      #   options[:options]['name'] = val
+      # end
+      # opts.on('-f', '--format FORMAT', String, "Format (optional). Default is 'qcow2'") do |val|
+      #   options[:options]['format'] = val
+      # end
+      # opts.on('--storageProvider VALUE', String, "Storage Provider ID (optional). Default is storage provider of the original image.") do |val|
+      #   options[:options]['storageProvider'] = val.to_s
+      # end
+      build_option_type_options(opts, options, convert_virtual_image_option_types)
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Convert a virtual image to a new format." + "\n" +
         "[image] is required. This is the name or id of a virtual image."
@@ -411,7 +409,18 @@ EOT
       payload.deep_merge!({virtual_image_object_key => passed_options}) unless passed_options.empty?
     else
       virtual_image_payload = passed_options
-      virtual_image_payload['storageProvider'] = {'id' => virtual_image_payload['storageProvider']} unless virtual_image_payload['storageProvider'].nil?
+      source_format = virtual_image['imageType']
+      v_prompt = Morpheus::Cli::OptionTypes.prompt(convert_virtual_image_option_types(source_format), options[:options], @api_client, {'virtualImageId': virtual_image['id']})
+      v_prompt.deep_compact!
+      virtual_image_payload.deep_merge!(v_prompt)
+      # support "storageProviderId" too
+      if virtual_image_payload['storageProviderId']
+        virtual_image_payload['storageProvider'] = virtual_image_payload.delete('storageProviderId')
+      end
+      # convert "storageProvider":1 to "storageProvider": {"id":1}
+      if virtual_image_payload['storageProvider'] && !virtual_image_payload['storageProvider'].is_a?(Hash)
+        virtual_image_payload['storageProvider'] = {'id' => virtual_image_payload['storageProvider'].to_i }
+      end
       payload = virtual_image_payload
     end
     @virtual_images_interface.setopts(options)
@@ -990,11 +999,20 @@ EOT
 
   def find_virtual_image_by_name(name)
     json_results = @virtual_images_interface.list({name: name.to_s})
-    if json_results['virtualImages'].empty?
+    records = json_results['virtualImages']
+    if records.empty?
       print_red_alert "Virtual Image not found by name #{name}"
       return nil
+    elsif records.size > 1
+      print_red_alert "More than one Virtual Image found by name '#{name}'"
+      print_error "\n"
+      puts_error as_pretty_table(records, [:id, :name], {color:red})
+      print_red_alert "Try using ID instead"
+      print_error reset,"\n"
+      return nil
+    else
+      virtual_image = records[0]
     end
-    virtual_image = json_results['virtualImages'][0]
     return virtual_image
   end
 
@@ -1072,6 +1090,42 @@ EOT
       it.delete('defaultValue')
     }
     list
+  end
+
+  def convert_virtual_image_option_types(source_format=nil)
+    [
+      {'shorthand' => '-f', 'fieldName' => 'format', 'type' => 'select', 'fieldLabel' => 'Format', 'selectOptions' => get_convert_image_formats(source_format), 'required' => true, 'defaultValue' => (source_format == 'qcow2' ? nil : 'qcow2')},
+      {'shorthand' => '-b', 'fieldName' => 'storageProviderId', 'type' => 'select', 'fieldLabel' => 'Bucket', 'optionSource' => 'storageProviders', 'required' => false, 'description' => 'Select Storage Provider Bucket or File Share.'},
+      {'shorthand' => '-n', 'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => false}
+    ]
+  end
+
+  def convert_source_types
+    ["raw","qcow2","vmdk",'vmware', "vhd","ovf"]
+  end
+
+  def convert_destination_types
+    #["raw", "qcow2", "vmdk",'vmware',"vhd","ovf"]
+    convert_source_types
+  end
+
+  def get_convert_image_formats(source_format=nil)
+    categories = [
+      {'name' => 'QCOW2', 'value' => 'qcow2'},
+      {'name' => 'VMDK', 'value' => 'ovf'},
+      {'name' => 'VHD', 'value' => 'vhd'},
+      {'name' => 'Raw', 'value' => 'raw'}
+    ]
+    # if source format (imageType) is not in the list, then no options
+    # else reject the current value
+    if source_format
+      if !convert_source_types.include?(source_format.to_s.downcase)
+        categories = []
+      else
+        categories = categories.select {|it| it['value'] != source_format.to_s.downcase }
+      end
+    end
+    return categories
   end
 
   def format_tenants(accounts)
