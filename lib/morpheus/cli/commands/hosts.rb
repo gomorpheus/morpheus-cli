@@ -1344,6 +1344,7 @@ class Morpheus::Cli::Hosts
       vol_options = options 
       vol_options['siteId'] = group_id
       vol_options['zoneId'] = cloud_id
+      vol_options['resourcePoolId'] = server['resourcePool']['id'] if server['resourcePool']
       volumes = prompt_resize_volumes(current_volumes, service_plan, provision_type, vol_options, server)
       if !volumes.empty?
         payload[:volumes] = volumes

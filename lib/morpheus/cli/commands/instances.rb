@@ -2820,6 +2820,7 @@ class Morpheus::Cli::Instances
       vol_options = options 
       vol_options['siteId'] = group_id
       vol_options['zoneId'] = cloud_id
+      vol_options['resourcePoolId'] = resource_pool_id  # server['resourcePool']['id'] if server['resourcePool']
       server = instance['containerDetails'][0]['server'] rescue nil
       if server.nil?
         Morpheus::Logging::DarkPrinter.puts "Failed to load server info"
@@ -2829,6 +2830,7 @@ class Morpheus::Cli::Instances
          # or just use instance['volumes'] ?
         current_volumes = server['volumes'].sort {|x,y| x['displayOrder'] <=> y['displayOrder'] }
       end
+      vol_options['resourcePoolId'] = server['resourcePool']['id'] if server && server['resourcePool']
       volumes = prompt_resize_volumes(current_volumes, service_plan, provision_type, vol_options, server)
       if !volumes.empty?
         payload["volumes"] = volumes
