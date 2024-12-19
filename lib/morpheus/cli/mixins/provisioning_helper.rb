@@ -839,7 +839,7 @@ module Morpheus::Cli::ProvisioningHelper
       # no longer use the plan datastores info, always load from data-stores api instead
       # note: this modifies service_plan in place with 'datastores' and 'autoOptions'
       if options[:select_datastore]
-        if provision_type['hasDatastore'] # && resource_pool_id
+        if provision_type['hasDatastore']
           datastore_params = {'zoneId' => cloud_id, 'siteId' => group_id, 'resourcePoolId' => resource_pool['id']}
           load_service_plan_datastores(service_plan, provision_type, datastore_params)
         end
@@ -1320,9 +1320,9 @@ module Morpheus::Cli::ProvisioningHelper
     # note: this modifies service_plan in place with 'datastores' and 'autoOptions'
     group_id = cloud_id = options['siteId']
     cloud_id = options['zoneId']
-    resource_pool = server ? server['resourcePool'] : nil
-    resource_pool_id = resource_pool ? resource_pool['id'] : options['resourcePoolId']
-    if provision_type['hasDatastore'] # && resource_pool_id
+    server_resource_pool_id = server ? (server['resourcePoolId'] || (server['resourcePool'] ? server['resourcePool']['id'] : nil)) : nil
+    resource_pool_id = options['resourcePoolId'] || server_resource_pool_id
+    if provision_type['hasDatastore']
       datastore_params = {'zoneId' => cloud_id, 'siteId' => group_id, 'resourcePoolId' => resource_pool_id}
       load_service_plan_datastores(plan_info, provision_type, datastore_params)
     end
