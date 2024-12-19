@@ -1337,8 +1337,13 @@ class Morpheus::Cli::Hosts
       payload[:server][:plan] = {id: service_plan["id"]}
 
       # fetch volumes
-      volumes_response = @servers_interface.volumes(server['id'])
-      current_volumes = volumes_response['volumes'].sort {|x,y| x['displayOrder'] <=> y['displayOrder'] }
+      current_volumes = nil
+      if server['volumes']
+        current_volumes = server['volumes'].sort {|x,y| x['displayOrder'] <=> y['displayOrder'] }
+      else
+        volumes_response = @servers_interface.volumes(server['id'])
+        current_volumes = volumes_response['volumes'].sort {|x,y| x['displayOrder'] <=> y['displayOrder'] }
+      end
 
       # prompt for volumes
       vol_options = options 
