@@ -635,8 +635,8 @@ class Morpheus::Cli::Shell
   # @return Hash like {:commands => [], :command_count => total}
   def load_history_commands(options={})
     phrase = options[:phrase]
-    sort_key = options[:sort] ? options[:sort].to_sym : nil
-    
+    #sort_key = options[:sort] ? options[:sort].to_sym : nil
+    #direction = options[:direction] # default sort is reversed to get newest first
     offset = options[:offset].to_i > 0 ? options[:offset].to_i : 0
     max = options[:max].to_i > 0 ? options[:max].to_i : 25
     
@@ -648,40 +648,21 @@ class Morpheus::Cli::Shell
     # collect records as [{:number => 1, :command => "instances list"}, etc]
     history_records = []
     history_count = 0
-    
-    # sort is a bit different for this command, the default sort is by number
-    # it sorts oldest -> newest, but shows the very last page by default.
-    if options[:sort] && ![:number, :command].include?(options[:sort])
-      sort_key = :number # nil
-    end
 
-    if options[:phrase] || sort_key || options[:direction] || options[:offset]
-      # this could be a large object...need to index our shell_history file lol
-      sort_key ||= :number
-      history_records = @history.keys.collect { |k| {number: k, command: @history[k]} }
-      if options[:direction] == 'desc'
-        history_records = history_records.sort {|x,y| y[sort_key] <=> x[sort_key] }
-      else
-        history_records = history_records.sort {|x,y| x[sort_key] <=> y[sort_key] }
-      end
-      if phrase
-        history_records = history_records.select {|it| it[:command].include?(phrase) || it[:number].to_s == phrase }
-      end
-      command_count = history_records.size
-      history_records = history_records[offset..(max-1)]
-    else
-      # default should try to be as fast as possible..
-      # no searching or sorting, default order by :number works
-      if offset != 0
-        cmd_numbers = @history.keys.last(max + offset).first(max)
-      else
-        cmd_numbers = @history.keys.last(max)
-      end
-      history_records = cmd_numbers.collect { |k| {number: k, command: @history[k]} }
-      command_count = @history.size
+    # only go so far back in command history, 1 million commands
+    # this could be a large object...need to index our shell_history file lol
+    # todo: this max needs to be done in load_history_from_log_file()
+    history_keys = @history.keys.last(1000000).reverse
+    # filter by phrase
+    if phrase
+      history_keys = history_keys.select {|k| (@history[k] && @history[k].include?(phrase)) || k.to_s == phrase }
     end
+    # no offset, just max
+    history_records = history_keys.first(max).collect { |k| {number: k, command: @history[k]} }
+    command_count = history_keys.size
+
     meta = {size:history_records.size, total:command_count.to_i, max:max, offset:offset}
-    return {:commands => history_records, :command_count => command_count, :meta => meta}
+    return {commands: history_records, command_count: command_count, meta: meta}
   end
 
   def print_history(options={})
@@ -696,16 +677,14 @@ class Morpheus::Cli::Shell
       end
     else
       print cyan
+      # by default show old->new as the shell history should bash history
+      history_records.reverse! unless options[:direction] == "desc"
       history_records.each do |history_record|
         puts "#{history_record[:number].to_s.rjust(3, ' ')}  #{history_record[:command]}"
       end
       if options[:show_pagination]
-        if options[:phrase] || options[:sort] || options[:direction] || options[:offset]
-          print_results_pagination(history_result[:meta])
-        else
-          # default order is weird, it's the last page of results, 1-25 is misleading and showing the indexes is stranger
-          print_results_pagination(history_result[:meta], {:message =>"Viewing most recent %{size} of %{total} %{label}"})
-        end
+        pagination_msg = options[:phrase] ? "Viewing most recent %{size} of %{total} commands matching '#{options[:phrase]}'" : "Viewing most recent %{size} of %{total} commands"
+        print_results_pagination(history_result[:meta], {:message =>pagination_msg})
         print reset, "\n"
       else
         print reset
