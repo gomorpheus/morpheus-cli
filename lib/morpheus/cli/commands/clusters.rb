@@ -802,6 +802,9 @@ class Morpheus::Cli::Clusters
       opts.on('--managed [on|off]', String, "Can be used to enable / disable managed cluster. Default is on") do |val|
         options[:managed] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
+      opts.on('--useAgent [on|off]', String, "Use the Agent to relay communications for the Kubernetes API instead of direct.") do |val|
+        options[:useAgent] = val.to_s
+      end
       opts.on('--autoRecoverPowerState [on|off]', String, "Automatically Power On VMs") do |val|
         options[:autoRecoverPowerState] = val.to_s == 'on' || val.to_s == 'true' || val.to_s == '1' || val.to_s == ''
       end
@@ -855,6 +858,7 @@ class Morpheus::Cli::Clusters
         cluster_payload['refresh'] = options[:refresh] if options[:refresh] == true
         cluster_payload['tenant'] = options[:tenant] if !options[:tenant].nil?
         cluster_payload['integrations'] = options[:integrations] if !options[:integrations].nil?
+        cluster_payload['useAgent'] = options[:useAgent] if !options[:useAgent].nil?
         payload = {"cluster" => cluster_payload}
       end
 
