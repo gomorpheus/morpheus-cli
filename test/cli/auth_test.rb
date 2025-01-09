@@ -54,6 +54,12 @@ class MorpheusTest::AuthTest < MorpheusTest::TestCase
         assert_execute %(instances list)
       end
     end
+    # test bug where this failed when combined with --dry-run option
+    without_authentication do
+      with_input @config.username, @config.password_decrypted do
+        assert_execute %(instances list -d)
+      end
+    end
   end
 
   def test_login_adhoc
