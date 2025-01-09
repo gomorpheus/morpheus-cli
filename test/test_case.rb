@@ -87,7 +87,7 @@ module MorpheusTest
     #   assert_execute("foobar", exit:1, "Expected unknown command to fail")
     #
     def assert_execute(cmd, opts = {}, failure_message = nil)
-      #Morpheus::Logging::DarkPrinter.putsexit_code, err = Morpheus::Cli::CliRegistry.parse_command_result(result)
+      #Morpheus::Logging::DarkPrinter.puts(cmd)
       opts = opts.is_a?(String) ? {failure_message:opts} : (opts || {})
       result = terminal.execute(cmd)
       assert_command_result(result, opts, failure_message)
