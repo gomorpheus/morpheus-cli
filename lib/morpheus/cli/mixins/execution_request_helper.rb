@@ -29,7 +29,7 @@ module Morpheus::Cli::ExecutionRequestHelper
     # unless options[:quiet]
     #   print cyan, "Execution request has not yet finished. Refreshing every #{refresh_display_seconds} seconds...", "\n", reset
     # end
-    while execution_request['status'] == 'pending' || execution_request['status'] == 'new' do
+    while (options[:waiting_status] || ['new', 'pending']).include?(execution_request['status']) do
       sleep(refresh_interval)
       execution_request = execution_request_interface.get(execution_request_id)['executionRequest']
     end

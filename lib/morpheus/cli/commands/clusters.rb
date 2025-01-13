@@ -6,6 +6,7 @@ class Morpheus::Cli::Clusters
   include Morpheus::Cli::ProcessesHelper
   include Morpheus::Cli::WhoamiHelper
   include Morpheus::Cli::AccountsHelper
+  include Morpheus::Cli::ExecutionRequestHelper
 
   register_subcommands :list, :count, :get, :view, :add, :update, :remove, :logs, :history, {:'history-details' => :history_details}, {:'history-event' => :history_event_details}
   register_subcommands :list_workers, :add_worker, :remove_worker, :update_worker_count
@@ -3008,6 +3009,12 @@ class Morpheus::Cli::Clusters
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage( "[cluster] [options]")
+      opts.on('--refresh [SECONDS]', String, "Refresh until execution is complete. Default interval is #{default_refresh_interval} seconds.") do |val|
+        options[:refresh_interval] = val.to_s.empty? ? default_refresh_interval : val.to_f
+      end
+      opts.on(nil, '--no-refresh', "Do not refresh" ) do
+        options[:no_refresh] = true
+      end
       build_option_type_options(opts, options, add_datastore_option_types)
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
       opts.footer = "Add datastore to a cluster.\n" +
@@ -3063,11 +3070,19 @@ class Morpheus::Cli::Clusters
       json_response = @clusters_interface.create_datastore(cluster['id'], payload)
       if options[:json]
         puts as_json(json_response)
-      elsif json_response['success']
-        if json_response['msg'] == nil
-          print_green_success "Added datastore to cluster #{cluster['name']}"
+      else
+        if json_response['success']
+          if json_response['msg'] == nil
+            print_green_success "Adding datastore to cluster #{cluster['name']}"
+          else
+            print_green_success json_response['msg']
+          end
+          execution_id = json_response['executionId']
+          if !options[:no_refresh] && execution_id
+            wait_for_execution_request(json_response['executionId'], options.merge({waiting_status:['new', 'pending', 'executing']}))
+          end
         else
-          print_green_success json_response['msg']
+          print_red_alert "Failed to create cluster datastore #{json_response['msg']}"
         end
       end
       return 0
@@ -3078,12 +3093,19 @@ class Morpheus::Cli::Clusters
   end
 
   def remove_datastore(args)
+    default_refresh_interval = 5
     params = {}
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[cluster] [datastore]")
       opts.on( '-f', '--force', "Force Delete" ) do
         params[:force] = 'on'
+      end
+      opts.on('--refresh [SECONDS]', String, "Refresh until execution is complete. Default interval is #{default_refresh_interval} seconds.") do |val|
+        options[:refresh_interval] = val.to_s.empty? ? default_refresh_interval : val.to_f
+      end
+      opts.on(nil, '--no-refresh', "Do not refresh" ) do
+        options[:no_refresh] = true
       end
       build_standard_remove_options(opts, options)
       opts.footer = "Delete a datastore from a cluster.\n" +
@@ -3118,12 +3140,18 @@ class Morpheus::Cli::Clusters
       return
     end
     json_response = @clusters_interface.destroy_datastore(cluster['id'], datastore['id'], params)
-    render_response(json_response, options) do
-      msg = "Datastore #{datastore['name']} is being removed from cluster #{cluster['name']}..."
-      if json_response['msg']
-        msg = json_response['msg']
+    if options[:json]
+      puts as_json(json_response)
+    else
+      if json_response['success']
+        print_green_success "Datastore #{datastore['name']} is being removed from cluster #{cluster['name']}"
+        execution_id = json_response['executionId']
+        if !options[:no_refresh] && execution_id
+          wait_for_execution_request(execution_id, options.merge({waiting_status:['new', 'pending', 'executing']}))
+        end
+      else
+        print_red_alert "Failed to remove cluster datastore #{json_response['msg']}"
       end
-      print_green_success msg
     end
     return 0, nil
   end
