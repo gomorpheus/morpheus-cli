@@ -1278,7 +1278,7 @@ module Morpheus
         elsif options[:remote_url]
           credentials = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url)
           unless options[:skip_login]
-            @wallet = credentials.request_credentials(options, @do_save_credentials)
+            @wallet = credentials.request_credentials(options.merge({dry_run:false}), @do_save_credentials)
           end
         else
           credentials = Morpheus::Cli::Credentials.new(@appliance_name, @appliance_url)
@@ -1293,7 +1293,7 @@ module Morpheus
           
           if @wallet.nil? || @wallet['access_token'].nil?
             unless options[:skip_login]
-              @wallet = credentials.request_credentials(options, @do_save_credentials)
+              @wallet = credentials.request_credentials(options.merge({dry_run:false}), @do_save_credentials)
             end
           end
           
