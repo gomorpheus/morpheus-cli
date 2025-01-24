@@ -2921,6 +2921,12 @@ class Morpheus::Cli::Instances
       opts.on( '--description VALUE', String, "Snapshot Description." ) do |val|
         options[:options]['description'] = val
       end
+      opts.on('--refresh [SECONDS]', String, "Refresh until execution is complete. Default interval is #{default_refresh_interval} seconds.") do |val|
+        options[:refresh_interval] = val.to_s.empty? ? default_refresh_interval : val.to_f
+      end
+      opts.on(nil, '--no-refresh', "Do not refresh" ) do
+        options[:no_refresh] = true
+      end
       build_standard_add_options(opts, options, [:auto_confirm])
       opts.footer = <<-EOT
 Create a snapshot for an instance.
@@ -2949,6 +2955,18 @@ EOT
     json_response = @instances_interface.snapshot(instance['id'], payload)
     render_response(json_response, options, 'snapshots') do
       print_green_success "Snapshot initiated."
+      process_id = json_response['processIds'][0] rescue nil
+      if process_id
+        unless options[:no_refresh]
+          process = wait_for_process_execution(process_id, options)
+          snapshot_id = process['resultId']
+          if snapshot_id
+            Morpheus::Cli::Snapshots.new.handle(["get", snapshot_id] + (options[:remote] ? ["-r",options[:remote]] : []))
+          end
+        end
+      else
+        # puts "No process returned"
+      end
     end
     return 0, nil
   end
@@ -3707,7 +3725,7 @@ EOT
       if options[:json]
         puts as_json(json_response, options)
       else
-        print_green_success "Snapshots attaced to instance #{instance['name']} queued for deletion."
+        print_green_success "Snapshots attached to instance #{instance['name']} queued for deletion."
       end
       return 0
 
@@ -4496,7 +4514,7 @@ EOT
         subtitles << " Process ID: #{process_id}"
         subtitles += parse_list_subtitles(options)
         print_h1 title, subtitles, options
-        print_process_details(process)
+        print_process_details(process, options)
   
         print_h2 "Process Events", options
         process_events = process['events'] || process['processEvents'] || []
@@ -5501,67 +5519,6 @@ private
       {'fieldName' => 'minDisk', 'fieldLabel' => 'Min Disk', 'type' => 'number', 'description' => 'Minimum storage percent (0-100)'},
       {'fieldName' => 'maxDisk', 'fieldLabel' => 'Max Disk', 'type' => 'number', 'description' => 'Maximum storage percent (0-100)'},
     ]
-  end
-
-  def print_process_details(process)
-    description_cols = {
-      "Process ID" => lambda {|it| it['id'] },
-      "Name" => lambda {|it| it['displayName'] },
-      "Description" => lambda {|it| it['description'] },
-      "Process Type" => lambda {|it| it['processType'] ? (it['processType']['name'] || it['processType']['code']) : it['processTypeName'] },
-      "Created By" => lambda {|it| it['createdBy'] ? (it['createdBy']['displayName'] || it['createdBy']['username']) : '' },
-      "Start Date" => lambda {|it| format_local_dt(it['startDate']) },
-      "End Date" => lambda {|it| format_local_dt(it['endDate']) },
-      "Duration" => lambda {|it| format_process_duration(it) },
-      "Status" => lambda {|it| format_process_status(it) },
-      # "# Events" => lambda {|it| (it['events'] || []).size() },
-    }
-    print_description_list(description_cols, process)
-
-    if process['error']
-      print_h2 "Error", options
-      print reset
-      #puts format_process_error(process_event)
-      puts process['error'].to_s.strip
-    end
-
-    if process['output']
-      print_h2 "Output", options
-      print reset
-      #puts format_process_error(process_event)
-      puts process['output'].to_s.strip
-    end
-  end
-
-  def print_process_event_details(process_event, options={})
-    # process_event =~ process
-    description_cols = {
-      "Process ID" => lambda {|it| it['processId'] },
-      "Event ID" => lambda {|it| it['id'] },
-      "Name" => lambda {|it| it['displayName'] },
-      "Description" => lambda {|it| it['description'] },
-      "Process Type" => lambda {|it| it['processType'] ? (it['processType']['name'] || it['processType']['code']) : it['processTypeName'] },
-      "Created By" => lambda {|it| it['createdBy'] ? (it['createdBy']['displayName'] || it['createdBy']['username']) : '' },
-      "Start Date" => lambda {|it| format_local_dt(it['startDate']) },
-      "End Date" => lambda {|it| format_local_dt(it['endDate']) },
-      "Duration" => lambda {|it| format_process_duration(it) },
-      "Status" => lambda {|it| format_process_status(it) },
-    }
-    print_description_list(description_cols, process_event)
-
-    if process_event['error']
-      print_h2 "Error", options
-      print reset
-      #puts format_process_error(process_event)
-      puts process_event['error'].to_s.strip
-    end
-
-    if process_event['output']
-      print_h2 "Output", options
-      print reset
-      #puts format_process_error(process_event)
-      puts process_event['output'].to_s.strip
-    end
   end
   
   def update_wiki_page_option_types

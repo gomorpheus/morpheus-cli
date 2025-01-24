@@ -486,7 +486,7 @@ def format_name_and_id(obj)
   elsif(obj.is_a?(Hash))
     "#{obj['name']} [#{obj['id']}]" rescue ""
   else
-    object.to_s
+    obj.to_s
   end
 end
 

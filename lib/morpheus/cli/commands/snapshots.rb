@@ -73,15 +73,15 @@ class Morpheus::Cli::Snapshots
         "Name" => 'name',
         "Description" => 'description',
         "External Id" => 'externalId',
-        "Status" => 'status',
-        "State" => 'state',
+        # "State" => 'state',
         "Snapshot Type" => 'snapshotType',
-        "Snapshot Created" => 'snapshotCreated',
-        "Cloud" => 'zone.name',
-        "Datastore" => 'datastore',
-        "Parent Snapshot" => 'parentSnapshot',
-        "Active" => 'currentlyActive',
-        "Date Created" => 'dateCreated'
+        "Date Created" => lambda {|it| format_local_dt(it['snapshotCreated']) },
+        "Cloud" => lambda {|it| format_name_and_id(it['zone']) },
+        "Datastore" => lambda {|it| format_name_and_id(it['datastore']) },
+        "Parent Snapshot" => lambda {|it| format_name_and_id(it['parentSnapshot']) },
+        "Active" => lambda {|it| format_boolean(it['currentlyActive']) },
+        "Date Created" => lambda {|it| format_local_dt(it['dateCreated']) },
+        "Status" => lambda {|it| format_snapshot_status(it) }
       }
       print_description_list(description_cols, snapshot)
 
@@ -134,4 +134,20 @@ class Morpheus::Cli::Snapshots
       exit 1
     end
   end
+
+  protected
+
+  def format_snapshot_status(snapshot, return_color=cyan)
+    out = ""
+    status_string = snapshot['status'].to_s
+    if status_string == 'complete'
+      out << "#{green}#{status_string.upcase}#{return_color}"
+    elsif status_string == 'failed'
+      out << "#{red}#{status_string.upcase}#{return_color}"
+    else
+      out << "#{cyan}#{status_string.upcase}#{return_color}"
+    end
+    out
+  end
+
 end

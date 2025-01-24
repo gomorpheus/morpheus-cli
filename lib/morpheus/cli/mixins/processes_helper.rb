@@ -8,8 +8,17 @@ module Morpheus::Cli::ProcessesHelper
     klass.send :include, Morpheus::Cli::PrintHelper
   end
 
+  def api_client
+    raise "#{self.class} has not defined @api_client" if @api_client.nil?
+    @api_client
+  end
 
-  def print_process_details(process)
+  def processes_interface
+    # get_interface('processes')
+    api_client.processes
+  end
+
+  def print_process_details(process, options={})
     description_cols = {
       "Process ID" => lambda {|it| it['id'] },
       "Name" => lambda {|it| it['displayName'] },
@@ -22,7 +31,7 @@ module Morpheus::Cli::ProcessesHelper
       "Status" => lambda {|it| format_process_status(it) },
       # "# Events" => lambda {|it| (it['events'] || []).size() },
     }
-    print_description_list(description_cols, process)
+    print_description_list(description_cols, process, options)
 
     if process['error']
       print_h2 "Error"
@@ -39,7 +48,7 @@ module Morpheus::Cli::ProcessesHelper
     end
   end
 
-  def print_process_event_details(process_event)
+  def print_process_event_details(process_event, options={})
     # process_event =~ process
     description_cols = {
       "Process ID" => lambda {|it| it['processId'] },
@@ -53,7 +62,7 @@ module Morpheus::Cli::ProcessesHelper
       "Duration" => lambda {|it| format_process_duration(it) },
       "Status" => lambda {|it| format_process_status(it) },
     }
-    print_description_list(description_cols, process_event)
+    print_description_list(description_cols, process_event, options)
 
     if process_event['error']
       print_h2 "Error"
@@ -109,6 +118,27 @@ module Morpheus::Cli::ProcessesHelper
       ""
     end
     out
+  end
+
+  def wait_for_process_execution(process_id, options={}, print_output = true)
+    refresh_interval = 10
+    if options[:refresh_interval].to_i > 0
+      refresh_interval = options[:refresh_interval]
+    end
+    refresh_display_seconds = refresh_interval % 1.0 == 0 ? refresh_interval.to_i : refresh_interval
+    unless options[:quiet]
+      print cyan, "Refreshing every #{refresh_display_seconds} seconds until process is complete...", "\n", reset
+    end
+    process = processes_interface.get(process_id)['process']
+    while ['new','queued','pending','running'].include?(process['status']) do
+      sleep(refresh_interval)
+      process = processes_interface.get(process_id)['process']
+    end
+    if print_output && options[:quiet] != true
+      print_h1 "Process Details", [], options
+      print_process_details(process, options)
+    end
+    return process
   end
 
 end

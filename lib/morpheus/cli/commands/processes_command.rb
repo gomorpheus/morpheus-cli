@@ -295,7 +295,7 @@ class Morpheus::Cli::Processes
         subtitles << " Process ID: #{process_id}"
         subtitles += parse_list_subtitles(options)
         print_h1 title, subtitles
-        print_process_details(process)
+        print_process_details(process, options)
   
         print_h2 "Process Events"
         process_events = process['events'] || process['processEvents'] || []
@@ -456,7 +456,7 @@ EOT
         subtitles = []
         subtitles += parse_list_subtitles(options)
         print_h1 title, subtitles
-        print_process_event_details(process_event)
+        print_process_event_details(process_event, options)
         print reset, "\n"
         return 0
       end

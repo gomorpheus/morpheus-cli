@@ -3784,7 +3784,7 @@ class Morpheus::Cli::Clusters
         subtitles << " Process ID: #{process_id}"
         subtitles += parse_list_subtitles(options)
         print_h1 title, subtitles, options
-        print_process_details(process)
+        print_process_details(process, options)
 
         print_h2 "Process Events", options
         process_events = process['events'] || process['processEvents'] || []
@@ -4003,7 +4003,7 @@ class Morpheus::Cli::Clusters
         subtitles = []
         subtitles += parse_list_subtitles(options)
         print_h1 title, subtitles, options
-        print_process_event_details(process_event)
+        print_process_event_details(process_event, options)
         print reset, "\n"
         return 0
       end
@@ -4014,37 +4014,6 @@ class Morpheus::Cli::Clusters
   end
 
   private
-
-  def print_process_event_details(process_event, options={})
-    # process_event =~ process
-    description_cols = {
-        "Process ID" => lambda {|it| it['processId'] },
-        "Event ID" => lambda {|it| it['id'] },
-        "Name" => lambda {|it| it['displayName'] },
-        "Description" => lambda {|it| it['description'] },
-        "Process Type" => lambda {|it| it['processType'] ? (it['processType']['name'] || it['processType']['code']) : it['processTypeName'] },
-        "Created By" => lambda {|it| it['createdBy'] ? (it['createdBy']['displayName'] || it['createdBy']['username']) : '' },
-        "Start Date" => lambda {|it| format_local_dt(it['startDate']) },
-        "End Date" => lambda {|it| format_local_dt(it['endDate']) },
-        "Duration" => lambda {|it| format_process_duration(it) },
-        "Status" => lambda {|it| format_process_status(it) },
-    }
-    print_description_list(description_cols, process_event)
-
-    if process_event['error']
-      print_h2 "Error", options
-      print reset
-      #puts format_process_error(process_event)
-      puts process_event['error'].to_s.strip
-    end
-
-    if process_event['output']
-      print_h2 "Output", options
-      print reset
-      #puts format_process_error(process_event)
-      puts process_event['output'].to_s.strip
-    end
-  end
 
   def print_clusters_table(clusters, opts={})
     table_color = opts[:color] || cyan
