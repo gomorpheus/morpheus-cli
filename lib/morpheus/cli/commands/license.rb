@@ -55,6 +55,10 @@ class Morpheus::Cli::License
         print "#{yellow}No license currently installed#{reset}\n\n"
       else
         print_license_details(json_response)
+        licenses = json_response['installedLicenses']
+        if licenses
+          print_installed_licenses(licenses, options)
+        end
         print_h2 "Current Usage", [], options
         print_license_usage(license, current_usage)
         print reset,"\n"
@@ -72,40 +76,55 @@ class Morpheus::Cli::License
     account_name = nil
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[key]")
-      build_common_options(opts, options, [:json, :dry_run, :remote])
+      opts.on('-a', '--add', "Stack this license on top of existing licenses. Without this option all existing licenses will be replaced." ) do
+        options[:options]['installAction'] = 'add'
+      end
+      opts.on('--stack', '--stack', "Alias for --add" ) do
+        options[:options]['installAction'] = 'add'
+      end
+      # opts.on('--replace', '--replace', "Replace existing licenses with this new license. This is the default behavior." ) do
+      #   options[:options]['installAction'] = 'replace'
+      # end
+      build_standard_add_options(opts, options)
       opts.footer = "Install a new license key.\n" +
                     "This will potentially change the enabled features and capabilities of your appliance."
     end
     optparse.parse!(args)
-    if args.count > 1
-      raise_command_error "wrong number of arguments, expected 0-1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
-    end
+    verify_args!(args:args, optparse:optparse, min:0, max:1)
     connect(options)
-    begin
+    payload = {}
+    if options[:payload]
+      payload = options[:payload]
+      payload.deep_merge!(parse_passed_options(options))
+    else
+      payload.deep_merge!(parse_passed_options(options))
       if args[0]
-        key = args[0]
+        key = args[0].strip
       else
         v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'licenseKey', 'fieldLabel' => 'License Key', 'type' => 'text', 'required' => true}], options[:options])
-        key = v_prompt['licenseKey'] || ''
+        key = v_prompt['licenseKey'].to_s.strip
       end
-      @license_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @license_interface.dry.install(key)
-        return 0
+      payload['license'] = key
+      # Stack Licenses?
+      # load current licenses to see if this prompt is required
+      json_response = @license_interface.get()
+      licenses = json_response['installedLicenses']
+      if licenses && !(licenses.size == 1 && key.index(licenses[0]['keyId']) == 0)
+        install_actions = [{'name' => 'Add', 'value' => 'add'},{'name' => 'Replace', 'value' => 'replace'}]
+        payload['installAction'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'installAction', 'fieldLabel' => 'Install Action', 'type' => 'select', 'selectOptions' => install_actions, 'required' => true, 'defaultValue' => 'replace', 'description' => "Install action to perform. Use add to stack this license on top of existing licenses. Use replace (default) to remove any existing license(s)."}], options[:options])['installAction']
       end
-      json_response = @license_interface.install(key)
-      license = json_response['license']
-      if options[:json]
-        puts JSON.pretty_generate(json_response)
-      else
-        print_green_success "License installed!"
-        get([] + (options[:remote] ? ["-r",options[:remote]] : []))
-      end
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      return false
     end
+    @license_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @license_interface.dry.install(payload)
+      return 0
+    end
+    json_response = @license_interface.install(payload)
+    render_response(json_response, options) do
+      print_green_success "License installed!"
+      get([] + (options[:remote] ? ["-r",options[:remote]] : []))
+    end
+    return 0, nil
   end
 
   def decode(args)
@@ -117,7 +136,16 @@ class Morpheus::Cli::License
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[key]")
-      build_common_options(opts, options, [:json, :yaml, :csv, :fields, :dry_run, :remote])
+      opts.on('-a', '--add', "Stack this license on top of existing licenses. Without this option all existing licenses will be replaced." ) do
+        options[:options]['installAction'] = 'add'
+      end
+      opts.on('--stack', '--stack', "Alias for --add" ) do
+        options[:options]['installAction'] = 'add'
+      end
+      # opts.on('--replace', '--replace', "Replace existing licenses with this new license. This is the default behavior." ) do
+      #   options[:options]['installAction'] = 'replace'
+      # end
+      build_standard_add_options(opts, options, [:fields])
       opts.footer = "Test a license key.\n" +
                     "This is a way to decode and view a license key before installing it."
     end
@@ -126,50 +154,48 @@ class Morpheus::Cli::License
       raise_command_error "wrong number of arguments, expected 0-1 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
     end
     connect(options)
-    key = nil
-    if args[0]
-      key = args[0]
+    payload = {}
+    if options[:payload]
+      payload = options[:payload]
+      payload.deep_merge!(parse_passed_options(options))
     else
-      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'licenseKey', 'fieldLabel' => 'License Key', 'type' => 'text', 'required' => true}], options[:options])
-      key = v_prompt['licenseKey'] || ''
+      payload.deep_merge!(parse_passed_options(options))
+      key = nil
+      if args[0]
+        key = args[0].strip
+      else
+        v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'licenseKey', 'fieldLabel' => 'License Key', 'type' => 'text', 'required' => true}], options[:options])
+        key = v_prompt['licenseKey'] || ''
+      end
+      payload['license'] = key
+      # Stack Licenses?
+      # load current licenses to see if this prompt is required
+      json_response = @license_interface.get()
+      licenses = json_response['installedLicenses']
+      if licenses && !(licenses.size == 1 && key.index(licenses[0]['keyId']) == 0)
+        install_actions = [{'name' => 'Add', 'value' => 'add'},{'name' => 'Replace', 'value' => 'replace'}]
+        payload['installAction'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'installAction', 'fieldLabel' => 'Install Action', 'type' => 'select', 'selectOptions' => install_actions, 'required' => true, 'defaultValue' => 'replace', 'description' => "Install action to perform. Use add to stack this license on top of existing licenses. Use replace (default) to remove any existing license(s)."}], options[:options])['installAction']
+      end
     end
-    begin
-      @license_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @license_interface.dry.test(key)
-        return
-      end
-      json_response = @license_interface.test(key)
+    @license_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @license_interface.dry.test(payload)
+      return
+    end
+    json_response = @license_interface.test(payload)
+    render_response(json_response, options) do
       license = json_response['license']
-      current_usage = json_response['currentUsage'] || {}
-      exit_code, err = 0, nil
-      if license.nil?
-        err = "Unable to decode license."
-        exit_code = 1
-        #return err, exit_code
-      end
-      render_result = render_with_format(json_response, options)
-      if render_result
-        return exit_code, err
-      end
-      if options[:quiet]
-        return exit_code, err
-      end
-      if exit_code != 0
-        print_error red, err.to_s, reset, "\n"
-        return exit_code, err
-      end
-      
+      current_usage = json_response['currentUsage'] || {}      
       # all good
       print_h1 "License"
       print_license_details(json_response)
+      licenses = json_response['installedLicenses']
+      if licenses
+        print_installed_licenses(licenses, options)
+      end
       print_h2 "License Usage", [], options
       print_license_usage(license, current_usage)
       print reset,"\n"
-      return exit_code, err
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      return 1
     end
   end
 
@@ -177,44 +203,58 @@ class Morpheus::Cli::License
     options = {}
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[key]")
+      opts.banner = subcommand_usage("[key ID]")
+      opts.on('--key KEY', String, "License Key ID to uninstall (only the first 8 characters are required to identify license to uninstall). By default all licenses are uninstalled.") do |val|
+        options[:key] = val.to_s
+      end
       build_common_options(opts, options, [:auto_confirm, :json, :yaml, :dry_run, :remote])
-      opts.footer = "Uninstall the current license key.\n" +
-                    "This clears out the current license key from the appliance.\n" +
+      opts.footer = "Uninstall license key(s).\n" +
+                    "Use [key] or --key to uninstall only the specified license key.\n" +
+                    "By default all currently installed license keys are uninstalled.\n" +
                     "The function of the remote appliance will be restricted without a license installed.\n" +
                     "Be careful using this."
     end
     optparse.parse!(args)
-    if args.count > 0
-      raise_command_error "wrong number of arguments, expected 0 and got (#{args.count}) #{args.join(' ')}\n#{optparse}"
-    end
+    verify_args!(args:args, optparse:optparse, min:0, max:1)
     connect(options)
-    begin
-      @license_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @license_interface.dry.uninstall(params)
-        return
+    key_id = nil
+    if args[0] || options[:key]
+      key_id = (args[0] || options[:key])[0..7]
+    end
+    # load current licenses to prompt user which to uninstall
+    json_response = @license_interface.get()
+    licenses = json_response['installedLicenses'] # || [json_response['licenses']]
+    if key_id
+      # appliance version < 8.0.4 does not return installedLicenses list
+      if licenses.nil?
+        raise_command_error "Appliance version does not support uninstalling specific keys"
       end
-      
-      unless options[:quiet]
-        print cyan,"#{bold}WARNING!#{reset}#{cyan} You are about to uninstall your license key.",reset,"\n"
-        print yellow, "Be careful using this. Make sure you have a copy of your key somewhere if you intend to use it again.",reset, "\n"
-        print "\n"
+      matching_license = licenses.find {|it| it['keyId'] == key_id }
+      if matching_license.nil?
+        raise_command_error "Unable to find installed license key '#{key_id}'"
       end
-      
-      unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you want to uninstall the license key for remote #{@appliance_name} - #{@appliance_url}?")
-        return 9, "command aborted"
-      end
+      params['keyId'] = key_id
+    end
 
-      json_response = @license_interface.uninstall(params)
-      render_result = render_with_format(json_response, options)
-      return 0 if render_result
-      return 0 if options[:quiet]
+    unless options[:quiet]
+      print cyan,"#{bold}WARNING!#{reset}#{cyan} You are about to uninstall your license key (#{key_id ? key_id : 'ALL'})",reset,"\n"
+      print yellow, "Be careful using this. Make sure you have a copy of your key somewhere if you intend to use it again.",reset, "\n"
+      print "\n"
+    end
+    
+    unless options[:yes] || ::Morpheus::Cli::OptionTypes::confirm("Are you sure you want to uninstall the license key (#{key_id ? key_id : 'ALL'}) for remote #{@appliance_name} - #{@appliance_url}?")
+      return 9, "command aborted"
+    end
+
+    @license_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @license_interface.dry.uninstall(params)
+      return
+    end
+    json_response = @license_interface.uninstall(params)
+      
+    render_response(json_response, options) do
       print_green_success "License uninstalled!"
-      return 0
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      return 1
     end
   end
 
@@ -267,8 +307,10 @@ class Morpheus::Cli::License
 
   def print_license_details(json_response)
     license = json_response['license']
+    licenses = json_response['installedLicenses']
     current_usage = json_response['currentUsage'] || {}
     description_cols = {
+      "Key ID" => lambda {|it| licenses ? licenses.collect {|li| li['keyId'] }.join(", ") : it['keyId'] },
       "Account" => 'accountName',
       "Product Tier" => lambda {|it| format_product_tier(it) },
       "Start Date" => lambda {|it| format_local_dt(it['startDate']) },
@@ -285,7 +327,7 @@ class Morpheus::Cli::License
       "Hard Limit" => lambda {|it| format_boolean it["hardLimit"] },
       "Limit Type" => lambda {|it| format_limit_type(it) },
     }
-
+    description_cols.delete("Key ID") if !license['keyId']
     description_cols.delete("Multi-Tenant") if !license['multiTenant']
     description_cols.delete("White Label") if !license['whitelabel']
 
@@ -373,5 +415,46 @@ class Morpheus::Cli::License
     cyan + label.rjust(label_width, ' ') + ": " + generate_usage_bar(used, max, chart_opts) + cyan + used.to_s.rjust(label_width, ' ') + " / " + (max.to_i > 0 ? max.to_s : unlimited_label).to_s.ljust(label_width, ' ') + "\n"
   end
 
+  def print_installed_licenses(licenses, options)
+    print_h2 "Installed Licenses", [], options
+    license_columns = {
+      "Key ID" => 'keyId',
+      "Account" => 'accountName',
+      "Product Tier" => lambda {|it| format_product_tier(it) },
+      "Start Date" => lambda {|it| format_local_dt(it['startDate']) },
+      "End Date" => lambda {|it| 
+        if it['endDate']
+          format_local_dt(it['endDate']).to_s + ' (' + format_duration(Time.now, it['endDate']).to_s + ')' 
+        else
+          'Never'
+        end
+      },
+      "Multi-Tenant" => lambda {|it| format_boolean it["multiTenant"] },
+      "White Label" => lambda {|it| format_boolean it["whitelabel"] },
+      "Stats Reporting" => lambda {|it| format_boolean it["reportStatus"] },
+      "Hard Limit" => lambda {|it| format_boolean it["hardLimit"] },
+      "Limit Type" => lambda {|it| format_limit_type(it) },
+      "Limit Type" => lambda {|it| format_limit_type(it) },
+    }
+    if licenses[0] && licenses[0]['limitType'] == 'workload'
+      license_columns.merge!({
+        "Workloads" => 'maxInstances'
+      })
+    else
+      license_columns.merge!({
+        "Managed Servers" => 'maxManagedServers',
+        "Discovered Servers" => 'maxDiscoveredServers',
+        "Hosts" => 'maxHosts', 
+        "HPE VM Hosts" => 'maxMvm',
+        "HPE VM Sockets" => 'maxMvmSockets',
+        "Iac Deployments" => 'maxIac',
+        "Xaas Instances" => 'maxXaas',
+        "Executions" => 'maxExecutions',
+        "Distributed Workers" => 'maxDistributedWorkers',
+        # "Discovered Objects" => 'maxDiscoveredObjects'
+      })
+    end
+    print as_pretty_table(licenses, license_columns, options)
+  end
 
 end
