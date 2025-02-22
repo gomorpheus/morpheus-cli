@@ -813,7 +813,7 @@ class Morpheus::Cli::NetworksCommand
         ## Advanced Options
 
         # Network Domain
-        if network_type['networkDomainEditable'] && payload['network']['networkDomain'].nil?
+        if payload['network']['networkDomain'].nil?
           if options.key?('domain')
             if options['domain'].to_s.empty?  # clear it?
               payload['network']['networkDomain'] = {'id' => nil}
