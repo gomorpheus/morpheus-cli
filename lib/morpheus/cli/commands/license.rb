@@ -82,9 +82,9 @@ class Morpheus::Cli::License
       opts.on('--stack', '--stack', "Alias for --add" ) do
         options[:options]['installAction'] = 'add'
       end
-      # opts.on('--replace', '--replace', "Replace existing licenses with this new license. This is the default behavior." ) do
-      #   options[:options]['installAction'] = 'replace'
-      # end
+      opts.on('--replace', '--replace', "Replace existing licenses with this new license. This is the default behavior." ) do
+        options[:options]['installAction'] = 'replace'
+      end
       build_standard_add_options(opts, options)
       opts.footer = "Install a new license key.\n" +
                     "This will potentially change the enabled features and capabilities of your appliance."
@@ -142,9 +142,9 @@ class Morpheus::Cli::License
       opts.on('--stack', '--stack', "Alias for --add" ) do
         options[:options]['installAction'] = 'add'
       end
-      # opts.on('--replace', '--replace', "Replace existing licenses with this new license. This is the default behavior." ) do
-      #   options[:options]['installAction'] = 'replace'
-      # end
+      opts.on('--replace', '--replace', "Replace existing licenses with this new license. This is the default behavior." ) do
+        options[:options]['installAction'] = 'replace'
+      end
       build_standard_add_options(opts, options, [:fields])
       opts.footer = "Test a license key.\n" +
                     "This is a way to decode and view a license key before installing it."
