@@ -493,6 +493,9 @@ class Morpheus::Cli::NetworksCommand
         # allow arbitrary -O options
         payload['network'].deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
 
+        # all of these prompts pass in options instead of options[:options] so merge them here
+        options.deep_merge!(options[:options].reject {|k,v| k.is_a?(Symbol) }) if options[:options]
+
          # Name
         if options['name']
           payload['network']['name'] = options['name']
@@ -814,15 +817,13 @@ class Morpheus::Cli::NetworksCommand
 
         # Network Domain
         if payload['network']['networkDomain'].nil?
-          if options.key?('domain')
-            if options['domain'].to_s.empty?  # clear it?
+            if options.key?('domain') &&  options['domain'].to_s.empty?  # clear it?
               payload['network']['networkDomain'] = {'id' => nil}
             else
               # always prompt to handle value as name instead of id...
               v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'domain', 'fieldLabel' => 'Network Domain', 'type' => 'select', 'optionSource' => 'networkDomains', 'required' => false, 'description' => ''}], options, @api_client)
               payload['network']['networkDomain'] = {'id' => v_prompt['domain'].to_i} unless v_prompt['domain'].to_s.empty?
             end
-          end
         end
 
         # Search Domains
