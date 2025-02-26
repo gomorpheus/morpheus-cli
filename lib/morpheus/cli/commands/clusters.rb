@@ -422,7 +422,7 @@ class Morpheus::Cli::Clusters
         options[:refresh_interval] = val.to_s.empty? ? default_refresh_interval : val.to_f
       end
       opts.on('--workflow ID', String, "Workflow") do |val|
-        options['taskSetId'] = val.to_i
+        options[:workflow] = val.to_i
       end
       add_server_options(opts, options)
       build_common_options(opts, options, [:options, :payload, :json, :dry_run, :remote])
@@ -747,10 +747,11 @@ class Morpheus::Cli::Clusters
 
         # Workflow / Automation
         if provision_type['code'] != 'manual' && controller_type && controller_type['hasAutomation']
-          task_set_id = options[:taskSetId] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'taskSet', 'fieldLabel' => 'Workflow', 'type' => 'select', 'required' => false, 'optionSource' => 'taskSets'}], options[:options], @api_client, api_params.merge({'phase' => 'postProvision'}))['taskSet']
+          task_set_id = options[:workflow] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'taskSetId', 'fieldLabel' => 'Workflow', 'type' => 'select', 'required' => false, 'optionSource' => 'taskSets'}], options[:options], @api_client, api_params.merge({'phase' => 'postProvision'}))['taskSet']
 
           if !task_set_id.nil?
-            server_payload['taskSet'] = {'id' => task_set_id}
+            # server_payload['taskSet'] = {'id' => task_set_id}
+            cluster_payload['taskSetId'] = task_set_id
           end
         end
 
