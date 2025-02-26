@@ -747,7 +747,7 @@ class Morpheus::Cli::Clusters
 
         # Workflow / Automation
         if provision_type['code'] != 'manual' && controller_type && controller_type['hasAutomation']
-          task_set_id = options[:workflow] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'taskSetId', 'fieldLabel' => 'Workflow', 'type' => 'select', 'required' => false, 'optionSource' => 'taskSets'}], options[:options], @api_client, api_params.merge({'phase' => 'postProvision'}))['taskSet']
+          task_set_id = options[:workflow] || Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'taskSetId', 'fieldLabel' => 'Workflow', 'type' => 'select', 'required' => false, 'optionSource' => 'taskSets'}], options[:options], @api_client, api_params.merge({'phase' => 'postProvision'}))['taskSetId']
 
           if !task_set_id.nil?
             # server_payload['taskSet'] = {'id' => task_set_id}
