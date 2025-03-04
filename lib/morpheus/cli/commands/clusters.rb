@@ -608,13 +608,12 @@ class Morpheus::Cli::Clusters
         end
 
         # Controller type
-        server_types = @server_types_interface.list({computeTypeId: cluster_type['controllerTypes'].first['id'], zoneTypeId: cloud['zoneType']['id'], useZoneProvisionTypes: true})['serverTypes'].reject {|it| it['provisionType']['code'] == 'manual'} unless ['kubernetes-cluster', 'mvm-cluster'].include?(cluster_type_code)
+        server_types = @server_types_interface.list({computeTypeId: cluster_type['controllerTypes'].first['id'], zoneTypeId: cloud['zoneType']['id'], useZoneProvisionTypes: true})['serverTypes'].reject {|it| it['provisionType']['code'] == 'manual'} unless ['mvm-cluster'].include?(cluster_type_code)
         controller_provision_type = nil
         resource_pool = nil
 
         if !server_types.empty?
           controller_type = server_types.first
-
           if controller_type['provisionType']
             if provision_type && provision_type['id'] == controller_type['provisionType']['id']
               controller_provision_type = provision_type
