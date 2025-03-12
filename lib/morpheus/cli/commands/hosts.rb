@@ -2229,6 +2229,18 @@ EOT
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[host]")
+      opts.on('--ignoreDaemonsets [on|off]', String, "Ignore Daemonsets") do |val|
+        options[:ignoreDaemonsets] = (val.to_s.empty? || val.to_s == 'on' || val.to_s == 'true')
+      end
+      opts.on('--force [on|off]', String, "Force") do |val|
+        options[:force] = (val.to_s.empty? || val.to_s == 'on' || val.to_s == 'true')
+      end
+      opts.on('--deleteEmptyDir [on|off]', String, "Delete Empty Directories") do |val|
+        options[:deleteEmptyDir] = (val.to_s.empty? || val.to_s == 'on' || val.to_s == 'true')
+      end
+      opts.on('--deleteLocalData [on|off]', String, "Delete Local Data") do |val|
+        options[:deleteLocalData] = (val.to_s == 'on' || val.to_s == 'true')
+      end
       build_standard_update_options(opts, options, [:auto_confirm])
       opts.footer = <<-EOT
 Enable maintenance mode for a host.
@@ -2252,6 +2264,27 @@ EOT
     # end
 
     payload = {}
+
+    if server.dig('config', 'kubernetesRole')
+      payload[:server] = {}
+      payload[:server][:ignoreDaemonsets] = options.fetch(:ignoreDaemonsets) do
+        prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'ignoreDaemonsets', 'fieldLabel' => 'Ignore Daemonsets', 'type' => 'checkbox', 'defaultValue' => true, 'required' => false}], options, @api_client, {})
+        prompt['ignoreDaemonsets'] == 'on'
+      end
+      payload[:server][:force] = options.fetch(:force) do
+        prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'force', 'fieldLabel' => 'Force', 'type' => 'checkbox', 'defaultValue' => true, 'required' => false}], options, @api_client, {})
+        prompt['force'] == 'on'
+      end
+      payload[:server][:deleteEmptyDir] = options.fetch(:deleteEmptyDir) do
+        prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'deleteEmptyDir', 'fieldLabel' => 'Delete Empty Directories', 'type' => 'checkbox', 'defaultValue' => true, 'required' => false}], options, @api_client, {})
+        prompt['deleteEmptyDir'] == 'on'
+      end
+      payload[:server][:deleteLocalData] = options.fetch(:deleteLocalData) do
+        prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'deleteLocalData', 'fieldLabel' => 'Delete Local Data', 'type' => 'checkbox', 'defaultValue' => false, 'required' => false}], options, @api_client, {})
+        prompt['force'] == 'on'
+      end
+    end
+    
     if options[:payload]
       payload = options[:payload]
       payload.deep_merge!(parse_passed_options(options))
