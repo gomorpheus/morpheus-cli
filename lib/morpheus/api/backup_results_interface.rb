@@ -25,4 +25,8 @@ class Morpheus::BackupResultsInterface < Morpheus::APIClient
     execute(method: :delete, url: "#{base_path}/#{CGI::escape(id.to_s)}", params: params, headers: headers)
   end
 
+  def create_options(id, payload={}, params={}, headers={})
+    validate_id!(id)
+    execute(method: :post, url: "#{base_path}/#{CGI::escape(id.to_s)}/create-restore", params: params, payload: payload, headers: headers)
+  end
 end

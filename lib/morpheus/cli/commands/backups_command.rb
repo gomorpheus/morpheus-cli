@@ -373,10 +373,21 @@ EOT
         # could actually fetch the instance.., only need name and id right now though.
         raise_command_error "Backup instance not found" if instance.nil?
         params['restoreInstance'] = prompt_value({'fieldName' => 'restoreInstance', 'fieldLabel' => 'Restore Instance', 'type' => 'select', 'selectOptions' => [{'name' => 'Current Instance', 'value' => 'existing'}, {'name' => 'New Instance', 'value' => 'new'}], 'defaultValue' => 'existing', 'required' => true, 'description' => 'Restore the current instance or a new instance?'}, options)
+        restore_options = @backup_results_interface.create_options(backup_result['id'])
         if params['restoreInstance'] == 'new'
           # new instance
-          config_map = prompt_restore_instance_config(options)
-          params['instanceConfig'] = config_map
+          if restore_options['vmRestore']
+            group_id = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'group', 'type' => 'select', 'fieldLabel' => 'Group', 'selectOptions' => get_available_groups(), 'required' => true, 'description' => 'Select Group.'}],options[:options],@api_client,{'serverTypeId' => restore_options['servierTypeId']})['group']
+            name = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Instance Name', 'defaultValue' => "#{backup['name']}-restore"}], options[:options], @api_client)['name']
+            params['groupId'] = group_id
+            params['name'] = name
+            v_prompt = Morpheus::Cli::OptionTypes.prompt(restore_options['restoreNewOptionTypes'], options[:options], @api_client, {'zoneId' => backup_result['zoneId'], 'siteId' => group_id})
+            v_prompt.deep_compact!.booleanize! # remove empty values and convert checkbox "on" and "off" to true and false
+            params.deep_merge!(v_prompt)
+          else
+            config_map = prompt_restore_instance_config(options)
+            params['instanceConfig'] = config_map
+          end
         else
           # existing instance
           # confirm the instance
@@ -393,6 +404,9 @@ EOT
               print_red_alert "The value '#{instance_id}' does not match the existing instance #{instance['name']} [#{instance['id'] rescue ''}]. Please try again."
             end
           end
+          v_prompt = Morpheus::Cli::OptionTypes.prompt(restore_options['restoreExistingOptionTypes'], options[:options], @api_client, {'zoneId' => backup_result['zoneId'], 'siteId' => group_id})
+          v_prompt.deep_compact!.booleanize! # remove empty values and convert checkbox "on" and "off" to true and false
+          params.deep_merge!(v_prompt)
         end
       elsif backup['locationType'] == 'server'
         # prompt for server type backup restore
