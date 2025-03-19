@@ -75,7 +75,6 @@ class Morpheus::Cli::Snapshots
         "External Id" => 'externalId',
         # "State" => 'state',
         "Snapshot Type" => 'snapshotType',
-        "Date Created" => lambda {|it| format_local_dt(it['snapshotCreated']) },
         "Cloud" => lambda {|it| format_name_and_id(it['zone']) },
         "Datastore" => lambda {|it| format_name_and_id(it['datastore']) },
         "Parent Snapshot" => lambda {|it| format_name_and_id(it['parentSnapshot']) },
