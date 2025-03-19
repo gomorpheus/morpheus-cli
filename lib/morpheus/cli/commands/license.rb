@@ -434,7 +434,6 @@ class Morpheus::Cli::License
       "Stats Reporting" => lambda {|it| format_boolean it["reportStatus"] },
       "Hard Limit" => lambda {|it| format_boolean it["hardLimit"] },
       "Limit Type" => lambda {|it| format_limit_type(it) },
-      "Limit Type" => lambda {|it| format_limit_type(it) },
     }
     if licenses[0] && licenses[0]['limitType'] == 'workload'
       license_columns.merge!({
