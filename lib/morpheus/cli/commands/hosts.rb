@@ -2440,7 +2440,9 @@ EOT
       print_red_alert "Server not found by name #{name}"
       exit 1
     elsif results['servers'].size > 1
-      print_red_alert "Multiple Servers exist with the name #{name}. Try using id instead"
+      print_red_alert "Multiple Servers exist with the name '#{name}'"
+      puts_error as_pretty_table(results['servers'], [:id, :name], {color:red})
+      print_red_alert "Try using ID instead"
       exit 1
     end
     return results['servers'][0]
