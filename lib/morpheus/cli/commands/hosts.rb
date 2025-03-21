@@ -12,7 +12,8 @@ class Morpheus::Cli::Hosts
                        {:'types' => :list_types},
                        {:exec => :execution_request},
                        :wiki, :update_wiki,
-                       :maintenance, :leave_maintenance, :placement
+                       :maintenance, :leave_maintenance, :placement,
+                       :list_devices, :assign_device, :detach_device, :attach_device
   alias_subcommand :details, :get
   set_default_subcommand :list
 
@@ -2418,6 +2419,24 @@ EOT
     return 0, nil
   end
 
+    ## Server Devices
+
+    def list_devices(args)
+      Morpheus::Cli::ServerDevicesCommand.new.list(args)
+    end
+    
+    def assign_device(args)
+      Morpheus::Cli::ServerDevicesCommand.new.assign(args)
+    end
+
+    def attach_device(args)
+      Morpheus::Cli::ServerDevicesCommand.new.attach(args)
+    end
+  
+    def detach_device(args)
+      Morpheus::Cli::ServerDevicesCommand.new.detach(args)
+    end
+    
   private
 
   def find_host_by_id(id)
