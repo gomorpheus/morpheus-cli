@@ -2282,7 +2282,7 @@ EOT
       end
       payload[:server][:deleteLocalData] = options.fetch(:deleteLocalData) do
         prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'deleteLocalData', 'fieldLabel' => 'Delete Local Data', 'type' => 'checkbox', 'defaultValue' => false, 'required' => false}], options, @api_client, {})
-        prompt['force'] == 'on'
+        prompt['deleteLocalData'] == 'on'
       end
     end
     
@@ -2355,7 +2355,7 @@ EOT
     end
     json_response = @servers_interface.leave_maintenance(server['id'], payload, params)
     render_response(json_response, options) do
-      print_green_success "Maintenance mode enabled for host #{server['name']}"
+      print_green_success "Left Maintenance Mode for host #{server['name']}"
       #get([server['id']])
     end
     return 0, nil
