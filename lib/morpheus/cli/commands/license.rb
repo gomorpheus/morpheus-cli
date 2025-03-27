@@ -316,7 +316,12 @@ class Morpheus::Cli::License
       "Start Date" => lambda {|it| format_local_dt(it['startDate']) },
       "End Date" => lambda {|it| 
         if it['endDate']
-          format_local_dt(it['endDate']).to_s + ' (' + format_duration(Time.now, it['endDate']).to_s + ')' 
+          end_date = parse_time(it['endDate']) rescue nil
+          if end_date && Time.now > end_date
+            format_local_dt(it['endDate']).to_s + red + ' (expired)' + cyan
+          else
+            format_local_dt(it['endDate']).to_s + ' (' + format_duration(Time.now, it['endDate']).to_s + ')' 
+          end
         else
           'Never'
         end
@@ -424,7 +429,12 @@ class Morpheus::Cli::License
       "Start Date" => lambda {|it| format_local_dt(it['startDate']) },
       "End Date" => lambda {|it| 
         if it['endDate']
-          format_local_dt(it['endDate']).to_s + ' (' + format_duration(Time.now, it['endDate']).to_s + ')' 
+          end_date = parse_time(it['endDate']) rescue nil
+          if end_date && Time.now > end_date
+            format_local_dt(it['endDate']).to_s + red + ' (expired)' + cyan
+          else
+            format_local_dt(it['endDate']).to_s + ' (' + format_duration(Time.now, it['endDate']).to_s + ')' 
+          end
         else
           'Never'
         end
