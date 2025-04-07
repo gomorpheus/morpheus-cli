@@ -12,7 +12,8 @@ class Morpheus::Cli::Hosts
                        {:'types' => :list_types},
                        {:exec => :execution_request},
                        :wiki, :update_wiki,
-                       :maintenance, :leave_maintenance, :placement
+                       :maintenance, :leave_maintenance, :placement,
+                       :list_devices, :assign_device, :detach_device, :attach_device
   alias_subcommand :details, :get
   set_default_subcommand :list
 
@@ -2281,7 +2282,7 @@ EOT
       end
       payload[:server][:deleteLocalData] = options.fetch(:deleteLocalData) do
         prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'deleteLocalData', 'fieldLabel' => 'Delete Local Data', 'type' => 'checkbox', 'defaultValue' => false, 'required' => false}], options, @api_client, {})
-        prompt['force'] == 'on'
+        prompt['deleteLocalData'] == 'on'
       end
     end
     
@@ -2354,7 +2355,7 @@ EOT
     end
     json_response = @servers_interface.leave_maintenance(server['id'], payload, params)
     render_response(json_response, options) do
-      print_green_success "Maintenance mode enabled for host #{server['name']}"
+      print_green_success "Left Maintenance Mode for host #{server['name']}"
       #get([server['id']])
     end
     return 0, nil
@@ -2418,6 +2419,24 @@ EOT
     return 0, nil
   end
 
+    ## Server Devices
+
+    def list_devices(args)
+      Morpheus::Cli::ServerDevicesCommand.new.list(args)
+    end
+    
+    def assign_device(args)
+      Morpheus::Cli::ServerDevicesCommand.new.assign(args)
+    end
+
+    def attach_device(args)
+      Morpheus::Cli::ServerDevicesCommand.new.attach(args)
+    end
+  
+    def detach_device(args)
+      Morpheus::Cli::ServerDevicesCommand.new.detach(args)
+    end
+    
   private
 
   def find_host_by_id(id)
@@ -2440,7 +2459,9 @@ EOT
       print_red_alert "Server not found by name #{name}"
       exit 1
     elsif results['servers'].size > 1
-      print_red_alert "Multiple Servers exist with the name #{name}. Try using id instead"
+      print_red_alert "Multiple Servers exist with the name '#{name}'"
+      puts_error as_pretty_table(results['servers'], [:id, :name], {color:red})
+      print_red_alert "Try using ID instead"
       exit 1
     end
     return results['servers'][0]

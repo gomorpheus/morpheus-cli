@@ -4248,7 +4248,7 @@ class Morpheus::Cli::Clusters
   end
 
   def find_layout_by_name(name)
-    @cluster_layouts_interface.list({phrase:name}).find { it['name'].downcase == name.downcase || it['code'].downcase == name.downcase }
+    @cluster_layouts_interface.list({phrase:name}).find { |it| it['name'].downcase == name.downcase || it['code'].downcase == name.downcase }
   end
 
   def layouts_for_dropdown(zone_id, group_type_id)
