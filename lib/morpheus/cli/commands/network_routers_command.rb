@@ -339,6 +339,12 @@ class Morpheus::Cli::NetworkRoutersCommand
 
         # prompt options
         option_opts = options[:options].deep_merge!({'config' => options[:options].clone})
+        # option types are mixing context router and networkRouter, so we need to copy these to avoid prompt for router.name if passed in
+        if option_opts['name'] || option_opts['description']
+          option_opts['router'] ||= {}
+          option_opts['router']['name'] = option_opts['name'] if option_opts['name']
+          option_opts['router']['description'] = option_opts['description'] if option_opts['description']
+        end
         option_result = Morpheus::Cli::OptionTypes.prompt(option_types, option_opts.merge({:context_map => {'networkRouter' => 'router'}}), @api_client, params)
         # option types are mixing context router and networkRouter, so we need to clean up the payload
         router_params = option_result.delete('router')
