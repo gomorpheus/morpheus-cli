@@ -328,6 +328,8 @@ class Morpheus::Cli::NetworkRoutersCommand
             cloud = {'id' => cloud_id}
           end
           router['zone'] = params['zone'] = {'id' => cloud['id']}
+          # add router type to be used for option prompts
+          params['router']['zone'] = {'id' => cloud['id']}
         end
 
         # prompt for enabled
@@ -337,7 +339,12 @@ class Morpheus::Cli::NetworkRoutersCommand
 
         # prompt options
         option_opts = options[:options].deep_merge!({'config' => options[:options].clone})
-        option_result = Morpheus::Cli::OptionTypes.prompt(option_types, option_opts.merge({:context_map => {'networkRouter' => ''}}), @api_client, params)
+        option_result = Morpheus::Cli::OptionTypes.prompt(option_types, option_opts.merge({:context_map => {'networkRouter' => 'router'}}), @api_client, params)
+        # option types are mixing context router and networkRouter, so we need to clean up the payload
+        router_params = option_result.delete('router')
+        if router_params.is_a?(Hash)
+          option_result = router_params.deep_merge(option_result)
+        end
         payload = {'networkRouter' => router.deep_merge(option_result)}
         payload['networkRouter']['config'] = option_result['config'] if option_result['config']
       end
