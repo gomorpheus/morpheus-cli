@@ -2145,6 +2145,17 @@ module Morpheus::Cli::ProvisioningHelper
     return payload
   end
 
+  def prompt_cluster_load_balancer(cluster, options)
+    v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'loadBalancerTypeId', 'type' => 'select', 'fieldLabel' => "Load Balancer", 'optionSource' => 'loadBalancerTypes', 'required' => false, 'description' => 'Select Load Balancer for Cluster', 'defaultValue' => '', 'excludeKubevip' => true}], options[:options], api_client, cluster)
+    lb_type_id = v_prompt['loadBalancerTypeId']
+
+    if lb_type_id.empty?
+      return false
+    end
+
+    return lb_type_id
+  end
+
 
   # reject old option types that now come from the selected service plan
   # these will eventually get removed from the associated optionTypes
