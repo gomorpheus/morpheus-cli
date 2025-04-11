@@ -658,38 +658,6 @@ class Morpheus::Cli::Clusters
 
         server_count = layout['serverCount']
 
-                # Load Balancer
-        if loadbalancer_option_type
-          lb_payload = { computeTypeLayoutId: cluster_payload['layout']['id']}
-          load_balancer_id = prompt_cluster_load_balancer(cluster_payload, options)
-          if load_balancer_id != false
-            lb_payload['loadBalancerId'] = load_balancer_id
-            lb_payload['loadBalancerInstanceId'] = -1
-            lb_port_result = @clusters_interface.load_balancer_port(lb_payload)
-            lb_options = lb_port_result['optionTypes']
-            lb_option_results = Morpheus::Cli::OptionTypes.prompt(lb_options, options[:options], @api_client, api_params)
-
-            load_balancer_payload = {
-              port: lb_port_result.dig('loadBalancerPort', 'externalPort'),
-              enabled: lb_port_result.dig('loadBalancer', 'enabled'),
-              loadBalancerId: load_balancer_id,
-              backendPort: lb_port_result.dig('loadBalancerPort', 'internalPort'),
-              loadBalancer: { id: load_balancer_id },
-              vipPool: (lb_option_results.dig('domain', 'vipPool') == 'none') ? nil : lb_option_results.dig('domain', 'vipPool'),
-              vipAddress: lb_option_results.dig('domain', 'vipAddress'),
-              externalAddress: (lb_port_result.dig('loadBalancer', 'externalAddress') == true ) ? 'on': 'off',
-              vipShared: (lb_port_result.dig('loadBalancer', 'vipShared') == true ) ? 'on' : 'off',
-              vipProtocol: lb_port_result.dig('loadBalancerPort', 'loadBalanceProtocol'),
-              instanceId: lb_payload['loadBalancerInstanceId'],
-              name: lb_option_results['vipName']
-            }
-            if lb_option_results['domain']
-              load_balancer_payload.merge!(lb_option_results['domain']) { |key, old_val, new_val| old_val }
-            end
-            cluster_payload['lbInstances'] = [load_balancer_payload.compact!]
-          end
-        end
-
         # KLUDGE: google zone required for network selection
         if option_type = option_type_list.find {|type| type['code'] == 'computeServerType.googleLinux.googleZoneId'}
           server_payload.deep_merge!(Morpheus::Cli::OptionTypes.prompt([option_type], options[:options], @api_client, api_params))
@@ -790,7 +758,36 @@ class Morpheus::Cli::Clusters
           end
         end
 
-        ## -----  PUT LOAD BALANCER STUFF HERE ###
+        if loadbalancer_option_type
+          lb_payload = { computeTypeLayoutId: cluster_payload['layout']['id']}
+          load_balancer_id = prompt_cluster_load_balancer(cluster_payload, options)
+          if load_balancer_id != false
+            lb_payload['loadBalancerId'] = load_balancer_id
+            lb_payload['loadBalancerInstanceId'] = -1
+            lb_port_result = @clusters_interface.load_balancer_port(lb_payload)
+            lb_options = lb_port_result['optionTypes']
+            lb_option_results = Morpheus::Cli::OptionTypes.prompt(lb_options, options[:options], @api_client, api_params)
+
+            load_balancer_payload = {
+              port: lb_port_result.dig('loadBalancerPort', 'externalPort'),
+              enabled: lb_port_result.dig('loadBalancer', 'enabled'),
+              loadBalancerId: load_balancer_id,
+              backendPort: lb_port_result.dig('loadBalancerPort', 'internalPort'),
+              loadBalancer: { id: load_balancer_id },
+              vipPool: (lb_option_results.dig('domain', 'vipPool') == 'none') ? nil : lb_option_results.dig('domain', 'vipPool'),
+              vipAddress: lb_option_results.dig('domain', 'vipAddress'),
+              externalAddress: (lb_port_result.dig('loadBalancer', 'externalAddress') == true ) ? 'on': 'off',
+              vipShared: (lb_port_result.dig('loadBalancer', 'vipShared') == true ) ? 'on' : 'off',
+              vipProtocol: lb_port_result.dig('loadBalancerPort', 'loadBalanceProtocol'),
+              instanceId: lb_payload['loadBalancerInstanceId'],
+              name: lb_option_results['vipName']
+            }
+            if lb_option_results['domain']
+              load_balancer_payload.merge!(lb_option_results['domain']) { |key, old_val, new_val| old_val }
+            end
+            cluster_payload['lbInstances'] = [load_balancer_payload.compact!]
+          end
+        end
 
         cluster_payload['server'] = server_payload
         payload = {'cluster' => cluster_payload}
