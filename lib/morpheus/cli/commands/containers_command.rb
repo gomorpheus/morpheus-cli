@@ -4,6 +4,7 @@ class Morpheus::Cli::ContainersCommand
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::ProvisioningHelper
   include Morpheus::Cli::LogsHelper
+  include Morpheus::Cli::InfrastructureHelper
 
   set_command_name :containers
   set_command_description "View and manage containers (nodes)."
@@ -18,6 +19,7 @@ class Morpheus::Cli::ContainersCommand
     @logs_interface = @api_client.logs
     @execution_request_interface = @api_client.execution_request
     @clouds_interface = @api_client.clouds
+    @network_server_types_interface = @api_client.network_server_types
   end
   
   def handle(args)
@@ -799,14 +801,14 @@ EOT
     connect(options)
     container = find_container_by_id(args[0])
     return 1 if container.nil?
-    cloud_type = load_container_cloud_type(container)
-    if !cloud_type['hasFloatingIps']
-      raise_command_error "Cloud Type #{cloud_type['name']} does support floating IPs."
+    network_server_type = load_container_network_server_type(container)
+    if !network_server_type['hasFloatingIps']
+      raise_command_error "Network Server Type #{network_server_type['name']} does support floating IPs."
     end
     payload = parse_payload(options)
     if payload.nil?
       payload = parse_passed_options(options)
-      attach_floating_ip_option_types = cloud_type['floatingIpTypes']
+      attach_floating_ip_option_types = network_server_type['floatingIpTypes']
       if attach_floating_ip_option_types && !attach_floating_ip_option_types.empty?
         if options[:ip]
           floating_ip = options[:ip].to_s.sub(/\Aip\-/i, '')
@@ -829,7 +831,7 @@ EOT
         # payload.deep_merge!({'container' => v_prompt})
         payload.deep_merge!(v_prompt)
       else
-        # raise_command_error "Cloud Type #{cloud_type['name']} does not defined any floating IP inputs."
+        # raise_command_error "Network Server Type #{network_server_type['name']} does not defined any floating IP inputs."
       end
     end
     confirm!("Are you sure you would like to attach this floating IP to container #{container['id']}?", options)
@@ -861,9 +863,9 @@ EOT
     connect(options)
     container = find_container_by_id(args[0])
     return 1 if container.nil?
-    cloud_type = load_container_cloud_type(container)
-    if !cloud_type['hasFloatingIps']
-      raise_command_error "Cloud Type #{cloud_type['name']} does support floating IPs."
+    network_server_type = load_container_network_server_type(container)
+    if !network_server_type['hasFloatingIps']
+      raise_command_error "Network Type #{network_server_type['name']} does support floating IPs."
     end
     payload = parse_payload(options)
     if payload.nil?
@@ -948,18 +950,18 @@ EOT
     return provision_type
   end
 
-  def load_container_cloud_type(container)
-    cloud_type_code = container['cloud']['type'] rescue nil
-    cloud_type = nil
-    if cloud_type_code
-      cloud_type = @clouds_interface.cloud_types({code:cloud_type_code})['zoneTypes'][0]
-      if cloud_type.nil?
-        raise_command_error "Cloud Type not found by code #{cloud_type_code}"
-      end
+  def load_container_network_server_type(container)
+    cloud = find_cloud_by_id(container['cloud']['id'])
+    network_server_type_code = cloud['networkServer']['type'] rescue nil
+    network_server_type = nil
+    if network_server_type_code
+        network_server_type = @network_server_types_interface.list({code:network_server_type_code})['networkServerTypes'][0]
+        if network_server_type.nil?
+            raise_command_error "Network Server Type not found by code #{network_server_type_code}"
+        end
     else
-      raise_command_error "Unable to determine cloud type for container #{container['id']}"
+        raise_command_error "Unable to determine network server type for container #{container['id']}"
     end
-    return cloud_type
+    return network_server_type
   end
-
 end
