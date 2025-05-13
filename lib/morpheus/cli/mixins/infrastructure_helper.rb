@@ -802,6 +802,7 @@ module Morpheus::Cli::InfrastructureHelper
       "Firewall" => lambda {|it| format_boolean(it['hasFirewall']) },
       "Security Groups" => lambda {|it| format_boolean(it['hasSecurityGroups']) },
       "Load Balancers" => lambda {|it| format_boolean(it['hasLoadBalancers']) },
+      "Floating Ips" => lambda {|it| format_boolean it['hasFloatingIps']},
       # "Security Code" => lambda {|it| it['securityCode'] },
       # "User Visible" => lambda {|it| format_boolean(it['userVisible']) },
     }

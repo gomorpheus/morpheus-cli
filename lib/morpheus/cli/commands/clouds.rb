@@ -848,7 +848,6 @@ EOT
         "Discovery" => lambda {|it| format_boolean it['hasDiscovery'] },
         "Cloud Init" => lambda {|it| format_boolean it['hasCloudInit'] },
         "Folders" => lambda {|it| format_boolean it['hasFolders'] },
-        "Floating Ips" => lambda {|it| format_boolean it['hasFloatingIps'] },
         # "Marketplace" => lambda {|it| format_boolean it['hasMarketplace'] },
         "Public Cloud" => lambda {|it| format_boolean(it['cloud'] == 'public') },
       }

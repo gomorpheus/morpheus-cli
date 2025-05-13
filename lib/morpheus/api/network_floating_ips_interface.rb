@@ -34,4 +34,7 @@ class Morpheus::NetworkFloatingIpsInterface < Morpheus::APIClient
   	execute(method: :put, url: "#{base_path}/#{CGI::escape(id.to_s)}/release", params: params, payload: payload, headers: headers)
   end
 
+  def allocate(payload={}, params={}, headers={})
+    execute(method: :post, url: "#{base_path}/allocate", params: params, payload: payload, headers: headers)
+  end
 end

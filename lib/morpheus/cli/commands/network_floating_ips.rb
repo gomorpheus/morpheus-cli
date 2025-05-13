@@ -6,7 +6,7 @@ class Morpheus::Cli::NetworkFloatingIps
 
   set_command_name :'network-floating-ips'
   set_command_description "View and manage network floating IPs."
-  register_subcommands :list, :get, :release
+  register_subcommands :list, :get, :release, :allocate
 
   # RestCommand settings
   register_interfaces :network_floating_ips
@@ -47,6 +47,44 @@ EOT
       print_green_success "Releasing #{rest_label.downcase} #{record['ipAddress'] || record['id']}"
     end
     return 0, nil
+  end
+
+  def allocate(args)
+    options = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage()
+      build_standard_add_options(opts, options)
+      opts.footer = <<-EOT
+Allocate a new #{rest_label.downcase}.
+Only the following cloud types support this command: OpenStack, Huawei and OpenTelekom
+EOT
+    end
+    optparse.parse!(args)
+    verify_args!(args:args, optparse:optparse, count:0)
+    connect(options)
+    payload = {}
+    if options[:payload]
+      payload = options[:payload]
+      payload.deep_merge!(parse_passed_options(options))
+    else
+      payload.deep_merge!(parse_passed_options(options))
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'networkServerId', 'fieldLabel' => 'Network Service', 'type' => 'select', 'optionSource' => 'floatingIpNetworkServers', 'required' => true, 'description' => 'Choose a network service.'}], options[:options], @api_client, {})
+      payload[:networkServerId] = v_prompt['networkServerId']
+      v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'floatingIpPoolId', 'fieldLabel' => 'Network Floating Ip Pool', 'type' => 'select', 'optionSource' => 'floatingIpPools', 'required' => true, 'description' => 'Choose a network service.'}], options[:options], @api_client, {networkServerId: v_prompt['networkServerId']})
+      payload[:floatingIpPoolId] = v_prompt['floatingIpPoolId']
+    end
+
+    rest_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run rest_interface.dry.allocate(payload)
+      return 0, nil
+    end
+    json_response = rest_interface.allocate(payload)
+    render_response(json_response, options) do
+      print_green_success "Allocating #{rest_label.downcase} with ipAddress: #{json_response['networkFloatingIp']['ipAddress'] }"
+      id = json_response['networkFloatingIp']['id']
+      _get(id.to_s, {}, options  )
+    end
   end
 
   protected

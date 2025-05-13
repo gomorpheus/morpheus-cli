@@ -102,9 +102,10 @@ class Morpheus::Cli::ClientsCommand
           "ID" => 'id',
           "Client ID" => 'clientId',
           "Access Token Validity Seconds" => 'accessTokenValiditySeconds',
-          "Refresh Token Validity Seconds" => 'refreshTokenValiditySeconds' 
+          "Refresh Token Validity Seconds" => 'refreshTokenValiditySeconds',
+          # "Scopes" => lambda {|client| client['scopes'].join(", ")},
+          "Redirect URI" => lambda {|client| client['redirectUris'].join(", ")}
         }
-        
         print_description_list(client_columns, client)
         print reset,"\n"
 
@@ -122,7 +123,7 @@ class Morpheus::Cli::ClientsCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[clientId] [options]")
       build_option_type_options(opts, options, add_client_option_types)
-      build_common_options(opts, options, [:payload, :options, :json, :dry_run, :remote])
+      build_standard_add_options(opts, options)
       opts.footer = "Add New Oauth Client Record."
     end
     optparse.parse!(args)
@@ -150,6 +151,9 @@ class Morpheus::Cli::ClientsCommand
         payload.deep_merge!({'client' => passed_options}) unless passed_options.empty?
         # prompt for options
         params = Morpheus::Cli::OptionTypes.prompt(add_client_option_types, options[:options], @api_client, options[:params])
+        if params['redirectUris'] && params['redirectUris'].is_a?(String)
+          params['redirectUris'] = params['redirectUris'].split(',').collect {|it| it.strip}.reject {|it| it.empty?}
+        end
         payload.deep_merge!({'client' => params}) unless params.empty?
       end
 
@@ -179,7 +183,7 @@ class Morpheus::Cli::ClientsCommand
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage("[clientId] [options]")
       build_option_type_options(opts, options, client_option_types)
-      build_common_options(opts, options, [:payload, :options, :json, :dry_run, :remote])
+      build_standard_update_options(opts, options)
       opts.footer = "Update Oauth Client Record."
     end
     optparse.parse!(args)
@@ -206,11 +210,13 @@ class Morpheus::Cli::ClientsCommand
           }
         }
         # allow arbitrary -O options
-        payload.deep_merge!({'page' => passed_options}) unless passed_options.empty?
+        payload.deep_merge!({'client' => passed_options}) unless passed_options.empty?
         # prompt for options
         #params = Morpheus::Cli::OptionTypes.prompt(update_wiki_page_option_types, options[:options], @api_client, options[:params])
         params = passed_options
-
+        if params['redirectUris'] && params['redirectUris'].is_a?(String)
+          params['redirectUris'] = params['redirectUris'].split(',').collect {|it| it.strip}.reject {|it| it.empty?}
+        end
         if params.empty?
           raise_command_error "Specify at least one option to update.\n#{optparse}"
         end
@@ -332,7 +338,8 @@ class Morpheus::Cli::ClientsCommand
       {'fieldName' => 'clientId', 'fieldLabel' => 'Client Id', 'type' => 'text', 'required' => true, 'displayOrder' => 1},
       {'fieldName' => 'clientSecret', 'fieldLabel' => 'Client Secret', 'type' => 'text', 'displayOrder' => 2},
       {'fieldName' => 'accessTokenValiditySeconds', 'fieldLabel' => 'Access Token Validity Length (Seconds)', 'type' => 'number', 'required' => true,'defaultValue' => 43200, 'displayOrder' => 3},
-      {'fieldName' => 'refreshTokenValiditySeconds', 'fieldLabel' => 'Refresh Token Validity Length (Seconds)', 'type' => 'number', 'required' => true,'defaultValue' => 43200, 'displayOrder' => 4}
+      {'fieldName' => 'refreshTokenValiditySeconds', 'fieldLabel' => 'Refresh Token Validity Length (Seconds)', 'type' => 'number', 'required' => true,'defaultValue' => 43200, 'displayOrder' => 4},
+      {'fieldName' => 'redirectUris', 'fieldLabel' => 'Redirect URI', 'type' => 'text', 'displayOrder' => 5}
     ]
   end
 end

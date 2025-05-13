@@ -345,4 +345,12 @@ class Morpheus::ClustersInterface < Morpheus::APIClient
     execute(method: :get, url: url, headers: headers)
   end
 
+  def load_balancer_port(params={})
+    url = "#{@base_url}/api/clusters/load-balancer-port"
+    headers = { params: {}, authorization: "Bearer #{@access_token}" }
+    headers[:params].merge!(params)
+
+    execute(method: :get, url: url, headers: headers)
+  end
+
 end
