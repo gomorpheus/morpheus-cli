@@ -98,10 +98,11 @@ EOT
       if access_tokens && !access_tokens.empty?
         print_h2 "API Access Tokens"
         cols = {
-          #"ID" => lambda {|it| it['id'] },
+          "ID" => lambda {|it| it['id'] },
           "CLIENT ID" => lambda {|it| it['clientId'] },
           "USERNAME" => lambda {|it| it['username'] },
           "ACCESS TOKEN" => lambda {|it| it['maskedAccessToken'] },
+          "SCOPE" => lambda {|it| it['scope'] },
           "REFRESH TOKEN" => lambda {|it| it['maskedRefreshToken'] },
           "ACCESS EXPIRATION" => lambda {|it| format_local_dt(it['expiration']) },
           "ACCESS TTL" => lambda {|it| 
@@ -115,6 +116,8 @@ EOT
             end
           }
         }
+        cols.delete("ID") if access_tokens[0]['id'].nil?
+        cols.delete("SCOPE") if access_tokens[0]['scope'].nil?
         print cyan
         puts as_pretty_table(access_tokens, cols)
       else
@@ -579,21 +582,27 @@ EOT
         params['userId'] = val.to_s
       end
       #opts.add_hidden_option('--user-id')
+      opts.on("--id ID", String, "Token ID") do |val|
+        params['id'] = val.to_s
+      end
       build_common_options(opts, options, [:payload, :options, :json, :dry_run, :quiet, :remote])
       opts.footer = <<-EOT
 Regenerate API access token for a specific client.
 [client-id] is required. This is the id of an api client.
+The --id [id] option can be used to clear a specific token by id.
 Done for the current user by default, unless a user is specified with the --user option.
 EOT
     end
     optparse.parse!(args)
     connect(options)
-    if args.count != 1
+    if args.count != 1 && !params['id']
       print_error Morpheus::Terminal.angry_prompt
       puts_error  "wrong number of arguments, expected 1 and got (#{args.count}) #{args.inspect}\n#{optparse}"
       return 1
     end
-    params['clientId'] = args[0]
+    if args[0]
+      params['clientId'] = args[0]
+    end
     begin
       if options[:user]
         user = find_user_by_username_or_id(nil, options[:user], {global:true})
@@ -655,16 +664,21 @@ EOT
         params['userId'] = val.to_s
       end
       #opts.add_hidden_option('--user-id')
+      opts.on("--id ID", String, "Token ID") do |val|
+        params['id'] = val.to_s
+      end
       build_common_options(opts, options, [:payload, :options, :json, :dry_run, :quiet, :remote])
       opts.footer = <<-EOT
 Clear API access token for a specific client.
 [client-id] or --all is required. This is the id of an api client.
+The --id [id] option can be used to clear a specific token by id.
 Done for the current user by default, unless a user is specified with the --user option.
 EOT
     end
     optparse.parse!(args)
     connect(options)
-    if args.count > 1 || (args.count == 0 && all_clients == false)
+    
+    if (args.count > 1 || (args.count == 0 && all_clients == false)) && !params['id']
       print_error Morpheus::Terminal.angry_prompt
       puts_error  "wrong number of arguments, expected 1 and got (#{args.count}) #{args.inspect}\n#{optparse}"
       return 1
@@ -704,11 +718,13 @@ EOT
       success_msg = "Success"
       if all_clients
         success_msg = "Cleared all access tokens"
+      elsif params['id']
+        success_msg = "Cleared access token ID #{params['id']}"
       else
-        success_msg = "Cleared #{params['clientId']} access token"
+        success_msg = "Cleared access tokens for client #{params['clientId']}"
       end
       if params['userId']
-        success_msg << " for user #{params['userId']}"
+        success_msg << " (user #{params['userId']})"
       end
       print_green_success success_msg
       if params['clientId'] == Morpheus::APIClient::CLIENT_ID
