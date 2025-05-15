@@ -746,6 +746,10 @@ class Morpheus::APIClient
     Morpheus::StorageVolumeTypesInterface.new(common_interface_options).setopts(@options)
   end
 
+  def storage_datastores
+    Morpheus::StorageDatastoresInterface.new(common_interface_options).setopts(@options)
+  end
+
   def library_instance_types
     Morpheus::LibraryInstanceTypesInterface.new(common_interface_options).setopts(@options)
   end
