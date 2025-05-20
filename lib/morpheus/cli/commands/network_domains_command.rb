@@ -840,7 +840,7 @@ class Morpheus::Cli::NetworkDomainsCommand
       print_red_alert "#{network_domains.size} network domains found by name #{name}"
       # print_networks_table(networks, {color: red})
       rows = network_domains.collect do |network_domain|
-        {id: it['id'], name: it['name']}
+        {id: network_domain['id'], name: network_domain['name']}
       end
       puts as_pretty_table(rows, [:id, :name], {color:red})
       return nil
