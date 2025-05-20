@@ -1,6 +1,6 @@
 require 'term/ansicolor'
 require 'readline'
-require 'csv'
+
 module Morpheus
   module Cli
     module OptionTypes
@@ -304,8 +304,8 @@ module Morpheus
               value = select_prompt(option_type.merge({'defaultValue' => value, 'defaultInputValue' => input_value}), api_client, option_params, true, nil, false, ignore_empty, options[:edit_mode])
             elsif option_type['type'] == 'multiSelect'
               # support value as csv like "thing1, thing2"
-              value_list = value.is_a?(String) ? value.parse_csv.collect {|v| v ? v.to_s.strip : v } : [value].flatten
-              input_value_list = input_value.is_a?(String) ? input_value.parse_csv.collect {|v| v ? v.to_s.strip : v } : [input_value].flatten
+              value_list = value.is_a?(String) ? value.split(",").collect {|v| v ? v.to_s.strip : v } : [value].flatten
+              input_value_list = input_value.is_a?(String) ? input_value.split(",").collect {|v| v ? v.to_s.strip : v } : [input_value].flatten
               select_value_list = []
               value_list.each_with_index do |v, i|
                 select_value_list << select_prompt(option_type.merge({'defaultValue' => v, 'defaultInputValue' => input_value_list[i]}), api_client, option_params, true, nil, false, ignore_empty, options[:edit_mode])
@@ -315,8 +315,8 @@ module Morpheus
               value = typeahead_prompt(option_type.merge({'defaultValue' => value, 'defaultInputValue' => input_value}), api_client, option_params, true)
             elsif option_type['type'] == 'multiTypeahead'
               # support value as csv like "thing1, thing2"
-              value_list = value.is_a?(String) ? value.parse_csv.collect {|v| v ? v.to_s.strip : v } : [value].flatten
-              input_value_list = input_value.is_a?(String) ? input_value.parse_csv.collect {|v| v ? v.to_s.strip : v } : [input_value].flatten
+              value_list = value.is_a?(String) ? value.split(",").collect {|v| v ? v.to_s.strip : v } : [value].flatten
+              input_value_list = input_value.is_a?(String) ? input_value.split(",").collect {|v| v ? v.to_s.strip : v } : [input_value].flatten
               select_value_list = []
               value_list.each_with_index do |v, i|
                 select_value_list << typeahead_prompt(option_type.merge({'defaultValue' => v, 'defaultInputValue' => input_value_list[i]}), api_client, option_params, true)
