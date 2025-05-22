@@ -7,7 +7,7 @@ class Morpheus::Cli::CloudDatastoresCommand
   # set_command_name :'cloud-datastores'
   set_command_name :'datastores'
 
-  register_subcommands :list, :get, :update
+  register_subcommands :list, :get, :update, :add
   
   def initialize()
     # @appliance_name, @appliance_url = Morpheus::Cli::Remote.active_appliance
@@ -18,6 +18,7 @@ class Morpheus::Cli::CloudDatastoresCommand
     @cloud_datastores_interface = @api_client.cloud_datastores
     @clouds_interface = @api_client.clouds
     @options_interface = @api_client.options
+    @storage_datastore_interface = @api_client.storage_datastores
   end
 
   def handle(args)
@@ -379,6 +380,114 @@ class Morpheus::Cli::CloudDatastoresCommand
     end
   end
 
+  def add(args)
+    options = {}
+    params = {}
+    optparse = Morpheus::Cli::OptionParser.new do |opts|
+      opts.banner = subcommand_usage("[name] [options]")
+      build_common_options(opts, options, [:options, :payload, :json, :yaml, :dry_run, :quiet])
+      opts.on( '-n', '--name NAME', "Name" ) do |val|
+        options['name'] = val
+      end
+      opts.on( '-t', '--type DATASTORE_TYPE', "Datastore Type" ) do |val|
+        options['datastoreType'] = val
+      end
+      opts.on( '-c', '--cloud DATASTORE_CLOUD', "Datastore Cloud" ) do |val|
+        options['cloud'] = val
+      end
+      opts.footer = "Create a new Datastore.\n" +
+                    "[name] is required. This is the name of the new datastore. It may also be passed as --name or inside your config."
+    end
+    optparse.parse!(args)
+    if args.count > 1
+      print_error Morpheus::Terminal.angry_prompt
+      puts_error  "#{command_name} add expects 0-1 arguments and received #{args.count}: #{args}\n#{optparse}"
+      return 1
+    end
+    # allow name as first argument
+    if args[0] # && !options[:name]
+      options[:name] = args[0]
+    end
+    connect(options)
+    begin
+      options[:options] ||= {}
+      passed_options = (options[:options] || {}).reject {|k,v| k.is_a?(Symbol) }
+      payload = {}
+      if options[:payload]
+        # payload is from parsed json|yaml files or arguments.
+        payload = options[:payload]
+        # merge -O options
+        payload.deep_merge!(passed_options) unless passed_options.empty?
+        # support some options on top of --payload
+        [:name, :description, :environment].each do |k|
+          if options.key?(k)
+            payload[k.to_s] = options[k]
+          end
+        end
+      else
+        # prompt for payload
+        payload = {}
+        # merge -O options
+        payload.deep_merge!(passed_options) unless passed_options.empty?
+
+         # Name
+        if passed_options['name']
+          payload['name'] = passed_options['name']
+        else
+          v_prompt = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'name', 'fieldLabel' => 'Name', 'type' => 'text', 'required' => true, 'description' => 'Enter a name for this archive bucket.'}], options, @api_client)
+          payload['name'] = v_prompt['name']
+        end
+
+        #Datastore Type
+        if passed_options['datastoreType']
+          payload['datastoreType'] = passed_options['datastoreType']
+        else
+          payload['datastoreType'] = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'datastoreType', 'fieldLabel' => 'Type', 'type' => 'select', 'required' => true, 'optionSource' => 'datastoreTypes'}], options[:options], @api_client)['datastoreType']
+        end
+
+        if passed_options['cloud']
+          zone = passed_options['cloud']
+        else
+          zone = Morpheus::Cli::OptionTypes.prompt([{'fieldName' => 'zone', 'fieldLabel' => 'Cloud', 'type' => 'select', 'required' => true, 'optionSource' => 'cloudsForDatastores'}], options[:options], @api_client)['zone']
+        end
+
+        if zone
+          payload['refType'] = 'ComputeZone'
+          payload['refId'] = zone
+        end
+        
+        option_types = load_option_types_for_datastore_type(payload['datastoreType'])
+
+        values = Morpheus::Cli::OptionTypes.prompt(option_types, options[:options], @api_client)
+        if values['domain']
+          payload.merge!(values['domain']) if values['domain'].is_a?(Hash)
+        end
+        if values['config']
+          payload['config'] = {}
+          payload['config'].merge!(values['config']) if values['config'].is_a?(Hash)
+        end
+
+        @storage_datastore_interface.setopts(options)
+        if options[:dry_run]
+          print_dry_run @storage_datastore_interface.dry.create({'datastore' => payload})
+          return
+        end
+        json_response = @storage_datastore_interface.create({'datastore' => payload})
+        datastore = json_response['datastore']
+        if options[:json]
+          print JSON.pretty_generate(json_response),"\n"
+        elsif !options[:quiet]
+          datastore = json_response['datastore']
+          print_green_success "Datastore #{datastore['name']} created"
+          #get([datastore['id']])
+        end
+      end
+    rescue RestClient::Exception => e
+      print_rest_exception(e, options)
+      exit 1
+    end
+  end
+
   private
 
 
@@ -428,4 +537,7 @@ class Morpheus::Cli::CloudDatastoresCommand
     end
   end
 
+  def load_option_types_for_datastore_type(datastore_type)
+    return @storage_datastore_interface.load_type_options(datastore_type)
+  end
 end
