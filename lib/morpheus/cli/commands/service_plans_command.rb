@@ -153,6 +153,7 @@ class Morpheus::Cli::ServicePlanCommand
           "Code" => lambda {|it| it['code']},
           "Display Order" => lambda {|it| it['sortOrder']},
           "Provision Type" => lambda {|it| it['provisionType'] ? it['provisionType']['name'] : ''},
+          "Server Type" => lambda {|it| it['serverType']},
           "Storage" => lambda {|it| printable_byte_size(it, it['maxStorage'], 'storageSizeType', 'GB')}
       }
 
@@ -164,6 +165,7 @@ class Morpheus::Cli::ServicePlanCommand
       description_cols['Max Disks Allowed'] = lambda {|it| it['maxDisks'] || 0} if provision_type['addVolumes']
       description_cols['Memory'] = lambda {|it| printable_byte_size(it, it['maxMemory'], 'memorySizeType')}
       description_cols['Custom Max Memory'] = lambda {|it| format_boolean(it['customMaxMemory'])}
+      description_cols['CPU Count'] = lambda {|it| it['maxCpu']}
       description_cols['Core Count'] = lambda {|it| it['maxCores']}
       description_cols['Custom Cores'] = lambda {|it| format_boolean(it['customCores'])}
       description_cols['Cores Per Socket'] = lambda {|it| it['coresPerSocket']} if provision_type['hasConfigurableCpuSockets'] && service_plan['customCores']
