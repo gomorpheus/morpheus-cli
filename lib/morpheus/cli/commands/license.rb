@@ -326,6 +326,7 @@ class Morpheus::Cli::License
           'Never'
         end
       },
+      "Version" => lambda {|it| it["licenseVersion"] },
       "Multi-Tenant" => lambda {|it| format_boolean it["multiTenant"] },
       "White Label" => lambda {|it| format_boolean it["whitelabel"] },
       "Stats Reporting" => lambda {|it| format_boolean it["reportStatus"] },
@@ -361,6 +362,7 @@ class Morpheus::Cli::License
       used_hosts = current_usage['hosts']
       used_mvm = current_usage['mvm']
       used_mvm_sockets = current_usage['mvmSockets']
+      used_sockets = current_usage['sockets'].to_f.round(1)
       used_iac = current_usage['iac']
       used_xaas = current_usage['xaas']
       used_executions = current_usage['executions']
@@ -373,6 +375,7 @@ class Morpheus::Cli::License
       max_hosts = license['maxHosts']
       max_mvm = license['maxMvm']
       max_mvm_sockets = license['maxMvmSockets']
+      max_sockets = license['maxSockets']
       max_iac = license['maxIac']
       max_xaas = license['maxXaas']
       max_executions = license['maxExecutions']
@@ -381,6 +384,7 @@ class Morpheus::Cli::License
       label_width = 20
       chart_opts = {max_bars: 20, unlimited_label: '0%', percent_sigdig: 0}
       out = ""
+      out << cyan + "Sockets".rjust(label_width, ' ') + ": " + generate_usage_bar(used_sockets, max_sockets, chart_opts) + cyan + used_sockets.to_s.rjust(8, ' ') + " / " + (max_sockets ? max_sockets.to_s : unlimited_label).to_s.ljust(15, ' ') + "\n"
       out << cyan + "Managed Servers".rjust(label_width, ' ') + ": " + generate_usage_bar(used_managed_servers, max_managed_servers, chart_opts) + cyan + used_managed_servers.to_s.rjust(8, ' ') + " / " + (max_managed_servers ? max_managed_servers.to_s : unlimited_label).to_s.ljust(15, ' ') + "\n"
       out << cyan + "Discovered Servers".rjust(label_width, ' ') + ": " + generate_usage_bar(used_discovered_servers, max_discovered_servers, chart_opts) + cyan + used_discovered_servers.to_s.rjust(8, ' ') + " / " + (max_discovered_servers ? max_discovered_servers.to_s : unlimited_label).to_s.ljust(15, ' ') + "\n"
       out << cyan + "Hosts".rjust(label_width, ' ') + ": " + generate_usage_bar(used_hosts, max_hosts, chart_opts) + cyan + used_hosts.to_s.rjust(8, ' ') + " / " + (max_hosts ? max_hosts.to_s : unlimited_label).to_s.ljust(15, ' ') + "\n"
@@ -439,6 +443,7 @@ class Morpheus::Cli::License
           'Never'
         end
       },
+      "Version" => lambda {|it| it["licenseVersion"] },
       "Multi-Tenant" => lambda {|it| format_boolean it["multiTenant"] },
       "White Label" => lambda {|it| format_boolean it["whitelabel"] },
       "Stats Reporting" => lambda {|it| format_boolean it["reportStatus"] },
@@ -451,11 +456,12 @@ class Morpheus::Cli::License
       })
     else
       license_columns.merge!({
+        "Sockets" => 'maxSockets',
+        "HPE VM Sockets" => 'maxMvmSockets',
         "Managed Servers" => 'maxManagedServers',
         "Discovered Servers" => 'maxDiscoveredServers',
         "Hosts" => 'maxHosts', 
         "HPE VM Hosts" => 'maxMvm',
-        "HPE VM Sockets" => 'maxMvmSockets',
         "Iac Deployments" => 'maxIac',
         "Xaas Instances" => 'maxXaas',
         "Executions" => 'maxExecutions',

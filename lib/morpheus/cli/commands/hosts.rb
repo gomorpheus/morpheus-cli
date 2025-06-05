@@ -1477,33 +1477,56 @@ class Morpheus::Cli::Hosts
   def upgrade_agent(args)
     options = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
-      opts.banner = subcommand_usage("[name]")
-      build_common_options(opts, options, [:json, :dry_run, :quiet, :remote])
+      opts.banner = subcommand_usage("[host]")
+      opts.on('--refresh [SECONDS]', String, "Refresh until execution is complete. Default interval is #{default_refresh_interval} seconds.") do |val|
+        options[:refresh_interval] = val.to_s.empty? ? default_refresh_interval : val.to_f
+      end
+      opts.on(nil, '--no-refresh', "Do not refresh" ) do
+        options[:no_refresh] = true
+      end
+      build_standard_update_options(opts, options, [:auto_confirm])
+      opts.footer = <<-EOT
+Upgrade agent for a host.
+[host] is required. This is the name or id of a host.
+EOT
     end
     optparse.parse!(args)
-    if args.count < 1
-      puts optparse
-      exit 1
-    end
+    verify_args!(args:args, optparse:optparse, count:1)
     connect(options)
-    begin
-      host = find_host_by_name_or_id(args[0])
-      @servers_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @servers_interface.dry.upgrade(host['id'])
-        return
-      end
-      json_response = @servers_interface.upgrade(host['id'])
-      if options[:json]
-        print JSON.pretty_generate(json_response)
-        print "\n"
-      else
-        puts "Host #{host['name']} upgrading..." unless options[:quiet]
-      end
+    
+    host = find_host_by_name_or_id(args[0])
+    return 1 if host.nil?
+
+    payload = {}
+    if options[:payload]
+      payload = options[:payload]
+      payload.deep_merge!({'server' => parse_passed_options(options)})
+    else
+      payload.deep_merge!({'server' => parse_passed_options(options)})
+    end
+
+    @servers_interface.setopts(options)
+    if options[:dry_run]
+      print_dry_run @servers_interface.dry.upgrade(host['id'], payload)
       return
-    rescue RestClient::Exception => e
-      print_rest_exception(e, options)
-      exit 1
+    end
+    json_response = @servers_interface.upgrade(host['id'], payload)
+    render_response(json_response, options) do
+      #get([host['id']])
+      if json_response['success']
+        if json_response['msg'] == nil
+          print_green_success "Upgrading agent on host #{host['name']}..."
+        else
+          print_green_success json_response['msg']
+        end
+        execution_id = json_response['executionId']
+        if !options[:no_refresh] && execution_id
+          wait_for_execution_request(json_response['executionId'], options.merge({waiting_status:['new', 'pending', 'executing']}))
+        end
+      else
+        # never reached because unsuccessful requests raise an exception
+        print_red_alert "API Request failed: #{json_response['msg']}"
+      end
     end
   end
 
