@@ -153,6 +153,7 @@ class Morpheus::Cli::ServicePlanCommand
           "Code" => lambda {|it| it['code']},
           "Display Order" => lambda {|it| it['sortOrder']},
           "Provision Type" => lambda {|it| it['provisionType'] ? it['provisionType']['name'] : ''},
+          "Server Type" => lambda {|it| it['serverType']},
           "Storage" => lambda {|it| printable_byte_size(it, it['maxStorage'], 'storageSizeType', 'GB')}
       }
 
