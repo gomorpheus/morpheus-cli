@@ -16,6 +16,7 @@ class Morpheus::Cli::AffinityGroupsCommand
     @affinity_groups_interface = @api_client.affinity_groups
     @clouds_interface = @api_client.clouds
     @clusters_interface = @api_client.clusters
+    @cloud_resource_pools_interface = @api_client.cloud_resource_pools
   end
 
   def handle(args)
@@ -27,21 +28,45 @@ class Morpheus::Cli::AffinityGroupsCommand
     params = {}
     optparse = Morpheus::Cli::OptionParser.new do |opts|
       opts.banner = subcommand_usage()
-      opts.on('--cloud CLOUD', String, "Filter by cloud name or id") do |val|
+      opts.on('--cloud CLOUD', String, "Cloud name or id. Combine with --cluster to scope to a vSphere cluster (resource pool) owned by this cloud.") do |val|
         options[:cloud] = val
       end
-      opts.on('--cluster CLUSTER', String, "Filter by cluster name or id") do |val|
+      opts.on('--cluster CLUSTER', String, "Cluster name or id. A unique name can select a managed or vSphere cluster; combine with --cloud to disambiguate a vSphere cluster.") do |val|
         options[:cluster] = val
       end
       build_standard_list_options(opts, options)
       opts.footer = "List affinity groups.\n" \
-        "Requires a scope: use --cloud or --cluster. There is no unscoped list endpoint."
+        "Requires a scope: use --cloud, --cluster, or --cloud CLOUD --cluster CLUSTER. There is no unscoped list endpoint."
     end
     optparse.parse!(args)
     verify_args!(args:args, optparse:optparse, count:0)
     connect(options)
 
-    if options[:cloud]
+    if options[:cloud] && options[:cluster]
+      cloud = find_cloud_by_name_or_id(options[:cloud])
+      return 1 if cloud.nil?
+      pool = find_resource_pool_cluster_by_name_or_id(cloud, options[:cluster])
+      return 1 if pool.nil?
+      params.merge!(parse_list_options(options))
+      params['poolId'] = pool['id']
+      @clouds_interface.setopts(options)
+      if options[:dry_run]
+        print_dry_run @clouds_interface.dry.list_affinity_groups(cloud['id'], params)
+        return
+      end
+      json_response = @clouds_interface.list_affinity_groups(cloud['id'], params)
+      render_response(json_response, options, 'affinityGroups') do
+        affinity_groups = json_response['affinityGroups']
+        print_h1 "Affinity Groups: #{cloud['name']} / #{pool['name']}", parse_list_subtitles(options), options
+        if affinity_groups.empty?
+          print cyan, "No affinity groups found.", reset, "\n"
+        else
+          print as_pretty_table(affinity_groups, affinity_group_list_columns, options)
+          print_results_pagination(json_response)
+        end
+        print reset, "\n"
+      end
+    elsif options[:cloud]
       cloud = find_cloud_by_name_or_id(options[:cloud])
       return 1 if cloud.nil?
       params.merge!(parse_list_options(options))
@@ -63,18 +88,33 @@ class Morpheus::Cli::AffinityGroupsCommand
         print reset, "\n"
       end
     elsif options[:cluster]
-      cluster = find_cluster_by_name_or_id(options[:cluster])
-      return 1 if cluster.nil?
+      cluster_scope = find_cluster_list_scope_by_name_or_id(options[:cluster])
+      return 1 if cluster_scope.nil?
       params.merge!(parse_list_options(options))
-      @clusters_interface.setopts(options)
-      if options[:dry_run]
-        print_dry_run @clusters_interface.dry.list_affinity_groups(cluster['id'], params)
-        return
+      if cluster_scope[:type] == :managed_cluster
+        cluster = cluster_scope[:cluster]
+        @clusters_interface.setopts(options)
+        if options[:dry_run]
+          print_dry_run @clusters_interface.dry.list_affinity_groups(cluster['id'], params)
+          return
+        end
+        json_response = @clusters_interface.list_affinity_groups(cluster['id'], params)
+        scope_name = cluster['name']
+      else
+        cloud = cluster_scope[:cloud]
+        pool = cluster_scope[:pool]
+        params['poolId'] = pool['id']
+        @clouds_interface.setopts(options)
+        if options[:dry_run]
+          print_dry_run @clouds_interface.dry.list_affinity_groups(cloud['id'], params)
+          return
+        end
+        json_response = @clouds_interface.list_affinity_groups(cloud['id'], params)
+        scope_name = "#{cloud['name']} / #{pool['name']}"
       end
-      json_response = @clusters_interface.list_affinity_groups(cluster['id'], params)
       render_response(json_response, options, 'affinityGroups') do
         affinity_groups = json_response['affinityGroups']
-        print_h1 "Affinity Groups: #{cluster['name']}", parse_list_subtitles(options), options
+        print_h1 "Affinity Groups: #{scope_name}", parse_list_subtitles(options), options
         if affinity_groups.empty?
           print cyan, "No affinity groups found.", reset, "\n"
         else
