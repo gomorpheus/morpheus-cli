@@ -3,6 +3,7 @@ require 'morpheus/cli/cli_command'
 class Morpheus::Cli::AffinityGroupsCommand
   include Morpheus::Cli::CliCommand
   include Morpheus::Cli::ProvisioningHelper
+  include Morpheus::Cli::WhoamiHelper
   include Morpheus::Cli::InfrastructureHelper
   include Morpheus::Cli::AffinityHelper
 
